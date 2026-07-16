@@ -1,0 +1,49 @@
+baileyBot-v2/
+
+database/
+│
+├── bot.db
+
+src/
+│
+├── app.js
+│
+├── config/
+│      config.js
+│
+├── database/
+│      database.js
+│      schema.js
+│
+├── server/
+│      server.js          ← Express + Socket.IO
+│
+├── routes/
+│      api.js
+│
+├── controllers/
+│      botController.js
+│
+├── services/
+│      whatsapp.js
+│      sender.js
+│      excel.js
+│
+├── sockets/
+│      socket.js
+│
+├── utils/
+│      logger.js
+│      sleep.js
+│
+└── public/
+       │
+       ├── index.html
+       │
+       ├── css/
+       │      style.css
+       │
+       ├── js/
+       │      app.js
+       │
+       └── img/

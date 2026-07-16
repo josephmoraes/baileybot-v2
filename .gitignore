@@ -1,0 +1,25 @@
+# Dependências
+node_modules/
+
+# Banco de dados
+database/*.db
+database/*.sqlite
+database/*.sqlite3
+
+# Sessão do WhatsApp
+auth_info/
+auth/
+
+# Variáveis de ambiente
+.env
+
+# Logs
+logs/
+*.log
+
+# VS Code
+.vscode/
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
