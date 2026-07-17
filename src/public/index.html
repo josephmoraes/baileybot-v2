@@ -7,39 +7,156 @@
 
     <title>BaileyBot V2</title>
 
-    <!-- Bootstrap CSS -->
+    <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" rel="stylesheet">
 
-    <!-- CSS do projeto -->
+    <!-- CSS -->
     <link rel="stylesheet" href="/css/style.css">
 </head>
 
-<body class="bg-dark text-light">
+<body class="bg-dark">
 
-    <div class="container py-5">
+    <!-- Navbar -->
+    <nav class="navbar navbar-dark bg-black border-bottom border-secondary">
+        <div class="container-fluid">
 
-        <h1 class="display-4">
-            <i class="bi bi-whatsapp text-success"></i>
-            BaileyBot V2
-        </h1>
+            <span class="navbar-brand fw-bold">
+                <i class="bi bi-whatsapp text-success"></i>
+                BaileyBot V2
+            </span>
 
-        <hr>
+            <span class="badge bg-danger fs-6" id="statusWhatsapp">
+                Desconectado
+            </span>
 
-        <div class="card bg-secondary text-light">
+        </div>
+    </nav>
 
-            <div class="card-body">
+    <div class="container-fluid">
 
-                <h4>Servidor Online 🚀</h4>
+        <div class="row">
 
-                <p>
-                    Se você está vendo esta página,
-                    nossa infraestrutura está funcionando.
-                </p>
+            <!-- Sidebar -->
+            <aside class="col-md-2 bg-black min-vh-100 border-end border-secondary">
 
-            </div>
+                <div class="list-group list-group-flush mt-3">
+
+                    <a href="#" class="list-group-item list-group-item-action bg-black text-light border-secondary">
+                        <i class="bi bi-speedometer2"></i>
+                        Dashboard
+                    </a>
+
+                    <a href="#" class="list-group-item list-group-item-action bg-black text-light border-secondary">
+                        <i class="bi bi-people"></i>
+                        Clientes
+                    </a>
+
+                    <a href="#" class="list-group-item list-group-item-action bg-black text-light border-secondary">
+                        <i class="bi bi-send"></i>
+                        Campanhas
+                    </a>
+
+                    <a href="#" class="list-group-item list-group-item-action bg-black text-light border-secondary">
+                        <i class="bi bi-chat-dots"></i>
+                        Mensagens
+                    </a>
+
+                    <a href="#" class="list-group-item list-group-item-action bg-black text-light border-secondary">
+                        <i class="bi bi-gear"></i>
+                        Configurações
+                    </a>
+
+                </div>
+
+            </aside>
+
+            <!-- Conteúdo -->
+            <main class="col-md-10 p-4 text-light">
+
+                <h2 class="mb-4">
+                    Dashboard
+                </h2>
+
+                <div class="row g-4">
+
+                    <div class="col-lg-3">
+                        <div class="card bg-secondary text-light">
+                            <div class="card-body">
+                                <h6>Clientes</h6>
+                                <h2 id="totalClientes">0</h2>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-3">
+                        <div class="card bg-secondary text-light">
+                            <div class="card-body">
+                                <h6>Campanhas</h6>
+                                <h2 id="totalCampanhas">0</h2>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-3">
+                        <div class="card bg-secondary text-light">
+                            <div class="card-body">
+                                <h6>Mensagens</h6>
+                                <h2 id="totalMensagens">0</h2>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-3">
+                        <div class="card bg-secondary text-light">
+                            <div class="card-body">
+                                <h6>WhatsApp</h6>
+                                <h2 id="statusTexto">Offline</h2>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="card bg-secondary text-light mt-5">
+
+                    <div class="card-header">
+                        Últimas campanhas
+                    </div>
+
+                    <div class="card-body p-0">
+
+                        <table class="table table-dark table-hover mb-0">
+
+                            <thead>
+
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Status</th>
+                                    <th>Data</th>
+                                </tr>
+
+                            </thead>
+
+                            <tbody>
+
+                                <tr>
+                                    <td colspan="3" class="text-center">
+                                        Nenhuma campanha cadastrada.
+                                    </td>
+                                </tr>
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
+
+            </main>
 
         </div>
 
