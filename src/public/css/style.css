@@ -1,12 +1,11 @@
-/* ===========================
-   BaileyBot V2
-=========================== */
-
-body {
-    min-height: 100vh;
+:root{
+    --primary:#25D366;
 }
 
-.card {
-    border: none;
-    border-radius: 12px;
+body{
+    background:#212529;
+}
+
+.sidebar{
+    min-height:calc(100vh - 56px);
 }
