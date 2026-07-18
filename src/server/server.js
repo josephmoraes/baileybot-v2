@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
+import db from "../database/database.js";
 
 const app = express();
 
@@ -9,8 +10,29 @@ const __dirname = path.dirname(__filename);
 
 app.use(express.static(path.join(__dirname, "../public")));
 
+// Página principal
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "../public/index.html"));
+});
+
+// API do Dashboard
+app.get("/api/dashboard", (req, res) => {
+
+    const totalClientes = db
+        .prepare("SELECT COUNT(*) AS total FROM users")
+        .get().total;
+
+    const totalMensagens = db
+        .prepare("SELECT COUNT(*) AS total FROM messages")
+        .get().total;
+
+    res.json({
+        totalClientes,
+        totalCampanhas: 0,
+        totalMensagens,
+        whatsappConectado: false
+    });
+
 });
 
 export function startServer(port) {
