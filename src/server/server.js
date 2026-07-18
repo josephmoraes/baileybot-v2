@@ -41,12 +41,12 @@ app.get("/api/users", (req, res) => {
 
     const users = db.prepare(`
         SELECT
+            id,
             company_name,
             name,
             jid,
             created_at
         FROM users
-        ORDER BY created_at DESC
     `).all();
 
     res.json(users);
@@ -92,8 +92,76 @@ app.post("/api/users", (req, res) => {
 
         console.error(erro);
 
+
+        if (erro.code === "SQLITE_CONSTRAINT_UNIQUE") {
+
+            return res.status(400).json({
+                error: "Este telefone já está cadastrado."
+            });
+
+        }
+
+
         res.status(500).json({
             error: "Erro ao cadastrar cliente."
+        });
+
+    }
+
+});
+
+// Atualizar cliente
+app.put("/api/users/:id", (req, res) => {
+
+    console.log("EDITANDO ID:", req.params.id);
+    console.log("DADOS:", req.body);
+
+    const id = req.params.id;
+
+    const {
+        company_name,
+        name,
+        jid
+    } = req.body;
+
+
+    if (existente) {
+
+        return res.status(400).json({
+            error: "Telefone já cadastrado."
+        });
+
+    }
+
+
+    try {
+
+        db.prepare(`
+            UPDATE users
+            SET
+                company_name = ?,
+                name = ?,
+                jid = ?
+            WHERE id = ?
+        `).run(
+            company_name,
+            name,
+            jid,
+            id
+        );
+
+
+        res.json({
+            success: true
+        });
+
+
+    } catch (erro) {
+
+        console.error(erro);
+
+        res.status(500).json({
+            error: "Erro ao atualizar cliente."
         });
 
     }

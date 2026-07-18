@@ -3,6 +3,8 @@
 // Dashboard
 // =============================
 
+let clienteEditando = null;
+
 document.addEventListener("DOMContentLoaded", () => {
 
     carregarDashboard();
@@ -91,8 +93,12 @@ async function carregarClientes() {
                     <td>${cliente.jid}</td>
                     <td>${data}</td>
                     <td>
-                        <button class="btn btn-sm btn-primary">
+                        <button
+                            class="btn btn-sm btn-primary"
+                            onclick='editarCliente(${JSON.stringify(cliente)})'>
+
                             <i class="bi bi-pencil"></i>
+
                         </button>
 
                         <button class="btn btn-sm btn-danger">
@@ -106,7 +112,9 @@ async function carregarClientes() {
 
     } catch (erro) {
 
-        console.error("Erro ao carregar clientes:", erro);
+        console.error(erro);
+
+        alert(erro.message);
 
     }
 
@@ -128,9 +136,19 @@ async function salvarCliente() {
 
     try {
 
-        const resposta = await fetch("/api/users", {
+        const url = clienteEditando
+            ? `/api/users/${clienteEditando}`
+            : "/api/users";
 
-            method: "POST",
+
+        const metodo = clienteEditando
+            ? "PUT"
+            : "POST";
+
+
+        const resposta = await fetch(url, {
+
+            method: metodo,
 
             headers: {
                 "Content-Type": "application/json"
@@ -146,7 +164,9 @@ async function salvarCliente() {
 
         if (!resposta.ok) {
 
-            throw new Error("Erro ao salvar cliente.");
+            const erro = await resposta.json();
+
+            throw new Error(erro.error);
 
         }
 
@@ -159,6 +179,7 @@ async function salvarCliente() {
         document.getElementById("company_name").value = "";
         document.getElementById("name").value = "";
         document.getElementById("jid").value = "";
+        clienteEditando = null;
 
         // Atualiza a tabela e os cards
         carregarClientes();
@@ -168,8 +189,29 @@ async function salvarCliente() {
 
         console.error(erro);
 
-        alert("Erro ao cadastrar cliente.");
+        alert(erro.message);
 
     }
+
+}
+
+function editarCliente(cliente) {
+
+    clienteEditando = cliente.id;
+
+    document.getElementById("company_name").value =
+        cliente.company_name ?? "";
+
+    document.getElementById("name").value =
+        cliente.name ?? "";
+
+    document.getElementById("jid").value =
+        cliente.jid ?? "";
+
+    const modal = new bootstrap.Modal(
+        document.getElementById("modalCliente")
+    );
+
+    modal.show();
 
 }
