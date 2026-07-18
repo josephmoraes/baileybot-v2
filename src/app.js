@@ -1,5 +1,8 @@
 import dotenv from "dotenv";
+import "./database/database.js";
+import "./database/schema.js";
 import { startServer } from "./server/server.js";
+
 
 dotenv.config();
 

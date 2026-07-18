@@ -35,6 +35,22 @@ app.get("/api/dashboard", (req, res) => {
 
 });
 
+app.get("/api/users", (req, res) => {
+
+    const users = db.prepare(`
+        SELECT
+            company_name,
+            name,
+            jid,
+            created_at
+        FROM users
+        ORDER BY created_at DESC
+    `).all();
+
+    res.json(users);
+
+});
+
 export function startServer(port) {
 
     const server = app.listen(port, () => {
