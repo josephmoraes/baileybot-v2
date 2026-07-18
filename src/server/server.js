@@ -10,6 +10,8 @@ const __dirname = path.dirname(__filename);
 
 app.use(express.static(path.join(__dirname, "../public")));
 
+app.use(express.json());
+
 // Página principal
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "../public/index.html"));
@@ -48,6 +50,53 @@ app.get("/api/users", (req, res) => {
     `).all();
 
     res.json(users);
+
+});
+
+app.post("/api/users", (req, res) => {
+
+    const {
+        company_name,
+        name,
+        jid
+    } = req.body;
+
+    if (!jid) {
+
+        return res.status(400).json({
+            error: "Telefone é obrigatório."
+        });
+
+    }
+
+    try {
+
+        db.prepare(`
+            INSERT INTO users (
+                company_name,
+                name,
+                jid
+            )
+            VALUES (?, ?, ?)
+        `).run(
+            company_name,
+            name,
+            jid
+        );
+
+        res.json({
+            success: true
+        });
+
+    } catch (erro) {
+
+        console.error(erro);
+
+        res.status(500).json({
+            error: "Erro ao cadastrar cliente."
+        });
+
+    }
 
 });
 

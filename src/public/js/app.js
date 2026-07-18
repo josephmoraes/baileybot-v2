@@ -8,6 +8,10 @@ document.addEventListener("DOMContentLoaded", () => {
     carregarDashboard();
     carregarClientes();
 
+    document
+        .getElementById("btnSalvarCliente")
+        .addEventListener("click", salvarCliente);
+
 });
 
 async function carregarDashboard() {
@@ -103,6 +107,68 @@ async function carregarClientes() {
     } catch (erro) {
 
         console.error("Erro ao carregar clientes:", erro);
+
+    }
+
+}
+
+async function salvarCliente() {
+
+    const company_name = document.getElementById("company_name").value.trim();
+    const name = document.getElementById("name").value.trim();
+    const jid = document.getElementById("jid").value.trim();
+
+    if (!jid) {
+
+        alert("Informe o telefone.");
+
+        return;
+
+    }
+
+    try {
+
+        const resposta = await fetch("/api/users", {
+
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+                company_name,
+                name,
+                jid
+            })
+
+        });
+
+        if (!resposta.ok) {
+
+            throw new Error("Erro ao salvar cliente.");
+
+        }
+
+        // Fecha o modal
+        bootstrap.Modal.getInstance(
+            document.getElementById("modalCliente")
+        ).hide();
+
+        // Limpa os campos
+        document.getElementById("company_name").value = "";
+        document.getElementById("name").value = "";
+        document.getElementById("jid").value = "";
+
+        // Atualiza a tabela e os cards
+        carregarClientes();
+        carregarDashboard();
+
+    } catch (erro) {
+
+        console.error(erro);
+
+        alert("Erro ao cadastrar cliente.");
 
     }
 
