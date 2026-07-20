@@ -3,7 +3,7 @@ import db from "../../database/database.js";
 
 const router = express.Router();
 
-router.get("/api/users", (req, res) => {
+router.get("/", (req, res) => {
 
     const users = db.prepare(`
         SELECT
@@ -18,5 +18,177 @@ router.get("/api/users", (req, res) => {
     res.json(users);
 
 });
+
+router.post("/", (req, res) => {
+
+    const {
+        company_name,
+        name,
+        jid
+    } = req.body;
+
+    if (!jid) {
+
+        return res.status(400).json({
+            error: "Telefone é obrigatório."
+        });
+
+    }
+
+    try {
+
+        db.prepare(`
+            INSERT INTO users (
+                company_name,
+                name,
+                jid
+            )
+            VALUES (?, ?, ?)
+        `).run(
+            company_name,
+            name,
+            jid
+        );
+
+        res.json({
+            success: true
+        });
+
+    } catch (erro) {
+
+        console.error(erro);
+
+
+        if (erro.code === "SQLITE_CONSTRAINT_UNIQUE") {
+
+            return res.status(400).json({
+                error: "Este telefone já está cadastrado."
+            });
+
+        }
+
+
+        res.status(500).json({
+            error: "Erro ao cadastrar cliente."
+        });
+
+    }
+
+});
+
+// Atualizar cliente
+router.put("/:id", (req, res) => {
+
+    const id = req.params.id;
+
+    const {
+        company_name,
+        name,
+        jid
+    } = req.body;
+
+    // Verifica se o cliente existe
+    const cliente = db.prepare(`
+        SELECT id
+        FROM users
+        WHERE id = ?
+    `).get(id);
+
+    if (!cliente) {
+        return res.status(404).json({
+            error: "Cliente não encontrado."
+        });
+    }
+
+    // Verifica telefone duplicado
+    const existente = db.prepare(`
+        SELECT id
+        FROM users
+        WHERE jid = ?
+        AND id != ?
+    `).get(jid, id);
+
+    if (existente) {
+
+        return res.status(400).json({
+            error: "Telefone já cadastrado."
+        });
+
+    }
+
+    try {
+
+        db.prepare(`
+            UPDATE users
+            SET
+                company_name = ?,
+                name = ?,
+                jid = ?
+            WHERE id = ?
+        `).run(
+            company_name,
+            name,
+            jid,
+            id
+        );
+
+        res.json({
+            success: true
+        });
+
+    } catch (erro) {
+
+        console.error(erro);
+
+        res.status(500).json({
+            error: "Erro ao atualizar cliente."
+        });
+
+    }
+
+});
+
+router.delete("/:id", (req, res) => {
+
+    const id = req.params.id;
+
+    // verifica se o cliente existe
+    const cliente = db.prepare(`
+        SELECT id
+        FROM users
+        WHERE id = ?
+    `).get(id);
+
+    if (!cliente) {
+        return res.status(404).json({
+            error: "Cliente não encontrado."
+        });
+    }
+
+    try {
+
+        // exclui
+        db.prepare(`
+            DELETE FROM users
+            WHERE id = ?
+        `).run(id);
+
+        // retorna success
+        res.json({
+            success: true
+        });
+
+    } catch (erro) {
+
+        console.error(erro);
+
+        res.status(500).json({
+            error: "Erro ao excluir cliente."
+        });
+
+    }
+
+});
+
 
 export default router;

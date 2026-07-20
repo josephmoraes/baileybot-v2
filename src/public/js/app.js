@@ -4,11 +4,6 @@
 // =============================
 
 let clienteEditando = null;
-alert(
-    metodo === "POST"
-        ? "Cliente cadastrado com sucesso."
-        : "Cliente atualizado com sucesso."
-);
 
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -204,7 +199,28 @@ async function salvarCliente() {
 
     }
 
+     // Fecha o modal
+    bootstrap.Modal.getInstance(
+        document.getElementById("modalCliente")
+    ).hide();
+
+    // Limpa os campos
+    document.getElementById("company_name").value = "";
+    document.getElementById("name").value = "";
+    document.getElementById("jid").value = "";
+    clienteEditando = null;
+
+    alert(
+        metodo === "POST"
+            ? "Cliente cadastrado com sucesso."
+            : "Cliente atualizado com sucesso."
+    );
+
+    await carregarClientes();
+    await carregarDashboard();
 }
+
+
 
 function editarCliente(cliente) {
 
