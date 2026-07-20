@@ -101,7 +101,9 @@ async function carregarClientes() {
 
                         </button>
 
-                        <button class="btn btn-sm btn-danger">
+                        <button
+                            class="btn btn-sm btn-danger"
+                            onclick="excluirCliente(${cliente.id})">
                             <i class="bi bi-trash"></i>
                         </button>
                     </td>
@@ -213,5 +215,42 @@ function editarCliente(cliente) {
     );
 
     modal.show();
+
+}
+
+async function excluirCliente(id) {
+
+    console.log("Excluir cliente:", id);
+
+    const confirmar = confirm("Deseja realmente excluir este cliente?");
+
+    if (!confirmar) return;
+
+    try {
+
+        const resposta = await fetch(`/api/users/${id}`, {
+            method: "DELETE"
+        });
+
+        console.log("Status:", resposta.status);v
+
+        if (!resposta.ok) {
+
+            const erro = await resposta.json();
+            throw new Error(erro.error);
+
+        }
+
+        await carregarClientes();
+        await carregarDashboard();
+
+        alert("Cliente excluído com sucesso.");
+
+    } catch (erro) {
+
+        console.error(erro);
+        alert(erro.message);
+
+    }
 
 }

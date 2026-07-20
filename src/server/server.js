@@ -181,6 +181,18 @@ app.put("/api/users/:id", (req, res) => {
     }
 
 }); 
+    
+app.delete("/api/users/:id", (req, res) => {
+
+    const id = req.params.id;
+
+    // verifica se o cliente existe
+
+    // exclui
+
+    // retorna success
+
+});
 
 export function startServer(port) {
     const server = app.listen(port, () => {
