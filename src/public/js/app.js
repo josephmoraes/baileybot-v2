@@ -232,7 +232,7 @@ async function excluirCliente(id) {
             method: "DELETE"
         });
 
-        console.log("Status:", resposta.status);v
+        console.log("Status:", resposta.status);
 
         if (!resposta.ok) {
 

@@ -187,10 +187,40 @@ app.delete("/api/users/:id", (req, res) => {
     const id = req.params.id;
 
     // verifica se o cliente existe
+    const cliente = db.prepare(`
+        SELECT id
+        FROM users
+        WHERE id = ?
+    `).get(id);
 
-    // exclui
+    if (!cliente) {
+        return res.status(404).json({
+            error: "Cliente não encontrado."
+        });
+    }
 
-    // retorna success
+    try {
+
+        // exclui
+        db.prepare(`
+            DELETE FROM users
+            WHERE id = ?
+        `).run(id);
+
+        // retorna success
+        res.json({
+            success: true
+        });
+
+    } catch (erro) {
+
+        console.error(erro);
+
+        res.status(500).json({
+            error: "Erro ao excluir cliente."
+        });
+
+    }
 
 });
 
