@@ -4,6 +4,11 @@
 // =============================
 
 let clienteEditando = null;
+alert(
+    metodo === "POST"
+        ? "Cliente cadastrado com sucesso."
+        : "Cliente atualizado com sucesso."
+);
 
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -168,6 +173,10 @@ async function salvarCliente() {
 
             const erro = await resposta.json();
 
+            if (erro.error?.includes("UNIQUE")) {
+                throw new Error("Telefone já cadastrado.");
+            }
+
             throw new Error(erro.error);
 
         }
@@ -222,7 +231,9 @@ async function excluirCliente(id) {
 
     console.log("Excluir cliente:", id);
 
-    const confirmar = confirm("Deseja realmente excluir este cliente?");
+    const confirmar = confirm(
+        "Tem certeza que deseja excluir este cliente?\n\nEssa ação não pode ser desfeita."
+    );
 
     if (!confirmar) return;
 

@@ -1,7 +1,9 @@
 import express from "express";
+import usersRoutes from "./routes/users.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import db from "../database/database.js";
+
 
 const app = express();
 
@@ -11,6 +13,7 @@ const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname, "../public")));
 
 app.use(express.json());
+app.use("/api/users", usersRoutes);
 
 // Página principal
 app.get("/", (req, res) => {
@@ -34,22 +37,6 @@ app.get("/api/dashboard", (req, res) => {
         totalMensagens,
         whatsappConectado: false
     });
-
-});
-
-app.get("/api/users", (req, res) => {
-
-    const users = db.prepare(`
-        SELECT
-            id,
-            company_name,
-            name,
-            jid,
-            created_at
-        FROM users
-    `).all();
-
-    res.json(users);
 
 });
 
