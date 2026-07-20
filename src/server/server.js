@@ -113,9 +113,6 @@ app.post("/api/users", (req, res) => {
 // Atualizar cliente
 app.put("/api/users/:id", (req, res) => {
 
-    console.log("EDITANDO ID:", req.params.id);
-    console.log("DADOS:", req.body);
-
     const id = req.params.id;
 
     const {
@@ -124,6 +121,26 @@ app.put("/api/users/:id", (req, res) => {
         jid
     } = req.body;
 
+    // Verifica se o cliente existe
+    const cliente = db.prepare(`
+        SELECT id
+        FROM users
+        WHERE id = ?
+    `).get(id);
+
+    if (!cliente) {
+        return res.status(404).json({
+            error: "Cliente não encontrado."
+        });
+    }
+
+    // Verifica telefone duplicado
+    const existente = db.prepare(`
+        SELECT id
+        FROM users
+        WHERE jid = ?
+        AND id != ?
+    `).get(jid, id);
 
     if (existente) {
 
@@ -132,7 +149,6 @@ app.put("/api/users/:id", (req, res) => {
         });
 
     }
-
 
     try {
 
@@ -150,11 +166,9 @@ app.put("/api/users/:id", (req, res) => {
             id
         );
 
-
         res.json({
             success: true
         });
-
 
     } catch (erro) {
 
@@ -166,10 +180,9 @@ app.put("/api/users/:id", (req, res) => {
 
     }
 
-});
+}); 
 
 export function startServer(port) {
-
     const server = app.listen(port, () => {
         console.log("=================================");
         console.log(" 🌐 Servidor iniciado");
@@ -178,5 +191,4 @@ export function startServer(port) {
     });
 
     return server;
-
 }
