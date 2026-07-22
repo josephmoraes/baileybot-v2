@@ -25,7 +25,6 @@
         <div class="container-fluid">
 
             <div>
-
                 <span class="navbar-brand fw-bold">
                     <i class="bi bi-whatsapp text-success"></i>
                     BaileyBot V2
@@ -34,7 +33,6 @@
                 <div class="small text-secondary">
                     Sistema de automação para WhatsApp
                 </div>
-
             </div>
 
             <span class="badge bg-danger fs-6" id="statusWhatsapp">
@@ -54,27 +52,37 @@
 
                 <div class="list-group list-group-flush mt-4">
 
-                    <a href="#" class="list-group-item list-group-item-action bg-black text-light border-secondary active">
+                    <a href="#"
+                        class="list-group-item list-group-item-action bg-black text-light border-secondary active"
+                        data-page="dashboard">
                         <i class="bi bi-speedometer2 me-2"></i>
                         Dashboard
                     </a>
 
-                    <a href="#" class="list-group-item list-group-item-action bg-black text-light border-secondary">
+                    <a href="#"
+                        class="list-group-item list-group-item-action bg-black text-light border-secondary"
+                        data-page="clientes">
                         <i class="bi bi-people me-2"></i>
                         Clientes
                     </a>
 
-                    <a href="#" class="list-group-item list-group-item-action bg-black text-light border-secondary">
+                    <a href="#"
+                        class="list-group-item list-group-item-action bg-black text-light border-secondary"
+                        data-page="campanhas">
                         <i class="bi bi-send me-2"></i>
                         Campanhas
                     </a>
 
-                    <a href="#" class="list-group-item list-group-item-action bg-black text-light border-secondary">
+                    <a href="#"
+                        class="list-group-item list-group-item-action bg-black text-light border-secondary"
+                        data-page="mensagens">
                         <i class="bi bi-chat-dots me-2"></i>
                         Mensagens
                     </a>
 
-                    <a href="#" class="list-group-item list-group-item-action bg-black text-light border-secondary">
+                    <a href="#"
+                        class="list-group-item list-group-item-action bg-black text-light border-secondary"
+                        data-page="configuracoes">
                         <i class="bi bi-gear me-2"></i>
                         Configurações
                     </a>
@@ -86,286 +94,27 @@
             <!-- Conteúdo -->
             <main class="col-lg-10 py-4">
 
-                <h1 class="mb-4">Dashboard</h1>
-
-                <!-- Cards -->
-                <div class="row g-4">
-
-                    <div class="col-md-6 col-xl-3">
-
-                        <div class="card bg-secondary text-light border-0 shadow h-100">
-
-                            <div class="card-body">
-
-                                <div class="d-flex justify-content-between align-items-center">
-
-                                    <div>
-
-                                        <h2 id="totalClientes">0</h2>
-
-                                        <p class="text-light-emphasis mb-0">
-                                            Clientes cadastrados
-                                        </p>
-
-                                    </div>
-
-                                    <i class="bi bi-people fs-1 text-primary"></i>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                    <div class="col-md-6 col-xl-3">
-
-                        <div class="card bg-secondary text-light border-0 shadow h-100">
-
-                            <div class="card-body">
-
-                                <div class="d-flex justify-content-between align-items-center">
-
-                                    <div>
-
-                                        <h2 id="totalCampanhas">0</h2>
-
-                                        <p class="text-light-emphasis mb-0">
-                                            Campanhas criadas
-                                        </p>
-
-                                    </div>
-
-                                    <i class="bi bi-send fs-1 text-warning"></i>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                    <div class="col-md-6 col-xl-3">
-
-                        <div class="card bg-secondary text-light border-0 shadow h-100">
-
-                            <div class="card-body">
-
-                                <div class="d-flex justify-content-between align-items-center">
-
-                                    <div>
-
-                                        <h2 id="totalMensagens">0</h2>
-
-                                        <p class="text-light-emphasis mb-0">
-                                            Mensagens enviadas
-                                        </p>
-
-                                    </div>
-
-                                    <i class="bi bi-chat-dots fs-1 text-info"></i>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                    <div class="col-md-6 col-xl-3">
-
-                        <div class="card bg-secondary text-light border-0 shadow h-100">
-
-                            <div class="card-body">
-
-                                <div class="d-flex justify-content-between align-items-center">
-
-                                    <div>
-
-                                        <h2 id="statusTexto">Offline</h2>
-
-                                        <p class="text-light-emphasis mb-0">
-                                            Status da conexão
-                                        </p>
-
-                                    </div>
-
-                                    <i class="bi bi-whatsapp fs-1 text-success"></i>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-                <!-- Tabela -->
-                <div class="card bg-secondary text-light border-0 shadow mt-5">
-
-                    <div class="card-header d-flex justify-content-between align-items-center">
-
-                        <span>Clientes</span>
-
-                        <div class="d-flex gap-2">
-
-                            <button
-                                class="btn btn-success btn-sm"
-                                data-bs-toggle="modal"
-                                data-bs-target="#modalCliente">
-
-                                <i class="bi bi-plus-circle"></i>
-                                Novo Cliente
-
-                            </button>
-
-                            <button class="btn btn-primary btn-sm">
-                                <i class="bi bi-file-earmark-excel"></i>
-                            </button>
-
-                            <button class="btn btn-outline-light btn-sm">
-                                <i class="bi bi-arrow-clockwise"></i>
-                            </button>
-
-                        </div>
-
-                    </div>
-
-                    <div class="table-responsive">
-
-                        <table class="table table-dark table-hover align-middle mb-0">
-
-                            <thead>
-
-                                <tr>
-                                    <th>Nome da Empresa</th>
-                                    <th>Nome</th>
-                                    <th>Telefone</th>
-                                    <th>Data</th>
-                                    <th width="120">Ações</th>
-                                </tr>
-
-                            </thead>
-
-                            <tbody id="tabelaClientes">
-
-                                <tr>
-                                    <td colspan="5" class="text-center text-secondary py-4">
-                                        Nenhum cliente cadastrado.
-                                    </td>
-                                </tr>
-
-                            </tbody>
-                        </table>
-
-                    </div>
-
-                </div>
+                <div id="content"></div>
 
             </main>
 
         </div>
 
-    </div> 
-
-    <!-- Modal Cliente -->
-    <div class="modal fade" id="modalCliente" tabindex="-1">
-
-        <div class="modal-dialog">
-
-            <div class="modal-content bg-dark text-light">
-
-                <div class="modal-header">
-
-                    <h5 class="modal-title">
-                        Novo Cliente
-                    </h5>
-
-                    <button
-                        type="button"
-                        class="btn-close btn-close-white"
-                        data-bs-dismiss="modal">
-                    </button>
-
-                </div>
-
-                <div class="modal-body">
-
-                    <div class="mb-3">
-
-                        <label class="form-label">
-                            Nome da Empresa
-                        </label>
-
-                        <input
-                            type="text"
-                            class="form-control"
-                            id="company_name">
-
-                    </div>
-
-                    <div class="mb-3">
-
-                        <label class="form-label">
-                            Nome
-                        </label>
-
-                        <input
-                            type="text"
-                            class="form-control"
-                            id="name">
-
-                    </div>
-
-                    <div class="mb-3">
-
-                        <label class="form-label">
-                            Telefone
-                        </label>
-
-                        <input
-                            type="text"
-                            class="form-control"
-                            id="jid"
-                            placeholder="5511999999999">
-
-                    </div>
-
-                </div>
-
-                <div class="modal-footer">
-
-                    <button
-                        class="btn btn-secondary"
-                        data-bs-dismiss="modal">
-
-                        Cancelar
-
-                    </button>
-
-                    <button
-                        class="btn btn-success"
-                        id="btnSalvarCliente">
-
-                        Salvar
-
-                    </button>
-
-                </div>
-
-            </div>
-
-        </div>
-
     </div>
 
+    <!-- Bootstrap -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
 
+    <!-- Router -->
+    <script src="/js/router.js"></script>
+
+    <!-- Dashboard -->
+    <script src="/js/dashboard.js"></script>
+
+    <!-- Clientes -->
+    <script src="/js/clientes.js"></script>
+
+    <!-- App -->
     <script src="/js/app.js"></script>
 
 </body>

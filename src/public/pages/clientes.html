@@ -1,0 +1,171 @@
+<h1 class="mb-4">Clientes</h1>
+
+<!-- Tabela -->
+<div class="card bg-secondary text-light border-0 shadow">
+
+    <div class="card-header d-flex justify-content-between align-items-center">
+
+        <span>Clientes</span>
+
+        <div class="d-flex gap-2">
+
+            <button
+                type="button"
+                class="btn btn-success btn-sm"
+                data-bs-toggle="modal"
+                data-bs-target="#modalCliente">
+
+                <i class="bi bi-plus-circle"></i>
+                Novo Cliente
+
+            </button>
+
+            <button
+                type="button"
+                class="btn btn-primary btn-sm">
+
+                <i class="bi bi-file-earmark-excel"></i>
+
+            </button>
+
+            <button
+                type="button"
+                class="btn btn-outline-light btn-sm">
+
+                <i class="bi bi-arrow-clockwise"></i>
+
+            </button>
+
+        </div>
+
+    </div>
+
+    <div class="table-responsive">
+
+        <table class="table table-dark table-hover align-middle mb-0">
+
+            <thead>
+
+                <tr>
+
+                    <th>Nome da Empresa</th>
+                    <th>Nome</th>
+                    <th>Telefone</th>
+                    <th>Data</th>
+                    <th width="120">Ações</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody id="tabelaClientes">
+
+                <tr>
+
+                    <td colspan="5" class="text-center text-secondary py-4">
+                        Nenhum cliente cadastrado.
+                    </td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+<!-- Modal Cliente -->
+<div class="modal fade" id="modalCliente" tabindex="-1">
+
+    <div class="modal-dialog">
+
+        <div class="modal-content bg-dark text-light">
+
+            <div class="modal-header">
+
+                <h5 class="modal-title">
+                    Novo Cliente
+                </h5>
+
+                <button
+                    type="button"
+                    class="btn-close btn-close-white"
+                    data-bs-dismiss="modal">
+                </button>
+
+            </div>
+
+            <div class="modal-body">
+
+                <div class="mb-3">
+
+                    <label class="form-label">
+                        Nome da Empresa
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="company_name">
+
+                </div>
+
+                <div class="mb-3">
+
+                    <label class="form-label">
+                        Nome
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="name">
+
+                </div>
+
+                <div class="mb-3">
+
+                    <label class="form-label">
+                        Telefone
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="jid"
+                        placeholder="5511999999999">
+
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal">
+
+                    Cancelar
+
+                </button>
+
+                <button
+                    type="button"
+                    class="btn btn-success"
+                    id="btnSalvarCliente">
+
+                    Salvar
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
