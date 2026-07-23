@@ -1,6 +1,8 @@
 import express from "express";
 import usersRoutes from "./routes/users.js";
 import whatsappRoutes from "./routes/whatsapp.js";
+import apiRoutes from "./routes/api.js";
+
 import path from "path";
 import { fileURLToPath } from "url";
 import db from "../database/database.js";
@@ -16,6 +18,7 @@ app.use(express.static(path.join(__dirname, "../public")));
 app.use(express.json());
 app.use("/api/users", usersRoutes);
 app.use("/api/whatsapp", whatsappRoutes);
+app.use("/api", apiRoutes);
 
 // Página principal
 app.get("/", (req, res) => {
