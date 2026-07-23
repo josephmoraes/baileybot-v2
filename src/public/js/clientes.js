@@ -1,9 +1,12 @@
+let clientesCache = [];
+
 async function carregarClientes() {
 
     try {
 
         const resposta = await fetch("/api/users");
         const clientes = await resposta.json();
+        clientesCache = clientes;
 
         const tabela = document.getElementById("tabelaClientes");
 
@@ -23,40 +26,65 @@ async function carregarClientes() {
 
         }
 
-        clientes.forEach(cliente => {
+        renderizarClientes(clientes);
 
-            const data = new Date(cliente.created_at).toLocaleDateString("pt-BR");
+        } catch (erro) {
 
-            tabela.innerHTML += `
-                <tr>
-                    <td>${cliente.company_name ?? ""}</td>
-                    <td>${cliente.name ?? ""}</td>
-                    <td>${cliente.jid}</td>
-                    <td>${data}</td>
-                    <td>
-                        <button
-                            class="btn btn-sm btn-primary"
-                            onclick='editarCliente(${JSON.stringify(cliente)})'>
-                            <i class="bi bi-pencil"></i>
-                        </button>
+            console.error(erro);
+            alert(erro.message);
 
-                        <button
-                            class="btn btn-sm btn-danger"
-                            onclick="excluirCliente(${cliente.id})">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
+        }
+        
+        
+}
 
-        });
+function renderizarClientes(clientes) {
 
-    } catch (erro) {
+    const tabela = document.getElementById("tabelaClientes");
 
-        console.error(erro);
-        alert(erro.message);
+    tabela.innerHTML = "";
+
+    if (clientes.length === 0) {
+
+        tabela.innerHTML = `
+            <tr>
+                <td colspan="5" class="text-center text-secondary py-4">
+                    Nenhum cliente encontrado.
+                </td>
+            </tr>
+        `;
+
+        return;
 
     }
+
+    clientes.forEach(cliente => {
+
+        const data = new Date(cliente.created_at).toLocaleDateString("pt-BR");
+
+        tabela.innerHTML += `
+            <tr>
+                <td>${cliente.company_name ?? ""}</td>
+                <td>${cliente.name ?? ""}</td>
+                <td>${cliente.jid}</td>
+                <td>${data}</td>
+                <td>
+                    <button
+                        class="btn btn-sm btn-primary"
+                        onclick='editarCliente(${JSON.stringify(cliente)})'>
+                        <i class="bi bi-pencil"></i>
+                    </button>
+
+                    <button
+                        class="btn btn-sm btn-danger"
+                        onclick="excluirCliente(${cliente.id})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+
+    });
 
 }
 
@@ -212,6 +240,28 @@ function inicializarClientes() {
 
         btnSalvar.removeEventListener("click", salvarCliente);
         btnSalvar.addEventListener("click", salvarCliente);
+
+    }
+
+    const pesquisa = document.getElementById("pesquisaCliente");
+
+    if (pesquisa) {
+
+        pesquisa.addEventListener("input", (e) => {
+
+            const termo = e.target.value.toLowerCase();
+
+            const resultado = clientesCache.filter(cliente =>
+
+                (cliente.company_name ?? "").toLowerCase().includes(termo) ||
+                (cliente.name ?? "").toLowerCase().includes(termo) ||
+                (cliente.jid ?? "").toLowerCase().includes(termo)
+
+            );
+
+            renderizarClientes(resultado);
+
+        });
 
     }
 
