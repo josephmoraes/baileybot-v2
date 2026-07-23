@@ -37,9 +37,7 @@ async function carregarClientes() {
                         <button
                             class="btn btn-sm btn-primary"
                             onclick='editarCliente(${JSON.stringify(cliente)})'>
-
                             <i class="bi bi-pencil"></i>
-
                         </button>
 
                         <button
@@ -56,7 +54,6 @@ async function carregarClientes() {
     } catch (erro) {
 
         console.error(erro);
-
         alert(erro.message);
 
     }
@@ -72,7 +69,6 @@ async function salvarCliente() {
     if (!jid) {
 
         alert("Informe o telefone.");
-
         return;
 
     }
@@ -83,11 +79,9 @@ async function salvarCliente() {
             ? `/api/users/${clienteEditando}`
             : "/api/users";
 
-
         const metodo = clienteEditando
             ? "PUT"
             : "POST";
-
 
         const resposta = await fetch(url, {
 
@@ -126,40 +120,28 @@ async function salvarCliente() {
         document.getElementById("company_name").value = "";
         document.getElementById("name").value = "";
         document.getElementById("jid").value = "";
+
+        // Notificação
+        alert(
+            metodo === "POST"
+                ? "Cliente cadastrado com sucesso."
+                : "Cliente atualizado com sucesso."
+        );
+
+        // Sai do modo edição
         clienteEditando = null;
 
         // Atualiza a tabela e os cards
-        carregarClientes();
-        carregarDashboard();
-        
+        await carregarClientes();
+        await carregarDashboard();
 
     } catch (erro) {
 
         console.error(erro);
-
         alert(erro.message);
 
     }
 
-     // Fecha o modal
-    bootstrap.Modal.getInstance(
-        document.getElementById("modalCliente")
-    ).hide();
-
-    // Limpa os campos
-    document.getElementById("company_name").value = "";
-    document.getElementById("name").value = "";
-    document.getElementById("jid").value = "";
-    clienteEditando = null;
-
-    alert(
-        metodo === "POST"
-            ? "Cliente cadastrado com sucesso."
-            : "Cliente atualizado com sucesso."
-    );
-
-    await carregarClientes();
-    await carregarDashboard();
 }
 
 function editarCliente(cliente) {
