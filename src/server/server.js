@@ -35,7 +35,7 @@ app.get("/api/dashboard", (req, res) => {
         totalClientes,
         totalCampanhas: 0,
         totalMensagens,
-        whatsappConectado: false
+        whatsapp: "Desconectado"
     });
 
 });

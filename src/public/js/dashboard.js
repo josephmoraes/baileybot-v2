@@ -13,25 +13,48 @@ async function carregarDashboard() {
         document.getElementById("totalMensagens").textContent =
             dados.totalMensagens;
 
+        document.getElementById("statusWhatsapp").textContent =
+            dados.whatsapp;
+
         const badge = document.getElementById("statusWhatsapp");
+        badge.classList.remove(
+            "bg-success",
+            "bg-danger",
+            "bg-warning"
+        );
+
+        switch (dados.whatsapp) {
+
+            case "Conectado":
+                badge.classList.add("bg-success");
+                break;
+
+            case "Conectando":
+                badge.classList.add("bg-warning");
+                break;
+
+            default:
+                badge.classList.add("bg-danger");
+
+        }
+
         const texto = document.getElementById("statusTexto");
 
-        if (dados.whatsappConectado) {
+        if (texto) {
 
-            badge.className = "badge bg-success fs-6";
-            badge.textContent = "Conectado";
+            switch (dados.whatsapp) {
 
-            if (texto) {
-                texto.textContent = "Online";
-            }
+                case "Conectado":
+                        texto.textContent = "Online";
+                        break;
 
-        } else {
+                case "Conectando":
+                        texto.textContent = "Conectando...";
+                        break;
 
-            badge.className = "badge bg-danger fs-6";
-            badge.textContent = "Desconectado";
+                default:
+                        texto.textContent = "Offline";
 
-            if (texto) {
-                texto.textContent = "Offline";
             }
 
         }
