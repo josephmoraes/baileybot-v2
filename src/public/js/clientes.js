@@ -131,6 +131,7 @@ async function salvarCliente() {
         // Atualiza a tabela e os cards
         carregarClientes();
         carregarDashboard();
+        
 
     } catch (erro) {
 
