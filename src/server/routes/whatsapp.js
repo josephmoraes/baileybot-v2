@@ -1,4 +1,5 @@
 import express from "express";
+import whatsappService from "../../services/whatsappService.js";
 
 const router = express.Router();
 
@@ -6,7 +7,7 @@ const router = express.Router();
 router.get("/status", (req, res) => {
 
     res.json({
-        status: "Desconectado"
+        status: whatsappService.getStatus()
     });
 
 });

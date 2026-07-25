@@ -33,15 +33,28 @@
                 <div class="small text-secondary">
                     Sistema de automação para WhatsApp
                 </div>
-            </div>
-
-            <span class="badge bg-danger fs-6" id="statusWhatsapp">
-                Desconectado
-            </span>
+            </div>  
 
         </div>
 
     </nav>
+
+    <div class="d-flex align-items-center gap-2">
+
+        <button id="btnConectar" class="btn btn-success btn-sm">
+            <i class="bi bi-play-fill"></i> Iniciar
+        </button>
+
+        <button id="btnDesconectar" class="btn btn-danger btn-sm">
+            <i class="bi bi-stop-fill"></i> Parar
+        </button>
+
+        <span id="statusWhatsapp"
+            class="badge bg-light text-dark border fs-6">
+            Carregando...
+        </span>
+
+    </div>
 
     <div class="container-fluid">
 
@@ -98,6 +111,18 @@
 
             </main>
 
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Status do WhatsApp</h6>
+
+                    <span id="statusWhatsapp" class="badge bg-light text-dark border fs-6">
+                        Carregando...
+                    </span>
+                </div>
+            </div>
         </div>
 
     </div>
