@@ -15,6 +15,7 @@ class WhatsAppService {
         this.qrCode = null;
         this.isConnecting = false;
         this.saveCreds = null;
+        this.manualDisconnect = false;
 
     }
 
@@ -50,73 +51,108 @@ class WhatsAppService {
 
             const { connection, lastDisconnect, qr } = update;
 
-            if (qr) {
+                if (qr) {
 
-                console.log("QR Code recebido.");
+                    console.log("QR Code recebido.");
 
-                this.qrCode = await QRCode.toDataURL(qr);
-
-            }
-
-            if (connection === "open") {
-
-                console.log("WhatsApp conectado.");
-
-                this.status = "connected";
-                this.qrCode = null;
-
-            }
-
-            if (connection === "close") {
-
-                console.log("WhatsApp desconectado.");
-
-                this.sock = null;
-                this.qrCode = null;
-
-                const codigo =
-                    lastDisconnect?.error?.output?.statusCode;
-
-                if (codigo === DisconnectReason.loggedOut) {
-
-                    console.log("Sessão encerrada pelo usuário.");
-
-                    this.status = "disconnected";
-
-                } else {
-
-                    console.log("Tentando reconectar...");
-
-                    this.status = "connecting";
-
-                    setTimeout(() => {
-
-                        this.conectar();
-
-                    }, 3000);
+                    this.qrCode = await QRCode.toDataURL(qr);
 
                 }
 
-            }
+                if (connection === "open") {
 
-        });
+                    console.log("WhatsApp conectado.");
 
-    } catch (erro) {
+                    this.status = "connected";
+                    this.qrCode = null;
 
-        console.error("Erro ao iniciar WhatsApp:", erro);
+                }
 
-        this.status = "disconnected";
-        this.sock = null;
+                if (connection === "close") {
 
-    } finally {
+                    if (this.manualDisconnect) {
 
-        this.isConnecting = false;
+                        console.log("Desconexão manual.");
+
+                        this.manualDisconnect = false;
+                        this.status = "disconnected";
+
+                        return;
+
+                    }
+
+                    console.log("WhatsApp desconectado.");
+
+                    this.sock = null;
+                    this.qrCode = null;
+
+                    const codigo =
+                        lastDisconnect?.error?.output?.statusCode;
+
+                    if (codigo === DisconnectReason.loggedOut) {
+
+                        console.log("Sessão encerrada pelo usuário.");
+
+                        this.status = "disconnected";
+
+                    } else {
+
+                        console.log("Tentando reconectar...");
+
+                        this.status = "connecting";
+
+                        setTimeout(() => {
+
+                            this.conectar();
+
+                        }, 3000);
+
+                    }
+
+                }
+
+            });
+
+        } catch (erro) {
+
+            console.error("Erro ao iniciar WhatsApp:", erro);
+
+            this.status = "disconnected";
+            this.sock = null;
+
+        } finally {
+
+            this.isConnecting = false;
+
+        }
 
     }
 
-}
-
     async desconectar() {
+
+        try {
+
+            this.manualDisconnect = true;
+
+            if (this.sock) {
+
+                await this.sock.logout();
+                this.sock.end();
+
+            }
+
+        } catch (erro) {
+
+            console.error("Erro ao desconectar:", erro);
+
+        } finally {
+
+            this.sock = null;
+            this.status = "disconnected";
+            this.qrCode = null;
+            this.isConnecting = false;
+
+        }
 
     }
 
