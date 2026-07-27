@@ -47,7 +47,7 @@
     <div class="col-md-6 col-xl-3">
         <div class="card bg-secondary text-light border-0 shadow h-100">
 
-            <div class="card-body">
+            <div class="card-body d-flex flex-column">
 
                 <!-- Cabeçalho -->
                 <div class="d-flex justify-content-between align-items-center">
@@ -58,8 +58,9 @@
 
                 </div>
 
+
                 <!-- Status -->
-                <div class="text-center my-4">
+                <div class="d-flex justify-content-center align-items-center flex-grow-1">
 
                     <span id="statusWhatsappCard"
                         class="badge border bg-light text-dark fs-6 px-3 py-2">
@@ -68,19 +69,37 @@
 
                 </div>
 
+
+                <!-- QR Code -->
+                <div id="qrContainer"
+                    class="text-center mb-3 d-none">
+
+                    <img id="qrCode"
+                        class="img-fluid border rounded p-2 bg-white"
+                        style="max-width:180px;"
+                        alt="QR Code WhatsApp">
+
+                </div>
+
+
                 <!-- Botões -->
                 <div class="d-flex justify-content-center gap-2">
 
                     <button id="btnConectar"
                         class="btn btn-success btn-sm">
+
                         <i class="bi bi-play-fill"></i>
                         Iniciar
+
                     </button>
+
 
                     <button id="btnDesconectar"
                         class="btn btn-danger btn-sm">
+
                         <i class="bi bi-stop-fill"></i>
                         Parar
+
                     </button>
 
                 </div>

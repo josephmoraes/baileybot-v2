@@ -23,3 +23,14 @@ logs/
 # Arquivos do sistema
 .DS_Store
 Thumbs.db
+
+# SQLite
+database/*.db
+database/*.db-shm
+database/*.db-wal
+
+# Sessão WhatsApp
+auth_info/
+
+# Node
+node_modules/

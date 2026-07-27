@@ -1,8 +1,18 @@
+//Banco de Dados
 import express from "express";
+
+import { initDatabase } from "../database/initDatabase.js";
+initDatabase();
+import { seedMessages } from "../database/seedMessages.js";
+seedMessages();
+
+//Routes
 import usersRoutes from "./routes/users.js";
 import whatsappRoutes from "./routes/whatsapp.js";
 import apiRoutes from "./routes/api.js";
+import messagesRouter from "./routes/messagesRouter.js";
 
+//
 import path from "path";
 import { fileURLToPath } from "url";
 import db from "../database/database.js";
@@ -19,6 +29,7 @@ app.use(express.json());
 app.use("/api/users", usersRoutes);
 app.use("/api/whatsapp", whatsappRoutes);
 app.use("/api", apiRoutes);
+app.use("/api/messages", messagesRouter);
 
 // Página principal
 app.get("/", (req, res) => {

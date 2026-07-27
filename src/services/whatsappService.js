@@ -70,24 +70,30 @@ class WhatsAppService {
 
                 if (connection === "close") {
 
+                    const codigo =
+                        lastDisconnect?.error?.output?.statusCode;
+
+
                     if (this.manualDisconnect) {
 
-                        console.log("Desconexão manual.");
+                        console.log("Sessão encerrada pelo usuário.");
 
                         this.manualDisconnect = false;
+
+                        this.sock = null;
+                        this.qrCode = null;
                         this.status = "disconnected";
 
                         return;
 
                     }
 
+
                     console.log("WhatsApp desconectado.");
 
                     this.sock = null;
                     this.qrCode = null;
 
-                    const codigo =
-                        lastDisconnect?.error?.output?.statusCode;
 
                     if (codigo === DisconnectReason.loggedOut) {
 
@@ -137,7 +143,6 @@ class WhatsAppService {
             if (this.sock) {
 
                 await this.sock.logout();
-                this.sock.end();
 
             }
 
@@ -153,6 +158,27 @@ class WhatsAppService {
             this.isConnecting = false;
 
         }
+
+    }
+
+    async enviarMensagem(jid, mensagem) {
+
+        if (!this.sock) {
+            throw new Error("WhatsApp não está conectado.");
+        }
+
+        if (!jid || !jid.includes("@s.whatsapp.net")) {
+            throw new Error(
+                "JID inválido. Cliente não possui WhatsApp configurado corretamente."
+            );
+        }
+
+        await this.sock.sendMessage(
+            jid,
+            {
+                text: mensagem
+            }
+        );
 
     }
 
