@@ -1,5 +1,4 @@
 async function carregarDashboard() {
-
     try {
 
         const resposta = await fetch("/api/dashboard");
@@ -11,62 +10,71 @@ async function carregarDashboard() {
         document.getElementById("totalCampanhas").textContent =
             dados.totalCampanhas;
 
+        // document.getElementById("totalMensagens").textContent =
+        //    dados.totalMensagens;
+
     } catch (erro) {
 
         console.error("Erro ao carregar dashboard:", erro);
 
     }
-
 }
 
 async function carregarStatusWhatsapp() {
-
     try {
-
         const response = await fetch("/api/whatsapp/status");
         const data = await response.json();
 
-        const badge = document.getElementById("statusWhatsapp");
+        const badges = [
+            document.getElementById("statusWhatsappNav"),
+            document.getElementById("statusWhatsappCard")
+        ].filter(Boolean);
 
-        badge.className = "badge border bg-light fs-6";
+        for (const badge of badges) {
 
-        switch (data.status) {
+            badge.className = "badge bg-light border fs-6";
 
-            case "connected":
-                badge.classList.add("text-success");
-                badge.textContent = "🟢 Conectado";
-                break;
+            switch (data.status) {
 
-            case "connecting":
-                badge.classList.add("text-warning");
-                badge.textContent = "🟡 Conectando";
-                break;
+                case "connected":
+                    badge.classList.add("text-success");
+                    badge.textContent = "🟢 Conectado";
+                    break;
 
-            default:
-                badge.classList.add("text-danger");
-                badge.textContent = "🔴 Desconectado";
-                break;
+                case "connecting":
+                    badge.classList.add("text-warning");
+                    badge.textContent = "🟡 Conectando...";
+                    break;
+
+                default:
+                    badge.classList.add("text-danger");
+                    badge.textContent = "🔴 Desconectado";
+                    break;  
+
+            }
 
         }
 
-    } catch (erro) {
+    } catch (err) {
 
-        console.error("Erro ao carregar status do WhatsApp:", erro);
+        console.error(err);
 
-        const badge = document.getElementById("statusWhatsapp");
+        const badges = [
+            document.getElementById("statusWhatsappNav"),
+            document.getElementById("statusWhatsappCard")
+        ].filter(Boolean);
 
-        if (badge) {
-
-            badge.className = "badge border bg-light text-danger fs-6";
+        for (const badge of badges) {
+            badge.className = "badge bg-light border text-danger fs-6";
             badge.textContent = "Erro";
-
         }
-
     }
-
 }
 
 carregarDashboard();
 carregarStatusWhatsapp();
 
-setInterval(carregarStatusWhatsapp, 5000);
+setInterval(() => {
+    carregarDashboard();
+    carregarStatusWhatsapp();
+}, 5000);

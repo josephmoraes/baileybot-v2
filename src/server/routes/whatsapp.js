@@ -12,27 +12,62 @@ router.get("/status", (req, res) => {
 
 });
 
-// Solicita conexão
-router.post("/connect", (req, res) => {
-
-    console.log("Conectar WhatsApp");
+// QR Code atual
+router.get("/qrcode", (req, res) => {
 
     res.json({
-        success: true,
-        message: "Solicitação recebida."
+        qr: whatsappService.getQRCode()
     });
 
 });
 
+// Solicita conexão
+router.post("/connect", async (req, res) => {
+
+    try {
+
+        await whatsappService.conectar();
+
+        res.json({
+            success: true,
+            message: "Conectando..."
+        });
+
+    } catch (erro) {
+
+        console.error(erro);
+
+        res.status(500).json({
+            success: false,
+            message: "Erro ao conectar."
+        });
+
+    }
+
+});
+
 // Solicita desconexão
-router.post("/disconnect", (req, res) => {
+router.post("/disconnect", async (req, res) => {
 
-    console.log("Desconectar WhatsApp");
+    try {
 
-    res.json({
-        success: true,
-        message: "Desconectado."
-    });
+        await whatsappService.desconectar();
+
+        res.json({
+            success: true,
+            message: "WhatsApp desconectado."
+        });
+
+    } catch (erro) {
+
+        console.error(erro);
+
+        res.status(500).json({
+            success: false,
+            message: "Erro ao desconectar."
+        });
+
+    }
 
 });
 
