@@ -163,6 +163,9 @@ class WhatsAppService {
 
     async enviarMensagem(jid, mensagem) {
 
+        console.log("JID recebido:", jid);
+        console.log("Tipo:", typeof jid);
+
         if (!this.sock) {
             throw new Error("WhatsApp não está conectado.");
         }
@@ -181,6 +184,7 @@ class WhatsAppService {
         );
 
     }
+
 
     getSocket() {
         return this.sock;

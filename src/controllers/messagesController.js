@@ -33,6 +33,8 @@ class MessagesController {
 
             const cliente = userService.buscarPorId(id);
 
+            console.log(cliente);
+
             if (!cliente) {
 
                 return res.status(404).json({

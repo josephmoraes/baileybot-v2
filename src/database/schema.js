@@ -9,7 +9,6 @@ CREATE TABLE IF NOT EXISTS users (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-
 CREATE TABLE IF NOT EXISTS message_templates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nome TEXT NOT NULL,
@@ -18,19 +17,20 @@ CREATE TABLE IF NOT EXISTS message_templates (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-
 CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    cliente_id INTEGER NOT NULL,
+    cliente_id INTEGER,
+    cliente_nome TEXT NOT NULL,
     template_id INTEGER,
     mensagem TEXT,
     status TEXT DEFAULT 'enviado',
     enviado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (cliente_id) REFERENCES users(id)
+
+    FOREIGN KEY (cliente_id)
+        REFERENCES users(id)
+        ON DELETE SET NULL
 );
-
 `);
-
 
 db.prepare(`
 INSERT OR IGNORE INTO message_templates (
@@ -44,6 +44,5 @@ VALUES (
     'Olá {nome}! Tudo bem? Aqui é o Noberto da Refricom. Estamos à disposição caso precise de algum produto ou orçamento. 😊'
 )
 `).run();
-
 
 console.log("Banco de dados iniciado.");

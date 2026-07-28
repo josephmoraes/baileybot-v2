@@ -32,6 +32,13 @@ const Router = {
 
                     break;
 
+                case "historico":
+
+                    await carregarHistorico();
+                    inicializarHistorico();
+
+                    break;
+
                 case "campanhas":
 
                     break;

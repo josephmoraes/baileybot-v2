@@ -80,19 +80,21 @@ class MessageService {
 
     }
 
-    salvarHistorico(clienteId, templateId, mensagem, status) {
+    salvarHistorico(cliente, templateId, mensagem, status) {
 
         db.prepare(`
             INSERT INTO messages (
                 cliente_id,
+                cliente_nome,
                 template_id,
                 mensagem,
                 status,
                 enviado_em
             )
-            VALUES (?, ?, ?, ?, datetime('now'))
+            VALUES (?, ?, ?, ?, ?, datetime('now'))
         `).run(
-            clienteId,
+            cliente.id,
+            cliente.name,
             templateId,
             mensagem,
             status
@@ -118,7 +120,7 @@ class MessageService {
             );
 
             this.salvarHistorico(
-                cliente.id,
+                cliente,
                 template.id,
                 mensagem,
                 "enviado"
@@ -133,7 +135,7 @@ class MessageService {
         } catch (erro) {
 
             this.salvarHistorico(
-                cliente.id,
+                cliente,
                 template.id,
                 mensagem,
                 "erro"
@@ -150,8 +152,9 @@ class MessageService {
         return db.prepare(`
             SELECT
                 m.id,
-                u.name AS cliente,
+                COALESCE(u.name, m.cliente_nome) AS cliente,
                 t.nome AS template,
+                m.mensagem,
                 m.status,
                 m.enviado_em
             FROM messages m

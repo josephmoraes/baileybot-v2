@@ -151,13 +151,8 @@ async function salvarCliente() {
         // Limpa os campos
         document.getElementById("company_name").value = "";
         document.getElementById("name").value = "";
-       document.getElementById("telefone").value =
-        cliente.jid
-            ? cliente.jid
-                .replace("@s.whatsapp.net", "")
-                .replace(/^55/, "")
-            : "";
-
+        document.getElementById("telefone").value = "";
+        
         // Notificação
         alert(
             metodo === "POST"
@@ -192,7 +187,11 @@ function editarCliente(cliente) {
         cliente.name ?? "";
 
     document.getElementById("telefone").value =
-        cliente.telefone ?? "";
+        cliente.jid
+            ? cliente.jid
+                .replace("@s.whatsapp.net", "")
+                .replace(/^55/, "")
+            : "";
 
     const modal = new bootstrap.Modal(
         document.getElementById("modalCliente")
