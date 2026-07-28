@@ -66,7 +66,13 @@ function renderizarClientes(clientes) {
             <tr>
                 <td>${cliente.company_name ?? ""}</td>
                 <td>${cliente.name ?? ""}</td>
-                <td>${cliente.jid}</td>
+               <td>${
+                    cliente.jid
+                        ? cliente.jid
+                            .replace("@s.whatsapp.net", "")
+                            .replace(/^55/, "")
+                        : ""
+                }</td>
                 <td>${data}</td>
                 <td>
                     <button
@@ -92,13 +98,11 @@ async function salvarCliente() {
 
     const company_name = document.getElementById("company_name").value.trim();
     const name = document.getElementById("name").value.trim();
-    const jid = document.getElementById("jid").value.trim();
+    const telefone = document.getElementById("telefone").value.trim();
 
-    if (!jid) {
-
+    if (!telefone) {
         alert("Informe o telefone.");
         return;
-
     }
 
     try {
@@ -122,7 +126,7 @@ async function salvarCliente() {
             body: JSON.stringify({
                 company_name,
                 name,
-                jid
+                telefone
             })
 
         });
@@ -147,7 +151,12 @@ async function salvarCliente() {
         // Limpa os campos
         document.getElementById("company_name").value = "";
         document.getElementById("name").value = "";
-        document.getElementById("jid").value = "";
+       document.getElementById("telefone").value =
+        cliente.jid
+            ? cliente.jid
+                .replace("@s.whatsapp.net", "")
+                .replace(/^55/, "")
+            : "";
 
         // Notificação
         alert(
@@ -182,8 +191,8 @@ function editarCliente(cliente) {
     document.getElementById("name").value =
         cliente.name ?? "";
 
-    document.getElementById("jid").value =
-        cliente.jid ?? "";
+    document.getElementById("telefone").value =
+        cliente.telefone ?? "";
 
     const modal = new bootstrap.Modal(
         document.getElementById("modalCliente")
@@ -232,6 +241,47 @@ async function excluirCliente(id) {
 
 }
 
+function aplicarMascaraTelefone() {
+
+    const campo = document.getElementById("telefone");
+
+    if (!campo) return;
+
+    campo.addEventListener("input", (e) => {
+
+        let valor = e.target.value.replace(/\D/g, "");
+
+        valor = valor.substring(0, 11);
+
+        if (valor.length > 6) {
+
+            valor = valor.replace(
+                /^(\d{2})(\d{5})(\d{0,4}).*/,
+                "($1) $2-$3"
+            );
+
+        } else if (valor.length > 2) {
+
+            valor = valor.replace(
+                /^(\d{2})(\d+)/,
+                "($1) $2"
+            );
+
+        } else if (valor.length > 0) {
+
+            valor = valor.replace(
+                /^(\d+)/,
+                "($1"
+            );
+
+        }
+
+        e.target.value = valor;
+
+    });
+
+}
+
 function inicializarClientes() {
 
     const btnSalvar = document.getElementById("btnSalvarCliente");
@@ -255,7 +305,12 @@ function inicializarClientes() {
 
                 (cliente.company_name ?? "").toLowerCase().includes(termo) ||
                 (cliente.name ?? "").toLowerCase().includes(termo) ||
-                (cliente.jid ?? "").toLowerCase().includes(termo)
+                (
+                    cliente.jid
+                        ?.replace("@s.whatsapp.net", "")
+                        .replace(/^55/, "")
+                        ?? ""
+                ).includes(termo.replace(/\D/g, ""))
 
             );
 
@@ -264,5 +319,7 @@ function inicializarClientes() {
         });
 
     }
+
+    aplicarMascaraTelefone();
 
 }

@@ -30,7 +30,7 @@ class UserService {
 
     }
 
-    buscarPorId(id) {
+   buscarPorId(id) {
 
         return db.prepare(`
             SELECT
@@ -50,13 +50,14 @@ class UserService {
         const {
             company_name,
             name,
-            jid
+            telefone
         } = dados;
 
-        if (!jid) {
+        if (!telefone) {
             throw new Error("Telefone é obrigatório.");
         }
 
+        const jid = formatarJid(telefone);
         try {
 
             db.prepare(`
@@ -93,8 +94,14 @@ class UserService {
         const {
             company_name,
             name,
-            jid
+            telefone
         } = dados;
+
+        if (!telefone) {
+            throw new Error("Telefone é obrigatório.");
+        }
+
+        const jid = formatarJid(telefone);
 
         const cliente = db.prepare(`
             SELECT id

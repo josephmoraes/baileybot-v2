@@ -145,6 +145,25 @@ class MessageService {
 
     }
 
+    listarHistorico() {
+
+        return db.prepare(`
+            SELECT
+                m.id,
+                u.name AS cliente,
+                t.nome AS template,
+                m.status,
+                m.enviado_em
+            FROM messages m
+            LEFT JOIN users u
+                ON u.id = m.cliente_id
+            LEFT JOIN message_templates t
+                ON t.id = m.template_id
+            ORDER BY m.enviado_em DESC
+        `).all();
+
+    }
+
 }
 
 export default new MessageService();

@@ -8,6 +8,11 @@ router.get(
     messagesController.listarTemplates
 );
 
+router.get(
+    "/history",
+    messagesController.listarHistorico
+);
+
 router.post(
     "/send/:id",
     messagesController.enviarMensagem

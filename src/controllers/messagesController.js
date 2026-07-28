@@ -58,6 +58,27 @@ class MessagesController {
 
     }
 
+    listarHistorico(req, res) {
+
+        try {
+
+            const historico = messageService.listarHistorico();
+
+            res.json(historico);
+
+        } catch (erro) {
+
+            console.error(erro);
+
+            res.status(500).json({
+                code: erro.code,
+                message: erro.message
+            });
+
+        }
+
+    }
+
 }
 
 export default new MessagesController();
