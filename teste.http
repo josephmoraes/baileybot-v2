@@ -1,1 +1,1 @@
-GET http://localhost:3000/api/messages/history
+http://localhost:3000/api/whatsapp/status 404

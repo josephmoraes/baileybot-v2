@@ -1,5 +1,79 @@
 <h1 class="mb-4">Mensagens</h1>
 
-<div class="alert alert-secondary">
-    🚧 Em desenvolvimento...
+<div class="row g-4">
+
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm">
+
+            <div class="card-body text-center">
+
+                <h4>📝 Templates</h4>
+
+                <p class="text-secondary">
+                    Gerencie os modelos de mensagens.
+                </p>
+
+                <!-- Templates -->
+                <button
+                    class="btn btn-primary w-100"
+                    onclick="Router.carregarPagina('templates')">
+
+                    Abrir
+
+                </button>
+
+            </div>
+
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm">
+
+            <div class="card-body text-center">
+
+                <h4>📤 Envio</h4>
+
+                <p class="text-secondary">
+                    Envie mensagens utilizando um template.
+                </p>
+
+                <!-- Envio -->
+                <button
+                    class="btn btn-success w-100"
+                    onclick="Router.carregarPagina('envio')">
+
+                    Abrir
+
+                </button>
+
+            </div>
+
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm">
+
+            <div class="card-body text-center">
+
+                <h4>📜 Histórico</h4>
+
+                <p class="text-secondary">
+                    Consulte todas as mensagens enviadas.
+                </p>
+
+                <button
+                    class="btn btn-secondary w-100"
+                    onclick="Router.carregarPagina('historico')">
+
+                    Abrir
+
+                </button>
+
+            </div>
+
+        </div>
+    </div>
+
 </div>

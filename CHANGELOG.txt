@@ -1,0 +1,23 @@
+====================================================
+CHANGELOG
+====================================================
+
+Sprint 2.6
+
+✓ CRUD Clientes concluído
+
+Sprint 3.1
+
+✓ Templates
+
+Sprint 3.2
+
+✓ Envio individual
+
+Sprint 3.3
+
+✓ Histórico
+
+Sprint 4
+
+Em desenvolvimento...

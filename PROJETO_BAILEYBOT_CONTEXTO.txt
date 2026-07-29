@@ -1,0 +1,229 @@
+====================================================
+BAILEYBOT V2
+CONTEXTO DO PROJETO
+Última atualização: xx/xx/2026
+Versão: Sprint X.X.X
+====================================================
+
+# OBJETIVO
+
+Sistema web para gerenciamento de clientes, campanhas e mensagens
+via WhatsApp utilizando Baileys + SQLite + Express + Bootstrap.
+
+A filosofia do projeto é:
+
+- Código modular
+- ES Modules (import/export)
+- SQLite como banco principal
+- Excel apenas para importação/exportação
+- Interface Bootstrap
+- Backend Express
+- Frontend Vanilla JS
+- Um arquivo por responsabilidade
+
+====================================================
+ESTRUTURA DO PROJETO
+====================================================
+
+src/
+
+controllers/
+routes/
+services/
+database/
+
+public/
+
+    css/
+
+    js/
+
+        app.js
+        router.js
+
+        dashboard/
+            dashboard.js
+
+        clientes/
+            clientes.js
+
+        mensagens/
+            envio.js
+            historico.js
+            template.js
+
+        campanhas/
+
+    pages/
+
+        dashboard/
+            dashboard.html
+
+        clientes/
+            clientes.html
+
+        mensagens/
+            mensagens.html
+            historico.html
+
+        campanhas/
+            campanhas.html
+
+        configuracoes/
+            configuracoes.html
+
+        index.html
+
+====================================================
+MÓDULOS
+====================================================
+
+[✓] WhatsApp
+
+- conectar
+- desconectar
+- status
+
+Situação:
+FINALIZADO
+
+--------------------------------
+
+[✓] Clientes
+
+- listar
+- cadastrar
+- editar
+- excluir
+
+Situação:
+FINALIZADO
+
+--------------------------------
+
+[ ] Mensagens
+
+Template
+    ✓ listar
+    ✓ cadastrar
+    ✓ editar
+    ✓ excluir
+
+Envio
+    ✓ envio individual
+
+Histórico
+    ✓ listagem
+
+Pendências:
+
+- filtros
+- paginação (se necessário)
+
+Situação:
+EM DESENVOLVIMENTO
+
+--------------------------------
+
+[ ] Campanhas
+
+Não iniciado.
+
+--------------------------------
+
+[ ] Configurações
+
+Não iniciado.
+
+====================================================
+BANCO DE DADOS
+====================================================
+
+users
+
+- id
+- company_name
+- name
+- jid
+- created_at
+
+message_templates
+
+- id
+- nome
+- mensagem
+- ativo
+- created_at
+
+messages
+
+- id
+- cliente_id
+- cliente_nome
+- template_id
+- status
+- enviado_em
+
+====================================================
+ROTAS
+====================================================
+
+/api/users
+
+GET
+POST
+PUT
+DELETE
+
+/api/messages
+
+/templates
+/send/:id
+/history
+
+====================================================
+REGRAS IMPORTANTES
+====================================================
+
+Sempre utilizar:
+
+ES Modules
+
+import/export
+
+Nunca usar require()
+
+Nunca criar arquivos gigantes.
+
+Cada módulo possui:
+
+controller
+service
+repository
+router
+frontend
+
+====================================================
+PRÓXIMO PASSO
+====================================================
+
+Finalizar módulo de Mensagens.
+
+Depois iniciar Campanhas.
+
+NÃO começar Assistente IA antes da V1 estar pronta.
+
+====================================================
+OBSERVAÇÕES
+====================================================
+
+O BaileyBot atualmente NÃO possui IA.
+
+Ele apenas:
+
+- envia mensagens
+- gerencia clientes
+- controla templates
+- registra histórico
+
+A IA será desenvolvida apenas após a conclusão da versão 1.

@@ -8,6 +8,21 @@ router.get(
     messagesController.listarTemplates
 );
 
+router.post(
+    "/templates",
+    messagesController.criarTemplate
+);
+
+router.put(
+    "/templates/:id",
+    messagesController.editarTemplate
+);
+
+router.delete(
+    "/templates/:id",
+    messagesController.excluirTemplate
+);
+
 router.get(
     "/history",
     messagesController.listarHistorico

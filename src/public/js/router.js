@@ -1,10 +1,27 @@
+const paginas = {
+    dashboard: "dashboard/dashboard.html",
+    clientes: "clientes/clientes.html",
+    mensagens: "mensagens/mensagens.html",
+    templates: "mensagens/templates.html",
+    historico: "mensagens/historico.html",
+    campanhas: "campanhas/campanhas.html",
+    configuracoes: "configuracoes/configuracoes.html",
+    envio: "mensagens/envio.html",
+};
+
 const Router = {
 
     async carregarPagina(pagina) {
 
         try {
 
-            const resposta = await fetch(`/pages/${pagina}.html`);
+            const arquivo = paginas[pagina];
+
+            if (!arquivo) {
+                throw new Error(`Página "${pagina}" não encontrada.`);
+            }
+
+            const resposta = await fetch(`/pages/${arquivo}`);
 
             if (!resposta.ok) {
                 throw new Error("Página não encontrada.");
@@ -20,34 +37,77 @@ const Router = {
 
                 case "dashboard":
 
-                    await carregarDashboard();
+                    if (typeof carregarDashboard === "function") {
+                        await carregarDashboard();
+                    }
 
                     break;
 
                 case "clientes":
 
-                    await carregarClientes();
+                    if (typeof carregarClientes === "function") {
+                        await carregarClientes();
+                    }
 
-                    inicializarClientes();
+                    if (typeof inicializarClientes === "function") {
+                        inicializarClientes();
+                    }
+
+                    break;
+
+                case "templates":
+
+                if (typeof carregarTemplates === "function") {
+                    await carregarTemplates();
+                }
+
+                if (typeof inicializarTemplates === "function") {
+                    inicializarTemplates();
+                }
+
+                break;
+
+                case "envio":
+
+                    if (typeof carregarEnvio === "function") {
+                        await carregarEnvio();
+                    }
 
                     break;
 
                 case "historico":
 
-                    await carregarHistorico();
-                    inicializarHistorico();
+                    if (typeof carregarHistorico === "function") {
+                        await carregarHistorico();
+                    }
 
-                    break;
-
-                case "campanhas":
+                    if (typeof inicializarHistorico === "function") {
+                        inicializarHistorico();
+                    }
 
                     break;
 
                 case "mensagens":
 
+                    if (typeof inicializarMensagens === "function") {
+                        inicializarMensagens();
+                    }
+
+                    break;
+
+                case "campanhas":
+
+                    if (typeof inicializarCampanhas === "function") {
+                        inicializarCampanhas();
+                    }
+
                     break;
 
                 case "configuracoes":
+
+                    if (typeof inicializarConfiguracoes === "function") {
+                        inicializarConfiguracoes();
+                    }
 
                     break;
 

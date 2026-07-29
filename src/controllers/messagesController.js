@@ -81,6 +81,89 @@ class MessagesController {
 
     }
 
+    criarTemplate(req, res) {
+
+        try {
+
+            const { nome, mensagem, ativo } = req.body;
+
+            const id = messageService.criarTemplate(
+                nome,
+                mensagem,
+                ativo
+            );
+
+            res.status(201).json({
+                message: "Template criado com sucesso.",
+                id
+            });
+
+        } catch (erro) {
+
+            console.error(erro);
+
+            res.status(500).json({
+                error: erro.message
+            });
+
+        }
+
+    }
+
+    editarTemplate(req, res) {
+
+        try {
+
+            const { id } = req.params;
+            const { nome, mensagem, ativo } = req.body;
+
+            messageService.editarTemplate(
+                id,
+                nome,
+                mensagem,
+                ativo
+            );
+
+            res.json({
+                message: "Template atualizado com sucesso."
+            });
+
+        } catch (erro) {
+
+            console.error(erro);
+
+            res.status(500).json({
+                error: erro.message
+            });
+
+        }
+
+    }
+
+    excluirTemplate(req, res) {
+
+        try {
+
+            const { id } = req.params;
+
+            messageService.excluirTemplate(id);
+
+            res.json({
+                message: "Template excluído com sucesso."
+            });
+
+        } catch (erro) {
+
+            console.error(erro);
+
+            res.status(500).json({
+                error: erro.message
+            });
+
+        }
+
+    }
+
 }
 
 export default new MessagesController();

@@ -1,10 +1,12 @@
 import makeWASocket, {
     DisconnectReason,
-    useMultiFileAuthState
+    useMultiFileAuthState,
+    fetchLatestBaileysVersion   // adicionar isso
 } from "@whiskeysockets/baileys";
 
 import pino from "pino";
 import QRCode from "qrcode";
+import fs from "fs";
 
 class WhatsAppService {
 
@@ -21,6 +23,9 @@ class WhatsAppService {
 
     async conectar() {
 
+    console.log("Diretório atual:", process.cwd());
+    console.log("Auth existe?", fs.existsSync("auth_info"));
+
     if (this.isConnecting || this.sock) {
         return;
     }
@@ -33,14 +38,12 @@ class WhatsAppService {
         const { state, saveCreds } =
             await useMultiFileAuthState("auth_info");
 
+        const { version } = await fetchLatestBaileysVersion(); // adicionar
+
         this.sock = makeWASocket({
-
+            version,              // adicionar
             auth: state,
-
-            logger: pino({
-                level: "silent"
-            })
-
+            logger: pino({ level: "silent" })
         });
 
         this.saveCreds = saveCreds;
@@ -90,28 +93,30 @@ class WhatsAppService {
 
 
                     console.log("WhatsApp desconectado.");
+                    console.log("Código:", codigo);
+                    console.log(lastDisconnect);
 
                     this.sock = null;
                     this.qrCode = null;
 
 
-                    if (codigo === DisconnectReason.loggedOut) {
+                    const reconectar =
+                        codigo !== DisconnectReason.loggedOut &&
+                        !this.manualDisconnect;
 
-                        console.log("Sessão encerrada pelo usuário.");
-
-                        this.status = "disconnected";
-
-                    } else {
+                    if (reconectar) {
 
                         console.log("Tentando reconectar...");
 
                         this.status = "connecting";
 
-                        setTimeout(() => {
+                        setTimeout(() => this.conectar(), 3000);
 
-                            this.conectar();
+                    } else {
 
-                        }, 3000);
+                        console.log("Sessão encerrada.");
+
+                        this.status = "disconnected";
 
                     }
 

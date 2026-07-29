@@ -17,6 +17,52 @@ class MessageService {
         return templates;
     }
 
+    criarTemplate(nome, mensagem, ativo = 1) {
+
+        const resultado = db.prepare(`
+            INSERT INTO message_templates (
+                nome,
+                mensagem,
+                ativo
+            )
+            VALUES (?, ?, ?)
+        `).run(
+            nome,
+            mensagem,
+            ativo ? 1 : 0
+        );
+
+        return resultado.lastInsertRowid;
+
+    }
+
+    editarTemplate(id, nome, mensagem, ativo) {
+
+        db.prepare(`
+            UPDATE message_templates
+            SET
+                nome = ?,
+                mensagem = ?,
+                ativo = ?
+            WHERE id = ?
+        `).run(
+            nome,
+            mensagem,
+            ativo ? 1 : 0,
+            id
+        );
+
+    }
+
+    excluirTemplate(id) {
+
+        db.prepare(`
+            DELETE FROM message_templates
+            WHERE id = ?
+        `).run(id);
+
+    }
+
 
     buscarTemplateAleatorio() {
 
