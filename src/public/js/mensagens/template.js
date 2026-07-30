@@ -10,8 +10,6 @@ async function carregarTemplates() {
 
         const templates = await resposta.json();
 
-        const templates = await resposta.json();
-
         templatesCache = templates;
 
         const tabela = document.getElementById("tabelaTemplates");
