@@ -1,5 +1,263 @@
 <h1 class="mb-4">Campanhas</h1>
 
-<div class="alert alert-secondary">
-    🚧 Em desenvolvimento...
+<div id="alertaCampanha" class="alert d-none" role="alert"></div>
+
+<div class="card bg-dark border-secondary shadow">
+
+    <div class="card-header d-flex justify-content-between align-items-center">
+
+        <h5 class="mb-0">
+            Campanhas cadastradas
+        </h5>
+
+        <button
+            type="button"
+            class="btn btn-success"
+            id="btnNovaCampanha">
+
+            <i class="bi bi-plus-circle"></i>
+            Nova campanha
+
+        </button>
+
+    </div>
+
+    <div class="table-responsive">
+
+        <table class="table table-dark table-hover align-middle mb-0">
+
+            <thead>
+
+                <tr>
+                    <th>Nome</th>
+                    <th>Template</th>
+                    <th>Status</th>
+                    <th>Destinatários</th>
+                    <th>Enviados</th>
+                    <th>Data</th>
+                    <th width="150">Ações</th>
+                </tr>
+
+            </thead>
+
+            <tbody id="tabelaCampanhas">
+
+                <tr>
+                    <td
+                        colspan="7"
+                        class="text-center text-secondary py-4">
+
+                        Carregando campanhas...
+
+                    </td>
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
 </div>
+
+<div
+    class="modal fade"
+    id="modalCampanha"
+    tabindex="-1">
+
+    <div class="modal-dialog">
+
+        <div class="modal-content bg-dark text-light">
+
+            <div class="modal-header">
+
+                <h5
+                    class="modal-title"
+                    id="tituloModalCampanha">
+
+                    Nova campanha
+
+                </h5>
+
+                <button
+                    type="button"
+                    class="btn-close btn-close-white"
+                    data-bs-dismiss="modal">
+                </button>
+
+            </div>
+
+            <div class="modal-body">
+
+                <div class="mb-3">
+
+                    <label
+                        for="nomeCampanha"
+                        class="form-label">
+
+                        Nome da campanha
+
+                    </label>
+
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="nomeCampanha"
+                        maxlength="100">
+
+                </div>
+
+                <div class="mb-3">
+
+                    <label
+                        for="templateCampanha"
+                        class="form-label">
+
+                        Template
+
+                    </label>
+
+                    <select
+                        class="form-select"
+                        id="templateCampanha">
+
+                        <option value="">
+                            Carregando templates...
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal">
+
+                    Cancelar
+
+                </button>
+
+                <button
+                    type="button"
+                    class="btn btn-success"
+                    id="btnSalvarCampanha">
+
+                    Salvar
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+    <div
+        class="modal fade"
+        id="modalDestinatarios"
+        tabindex="-1">
+
+        <div class="modal-dialog modal-lg">
+
+            <div class="modal-content bg-dark text-light">
+
+                <div class="modal-header">
+
+                    <div>
+                        <h5 class="modal-title">
+                            Selecionar clientes
+                        </h5>
+
+                        <div
+                            class="small text-secondary"
+                            id="nomeCampanhaDestinatarios">
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="btn-close btn-close-white"
+                        data-bs-dismiss="modal">
+                    </button>
+
+                </div>
+
+                <div class="modal-body">
+
+                    <input
+                        type="text"
+                        class="form-control mb-3"
+                        id="pesquisaDestinatarios"
+                        placeholder="Pesquisar por nome, empresa ou telefone...">
+
+                    <div
+                        class="form-check border-bottom border-secondary pb-3 mb-3">
+
+                        <input
+                            class="form-check-input"
+                            type="checkbox"
+                            id="selecionarTodosDestinatarios">
+
+                        <label
+                            class="form-check-label"
+                            for="selecionarTodosDestinatarios">
+
+                            Selecionar todos
+
+                        </label>
+
+                    </div>
+
+                    <div
+                        id="listaDestinatarios"
+                        style="max-height: 420px; overflow-y: auto;">
+
+                        <div class="text-center text-secondary py-4">
+                            Carregando clientes...
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+
+                    <span
+                        class="me-auto text-secondary"
+                        id="totalDestinatariosSelecionados">
+
+                        0 clientes selecionados
+
+                    </span>
+
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal">
+
+                        Cancelar
+
+                    </button>
+
+                    <button
+                        type="button"
+                        class="btn btn-success"
+                        id="btnSalvarDestinatarios">
+
+                        Salvar seleção
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>

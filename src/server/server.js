@@ -6,6 +6,7 @@ import usersRoutes from "./routes/users.js";
 import whatsappRoutes from "./routes/whatsapp.js";
 import apiRoutes from "./routes/api.js";
 import messagesRouter from "./routes/messagesRouter.js";
+import campaignsRoutes from "./routes/campaigns.js";
 
 //
 import path from "path";
@@ -26,6 +27,7 @@ app.use("/api/users", usersRoutes);
 app.use("/api/whatsapp", whatsappRoutes);
 app.use("/api", apiRoutes);
 app.use("/api/messages", messagesRouter);
+app.use("/api/campaigns", campaignsRoutes);
 
 // Página principal
 app.get("/", (req, res) => {
@@ -43,9 +45,13 @@ app.get("/api/dashboard", (req, res) => {
         .prepare("SELECT COUNT(*) AS total FROM messages")
         .get().total;
 
+    const totalCampanhas = db
+        .prepare("SELECT COUNT(*) AS total FROM campaigns")
+        .get().total;
+        
     res.json({
         totalClientes,
-        totalCampanhas: 0,
+        totalCampanhas,
         totalMensagens,
         whatsapp: whatsappService.getStatus()
     });
