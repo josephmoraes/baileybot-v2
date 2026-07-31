@@ -130,6 +130,7 @@ class WhatsAppService {
 
             this.status = "disconnected";
             this.sock = null;
+            throw erro;
 
         } finally {
 

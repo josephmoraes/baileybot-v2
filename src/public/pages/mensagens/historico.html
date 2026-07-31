@@ -2,17 +2,58 @@
 
 <div class="card bg-dark border-secondary shadow">
 
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
 
         <h5 class="mb-0">
             Histórico
         </h5>
 
-        <input
-            type="text"
-            id="pesquisaHistorico"
-            class="form-control w-25"
-            placeholder="Pesquisar cliente...">
+        <div class="d-flex flex-wrap gap-2">
+
+            <input
+                type="text"
+                id="pesquisaHistorico"
+                class="form-control"
+                style="max-width: 220px;"
+                placeholder="Pesquisar cliente...">
+
+            <select
+                id="filtroStatus"
+                class="form-select"
+                style="max-width: 170px;">
+
+                <option value="">Todos os status</option>
+                <option value="enviado">Enviado</option>
+                <option value="erro">Erro</option>
+                <option value="recebido">Recebido</option>
+                <option value="respondido">Respondido</option>
+
+            </select>
+
+            <input
+                type="date"
+                id="filtroDataInicio"
+                class="form-control"
+                style="max-width: 160px;"
+                title="Data início">
+
+            <input
+                type="date"
+                id="filtroDataFim"
+                class="form-control"
+                style="max-width: 160px;"
+                title="Data fim">
+
+            <button
+                id="btnLimparFiltros"
+                class="btn btn-outline-secondary"
+                type="button">
+
+                Limpar
+
+            </button>
+
+        </div>
 
     </div>
 

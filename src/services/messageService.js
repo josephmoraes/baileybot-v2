@@ -10,7 +10,6 @@ class MessageService {
         const templates = db.prepare(`
             SELECT *
             FROM message_templates
-            WHERE ativo = 1
             ORDER BY id
         `).all();
 
@@ -38,7 +37,7 @@ class MessageService {
 
     editarTemplate(id, nome, mensagem, ativo) {
 
-        db.prepare(`
+        const resultado = db.prepare(`
             UPDATE message_templates
             SET
                 nome = ?,
@@ -52,21 +51,25 @@ class MessageService {
             id
         );
 
+        return resultado.changes > 0;
+
     }
 
     excluirTemplate(id) {
 
-        db.prepare(`
+        const resultado = db.prepare(`
             DELETE FROM message_templates
             WHERE id = ?
         `).run(id);
+
+        return resultado.changes > 0;
 
     }
 
 
     buscarTemplateAleatorio() {
 
-        const templates = this.listarTemplates();
+        const templates = this.listarTemplates().filter(template => template.ativo);
 
         if (templates.length === 0) {
             return null;
@@ -148,12 +151,16 @@ class MessageService {
 
     }
 
-    async enviarMensagem(cliente) {
+    async enviarMensagem(cliente, templateId) {
 
-        const template = this.buscarTemplateAleatorio();
+        const template = db.prepare(`
+            SELECT *
+            FROM message_templates
+            WHERE id = ? AND ativo = 1
+        `).get(templateId);
 
         if (!template) {
-            throw new Error("Nenhum template encontrado.");
+            throw new Error("Template ativo não encontrado.");
         }
 
         const mensagem = this.gerarMensagem(template, cliente);
@@ -193,11 +200,46 @@ class MessageService {
 
     }
 
-    listarHistorico() {
+    listarHistorico(filtros = {}) {
+
+        const {
+            clienteId,
+            status,
+            dataInicio,
+            dataFim
+        } = filtros;
+
+        const condicoes = [];
+        const parametros = [];
+
+        if (clienteId) {
+            condicoes.push("m.cliente_id = ?");
+            parametros.push(clienteId);
+        }
+
+        if (status) {
+            condicoes.push("m.status = ?");
+            parametros.push(status);
+        }
+
+        if (dataInicio) {
+            condicoes.push("date(m.enviado_em) >= date(?)");
+            parametros.push(dataInicio);
+        }
+
+        if (dataFim) {
+            condicoes.push("date(m.enviado_em) <= date(?)");
+            parametros.push(dataFim);
+        }
+
+        const whereClause = condicoes.length
+            ? `WHERE ${condicoes.join(" AND ")}`
+            : "";
 
         return db.prepare(`
             SELECT
                 m.id,
+                m.cliente_id,
                 COALESCE(u.name, m.cliente_nome) AS cliente,
                 t.nome AS template,
                 m.mensagem,
@@ -208,8 +250,9 @@ class MessageService {
                 ON u.id = m.cliente_id
             LEFT JOIN message_templates t
                 ON t.id = m.template_id
+            ${whereClause}
             ORDER BY m.enviado_em DESC
-        `).all();
+        `).all(...parametros);
 
     }
 

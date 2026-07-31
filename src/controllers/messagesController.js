@@ -30,10 +30,9 @@ class MessagesController {
         try {
 
             const { id } = req.params;
+            const { templateId } = req.body;
 
             const cliente = userService.buscarPorId(id);
-
-            console.log(cliente);
 
             if (!cliente) {
 
@@ -43,8 +42,14 @@ class MessagesController {
 
             }
 
+            if (!templateId) {
+                return res.status(400).json({
+                    error: "Selecione um template."
+                });
+            }
+
             const resultado =
-                await messageService.enviarMensagem(cliente);
+                await messageService.enviarMensagem(cliente, templateId);
 
             res.json(resultado);
 
@@ -64,9 +69,18 @@ class MessagesController {
 
         try {
 
-            const historico = messageService.listarHistorico();
+            const { clienteId, status, dataInicio, dataFim, pagina, porPagina } = req.query;
 
-            res.json(historico);
+            const resultado = messageService.listarHistorico({
+                clienteId,
+                status,
+                dataInicio,
+                dataFim,
+                pagina,
+                porPagina
+            });
+
+            res.json(resultado);
 
         } catch (erro) {
 
@@ -86,6 +100,12 @@ class MessagesController {
         try {
 
             const { nome, mensagem, ativo } = req.body;
+
+            if (!nome?.trim() || !mensagem?.trim()) {
+                return res.status(400).json({
+                    error: "Nome e mensagem são obrigatórios."
+                });
+            }
 
             const id = messageService.criarTemplate(
                 nome,
@@ -117,12 +137,24 @@ class MessagesController {
             const { id } = req.params;
             const { nome, mensagem, ativo } = req.body;
 
-            messageService.editarTemplate(
+            if (!nome?.trim() || !mensagem?.trim()) {
+                return res.status(400).json({
+                    error: "Nome e mensagem são obrigatórios."
+                });
+            }
+
+            const atualizado = messageService.editarTemplate(
                 id,
                 nome,
                 mensagem,
                 ativo
             );
+
+            if (!atualizado) {
+                return res.status(404).json({
+                    error: "Template não encontrado."
+                });
+            }
 
             res.json({
                 message: "Template atualizado com sucesso."
@@ -146,7 +178,13 @@ class MessagesController {
 
             const { id } = req.params;
 
-            messageService.excluirTemplate(id);
+            const excluido = messageService.excluirTemplate(id);
+
+            if (!excluido) {
+                return res.status(404).json({
+                    error: "Template não encontrado."
+                });
+            }
 
             res.json({
                 message: "Template excluído com sucesso."

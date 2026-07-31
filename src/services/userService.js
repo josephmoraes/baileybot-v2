@@ -165,16 +165,6 @@ class UserService {
             success: true
         };
 
-        db.prepare(`
-        DELETE FROM messages
-        WHERE cliente_id = ?
-        `).run(id);
-
-        db.prepare(`
-            DELETE FROM users
-            WHERE id = ?
-        `).run(id);
-
     }
     
 

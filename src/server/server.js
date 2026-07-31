@@ -1,11 +1,6 @@
 //Banco de Dados
 import express from "express";
 
-import { initDatabase } from "../database/initDatabase.js";
-initDatabase();
-import { seedMessages } from "../database/seedMessages.js";
-seedMessages();
-
 //Routes
 import usersRoutes from "./routes/users.js";
 import whatsappRoutes from "./routes/whatsapp.js";
@@ -16,6 +11,7 @@ import messagesRouter from "./routes/messagesRouter.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import db from "../database/database.js";
+import whatsappService from "../services/whatsappService.js";
 
 
 const app = express();
@@ -51,7 +47,7 @@ app.get("/api/dashboard", (req, res) => {
         totalClientes,
         totalCampanhas: 0,
         totalMensagens,
-        whatsapp: "Desconectado"
+        whatsapp: whatsappService.getStatus()
     });
 
 });

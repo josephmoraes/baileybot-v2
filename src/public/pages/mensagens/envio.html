@@ -1,55 +1,30 @@
-<h1 class="mb-4">Envio de Mensagens</h1>
+<h1 class="mb-4">Envio individual</h1>
 
-<div class="card shadow-sm">
-
+<div class="card bg-dark border-secondary shadow">
     <div class="card-body">
+        <div id="alertaEnvio" class="alert d-none" role="alert"></div>
 
         <div class="mb-3">
-
-            <label class="form-label">
-
-                Template
-
-            </label>
-
-            <select
-                class="form-select"
-                id="templateSelect">
-
-                <option>
-
-                    Carregando...
-
-                </option>
-
+            <label for="clienteSelect" class="form-label">Cliente</label>
+            <select class="form-select" id="clienteSelect">
+                <option value="">Carregando clientes...</option>
             </select>
-
         </div>
 
         <div class="mb-3">
-
-            <label class="form-label">
-
-                Pré-visualização da Mensagem
-
-            </label>
-
-            <textarea
-                class="form-control"
-                rows="8"
-                id="previewMensagem"
-                readonly></textarea>
-
+            <label for="templateSelect" class="form-label">Template</label>
+            <select class="form-select" id="templateSelect">
+                <option value="">Carregando templates...</option>
+            </select>
         </div>
 
-        <button
-            class="btn btn-success"
-            id="btnEnviar">
+        <div class="mb-3">
+            <label for="previewMensagem" class="form-label">Pré-visualização</label>
+            <textarea class="form-control" rows="8" id="previewMensagem" readonly></textarea>
+        </div>
 
-            Iniciar Envio
-
+        <button class="btn btn-success" id="btnEnviar" type="button" disabled>
+            Enviar mensagem
         </button>
-
     </div>
-
 </div>
