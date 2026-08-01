@@ -163,13 +163,19 @@ async function desconectarWhatsapp() {
 }
 
 // Eventos dos botões
-document
-    .getElementById("btnConectar")
-    ?.addEventListener("click", conectarWhatsapp);
+document.addEventListener("click", event => {
+    const botao = event.target.closest("[data-whatsapp-action]");
 
-document
-    .getElementById("btnDesconectar")
-    ?.addEventListener("click", desconectarWhatsapp);
+    if (!botao) return;
+
+    if (botao.dataset.whatsappAction === "connect") {
+        conectarWhatsapp();
+    }
+
+    if (botao.dataset.whatsappAction === "disconnect") {
+        desconectarWhatsapp();
+    }
+});
 
 // Atualizações periódicas
 carregarStatusWhatsapp();

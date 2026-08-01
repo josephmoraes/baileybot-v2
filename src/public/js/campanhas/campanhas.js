@@ -146,6 +146,28 @@ function renderizarCampanhas(campanhas) {
     });
 }
 
+function atualizarResumoCampanhas() {
+    const total = document.getElementById("totalCampanhasLista");
+    const rascunhos = document.getElementById("totalCampanhasRascunho");
+
+    if (total) total.textContent = campanhasCache.length;
+    if (rascunhos) {
+        rascunhos.textContent = campanhasCache.filter(
+            campanha => campanha.status === "rascunho"
+        ).length;
+    }
+}
+
+function filtrarCampanhas() {
+    const termo = document.getElementById("pesquisaCampanha")
+        ?.value.toLowerCase().trim() || "";
+
+    renderizarCampanhas(campanhasCache.filter(campanha =>
+        campanha.nome.toLowerCase().includes(termo) ||
+        (campanha.template_nome || "").toLowerCase().includes(termo)
+    ));
+}
+
 async function carregarCampanhas() {
     try {
         const resposta = await fetch("/api/campaigns");
@@ -160,7 +182,8 @@ async function carregarCampanhas() {
 
         campanhasCache = dados;
 
-        renderizarCampanhas(campanhasCache);
+        atualizarResumoCampanhas();
+        filtrarCampanhas();
     } catch (erro) {
         console.error(erro);
 
@@ -741,6 +764,10 @@ async function inicializarCampanhas() {
             salvarDestinatarios
         );
         
+    document
+        .getElementById("pesquisaCampanha")
+        ?.addEventListener("input", filtrarCampanhas);
+
     await carregarTemplatesCampanha();
     await carregarCampanhas();
 }

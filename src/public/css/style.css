@@ -4,10 +4,70 @@
 
 body{
     background:#212529;
+    min-height: 100vh;
+    overflow-x: hidden;
 }
 
 .sidebar{
-    min-height:calc(100vh - 56px);
+    min-height:calc(100vh - 65px);
+}
+
+.sidebar .list-group-item {
+    border-left: 3px solid transparent !important;
+    padding-top: .8rem;
+    padding-bottom: .8rem;
+}
+
+.sidebar .list-group-item:hover {
+    background: #151515 !important;
+}
+
+.sidebar .list-group-item.active {
+    background: rgba(25, 135, 84, .18) !important;
+    border-left-color: var(--primary) !important;
+    color: #fff !important;
+}
+
+.sidebar-submenu .list-group-item {
+    padding-top: .55rem;
+    padding-bottom: .55rem;
+    font-size: .9rem;
+    color: #adb5bd !important;
+}
+
+.app-content {
+    max-width: 1600px;
+}
+
+.page-heading {
+    margin-bottom: 1.5rem;
+}
+
+.page-heading h1 {
+    margin-bottom: .25rem;
+}
+
+.empty-state {
+    padding: 3rem 1rem !important;
+}
+
+.table > :not(caption) > * > * {
+    padding: .85rem .75rem;
+}
+
+@media (min-width: 992px) {
+    .sidebar {
+        position: sticky;
+        top: 65px;
+        height: calc(100vh - 65px);
+        overflow-y: auto;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .sidebar {
+        min-height: auto;
+    }
 }
 
 .commission-submenu .list-group-item {

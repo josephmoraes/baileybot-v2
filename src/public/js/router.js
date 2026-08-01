@@ -166,6 +166,13 @@ const Router = {
 
                     this.carregarPagina(link.dataset.page);
 
+                    if (window.innerWidth < 992) {
+                        bootstrap.Collapse.getOrCreateInstance(
+                            document.getElementById("sidebarMenu"),
+                            { toggle: false }
+                        ).hide();
+                    }
+
                 });
 
             });
