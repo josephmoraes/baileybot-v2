@@ -7,6 +7,10 @@ const paginas = {
     campanhas: "campanhas/campanhas.html",
     configuracoes: "configuracoes/configuracoes.html",
     envio: "mensagens/envio.html",
+    "comissoes-dashboard": "comissoes/dashboard.html",
+    "comissoes-historico": "comissoes/historico.html",
+    "comissoes-tecnicos": "comissoes/tecnicos.html",
+    "comissoes-solicitacao": "comissoes/solicitacao.html",
 };
 
 const Router = {
@@ -140,6 +144,13 @@ const Router = {
                 }
 
             });
+
+        if (pagina.startsWith("comissoes-")) {
+            bootstrap.Collapse.getOrCreateInstance(
+                document.getElementById("submenuComissoes"),
+                { toggle: false }
+            ).show();
+        }
 
     },
 

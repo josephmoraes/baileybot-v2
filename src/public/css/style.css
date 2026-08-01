@@ -9,3 +9,34 @@ body{
 .sidebar{
     min-height:calc(100vh - 56px);
 }
+
+.commission-submenu .list-group-item {
+    font-size: .9rem;
+    color: #adb5bd !important;
+}
+
+.commission-submenu .list-group-item:hover,
+.commission-submenu .list-group-item.active {
+    color: #fff !important;
+}
+
+.commission-dropzone {
+    border: 2px dashed #6c757d;
+    border-radius: .75rem;
+    background: rgba(255, 255, 255, .025);
+}
+
+.commission-document {
+    background: #fff;
+    color: #212529;
+    border-radius: .5rem;
+}
+
+.commission-stat-icon {
+    width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(37, 211, 102, .12);
+}

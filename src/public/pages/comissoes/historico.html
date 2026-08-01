@@ -1,0 +1,32 @@
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div><h1 class="mb-1">Histórico de comissões</h1><p class="text-secondary mb-0">Importe as vendas do OG1 e acompanhe os registros processados</p></div>
+    <span class="badge bg-warning text-dark">Protótipo</span>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-5">
+        <div class="card bg-dark border-secondary shadow h-100"><div class="card-header"><h5 class="mb-0">Importar arquivo do OG1</h5></div><div class="card-body">
+            <div class="commission-dropzone text-center p-4 mb-3"><i class="bi bi-file-earmark-spreadsheet fs-1 text-success"></i><h6 class="mt-2">Selecione o arquivo CSV</h6><p class="small text-secondary">Formato aceito: .csv · máximo 10 MB</p><button class="btn btn-outline-light" type="button"><i class="bi bi-folder2-open me-2"></i>Selecionar arquivo</button></div>
+            <button class="btn btn-success w-100" type="button"><i class="bi bi-cloud-arrow-up me-2"></i>Importar comissões</button>
+            <div class="small text-secondary mt-3"><i class="bi bi-info-circle me-1"></i>Última importação: 31/07/2026 às 16:42</div>
+        </div></div>
+    </div>
+    <div class="col-lg-7"><div class="row g-3 h-100">
+        <div class="col-sm-6"><div class="card bg-secondary text-light border-0 h-100"><div class="card-body"><div class="small text-light-emphasis">Vendas processadas</div><h3 class="mt-2">328</h3></div></div></div>
+        <div class="col-sm-6"><div class="card bg-secondary text-light border-0 h-100"><div class="card-body"><div class="small text-light-emphasis">Total em vendas</div><h3 class="mt-2">R$ 76.840,00</h3></div></div></div>
+        <div class="col-sm-6"><div class="card bg-secondary text-light border-0 h-100"><div class="card-body"><div class="small text-light-emphasis">Comissão gerada</div><h3 class="mt-2 text-success">R$ 2.305,20</h3></div></div></div>
+        <div class="col-sm-6"><div class="card bg-secondary text-light border-0 h-100"><div class="card-body"><div class="small text-light-emphasis">Registros com erro</div><h3 class="mt-2 text-warning">3</h3></div></div></div>
+    </div></div>
+</div>
+
+<div class="card bg-dark border-secondary shadow mb-4"><div class="card-header"><h5 class="mb-0">Últimas importações</h5></div><div class="table-responsive"><table class="table table-dark table-hover align-middle mb-0"><thead><tr><th>Data</th><th>Arquivo</th><th>Vendas</th><th>Total</th><th>Comissão</th><th>Status</th></tr></thead><tbody>
+    <tr><td>31/07/2026 16:42</td><td>vendas_julho_og1.csv</td><td>328</td><td>R$ 76.840,00</td><td>R$ 2.305,20</td><td><span class="badge bg-success">Concluída</span></td></tr>
+    <tr><td>30/06/2026 17:10</td><td>vendas_junho_og1.csv</td><td>301</td><td>R$ 69.210,00</td><td>R$ 2.076,30</td><td><span class="badge bg-success">Concluída</span></td></tr>
+    <tr><td>31/05/2026 15:55</td><td>vendas_maio_og1.csv</td><td>294</td><td>R$ 65.480,00</td><td>R$ 1.964,40</td><td><span class="badge bg-warning text-dark">3 alertas</span></td></tr>
+</tbody></table></div></div>
+
+<div class="card bg-dark border-secondary shadow"><div class="card-header d-flex justify-content-between"><h5 class="mb-0">Comissões geradas</h5><button class="btn btn-outline-light btn-sm"><i class="bi bi-funnel me-1"></i>Filtros</button></div><div class="table-responsive"><table class="table table-dark table-hover align-middle mb-0"><thead><tr><th>Movimento</th><th>Técnico</th><th>Data da venda</th><th>Valor da venda</th><th>Comissão</th><th>Liberação</th><th>Status</th></tr></thead><tbody>
+    <tr><td>#45873</td><td>Marcos Silva</td><td>31/07/2026</td><td>R$ 1.200,00</td><td>R$ 36,00</td><td>07/08/2026</td><td><span class="badge bg-warning text-dark">Pendente</span></td></tr>
+    <tr><td>#45872</td><td>José Carlos</td><td>30/07/2026</td><td>R$ 850,00</td><td>R$ 25,50</td><td>06/08/2026</td><td><span class="badge bg-warning text-dark">Pendente</span></td></tr>
+    <tr><td>#45791</td><td>Juliana Costa</td><td>22/07/2026</td><td>R$ 2.480,00</td><td>R$ 74,40</td><td>29/07/2026</td><td><span class="badge bg-success">Liberada</span></td></tr>
+</tbody></table></div></div>

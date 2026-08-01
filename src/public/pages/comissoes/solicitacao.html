@@ -1,0 +1,31 @@
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div><h1 class="mb-1">Solicitação de crédito</h1><p class="text-secondary mb-0">Prepare a solicitação para conferência do financeiro</p></div>
+    <span class="badge bg-warning text-dark">Documento demonstrativo</span>
+</div>
+
+<div class="row g-4">
+    <div class="col-xl-7"><div class="card bg-dark border-secondary shadow"><div class="card-header"><h5 class="mb-0">Dados da solicitação</h5></div><div class="card-body"><div class="row g-3">
+        <div class="col-md-8"><label class="form-label">Técnico</label><select class="form-select"><option>José Carlos — TEC-0007</option><option>Marcos Silva — TEC-0018</option><option>Juliana Costa — TEC-0012</option></select></div>
+        <div class="col-md-4"><label class="form-label">Saldo disponível</label><input class="form-control" value="R$ 720,50" readonly></div>
+        <div class="col-md-6"><label class="form-label">Valor solicitado</label><div class="input-group"><span class="input-group-text">R$</span><input class="form-control" value="500,00"></div></div>
+        <div class="col-md-6"><label class="form-label">Data da solicitação</label><input type="date" class="form-control" value="2026-08-01"></div>
+        <div class="col-12"><label class="form-label">Créditos utilizados</label><div class="border border-secondary rounded p-3">
+            <div class="form-check mb-2"><input class="form-check-input" type="checkbox" checked id="credito1"><label class="form-check-label w-100" for="credito1">Movimento #45791 <span class="float-end">R$ 320,00</span></label></div>
+            <div class="form-check mb-2"><input class="form-check-input" type="checkbox" checked id="credito2"><label class="form-check-label w-100" for="credito2">Movimento #45682 <span class="float-end">R$ 180,00</span></label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" id="credito3"><label class="form-check-label w-100" for="credito3">Movimento #45570 <span class="float-end">R$ 120,50</span></label></div>
+        </div></div>
+        <div class="col-md-6"><label class="form-label">Responsável pela solicitação</label><input class="form-control" value="Kalleb Oliveira"></div>
+        <div class="col-md-6"><label class="form-label">Setor de destino</label><select class="form-select"><option>Financeiro</option><option>Compras</option></select></div>
+        <div class="col-12"><label class="form-label">Materiais relacionados</label><textarea class="form-control" rows="3" placeholder="Descreva os materiais que serão separados...">01 Compressor 1/4 HP; 02 filtros secadores; 01 kit de instalação.</textarea></div>
+        <div class="col-12"><label class="form-label">Observações</label><textarea class="form-control" rows="2" placeholder="Informações adicionais para o financeiro"></textarea></div>
+    </div></div><div class="card-footer d-flex justify-content-end gap-2"><button class="btn btn-outline-light"><i class="bi bi-floppy me-2"></i>Salvar rascunho</button><button class="btn btn-success"><i class="bi bi-file-earmark-text me-2"></i>Gerar documento</button></div></div></div>
+
+    <div class="col-xl-5"><div class="card bg-secondary border-0 shadow"><div class="card-header d-flex justify-content-between"><h5 class="mb-0">Prévia do documento</h5><i class="bi bi-file-earmark-pdf fs-4"></i></div><div class="card-body"><div class="commission-document p-4 shadow-sm">
+        <div class="text-center border-bottom pb-3 mb-3"><h5 class="mb-1">BAILEYBOT V2</h5><div class="small text-secondary">SOLICITAÇÃO DE CRÉDITO DE COMISSÃO</div></div>
+        <div class="d-flex justify-content-between small mb-3"><span><strong>Nº:</strong> SC-2026-0087</span><span><strong>Data:</strong> 01/08/2026</span></div>
+        <h6 class="border-bottom pb-2">Dados do técnico</h6><p class="small mb-1"><strong>Nome:</strong> José Carlos</p><p class="small mb-3"><strong>Código OG1:</strong> TEC-0007</p>
+        <h6 class="border-bottom pb-2">Crédito solicitado</h6><div class="d-flex justify-content-between small"><span>Movimentos selecionados:</span><strong>2</strong></div><div class="d-flex justify-content-between mt-2"><span>Valor total:</span><strong class="fs-5">R$ 500,00</strong></div>
+        <h6 class="border-bottom pb-2 mt-4">Materiais</h6><p class="small">01 Compressor 1/4 HP; 02 filtros secadores; 01 kit de instalação.</p>
+        <div class="row text-center mt-5 pt-4"><div class="col-6"><div class="border-top pt-1 small">Solicitante</div></div><div class="col-6"><div class="border-top pt-1 small">Financeiro</div></div></div>
+    </div><p class="small text-light-emphasis mt-3 mb-0"><i class="bi bi-info-circle me-1"></i>A prévia será atualizada quando a funcionalidade for implementada.</p></div></div></div>
+</div>
