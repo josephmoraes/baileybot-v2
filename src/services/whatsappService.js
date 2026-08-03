@@ -7,6 +7,13 @@ import makeWASocket, {
 import pino from "pino";
 import QRCode from "qrcode";
 import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const authPath = process.env.AUTH_PATH
+    ? path.resolve(process.env.AUTH_PATH)
+    : path.resolve(__dirname, "../../auth_info");
 
 class WhatsAppService {
 
@@ -23,8 +30,7 @@ class WhatsAppService {
 
     async conectar() {
 
-    console.log("Diretório atual:", process.cwd());
-    console.log("Auth existe?", fs.existsSync("auth_info"));
+    console.log("Sessão do WhatsApp:", fs.existsSync(authPath) ? "encontrada" : "nova");
 
     if (this.isConnecting || this.sock) {
         return;
@@ -36,7 +42,7 @@ class WhatsAppService {
     try {
 
         const { state, saveCreds } =
-            await useMultiFileAuthState("auth_info");
+            await useMultiFileAuthState(authPath);
 
         const { version } = await fetchLatestBaileysVersion(); // adicionar
 
@@ -162,6 +168,9 @@ class WhatsAppService {
             this.status = "disconnected";
             this.qrCode = null;
             this.isConnecting = false;
+            if (fs.existsSync(authPath)) {
+                fs.rmSync(authPath, { recursive: true, force: true });
+            }
 
         }
 

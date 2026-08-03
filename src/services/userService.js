@@ -9,6 +9,10 @@ function formatarJid(numero) {
         telefone = "55" + telefone;
     }
 
+    if (!/^55\d{10,11}$/.test(telefone)) {
+        throw new Error("Informe um telefone válido com DDD.");
+    }
+
     return `${telefone}@s.whatsapp.net`;
 
 }
@@ -20,6 +24,7 @@ class UserService {
         return db.prepare(`
             SELECT
                 id,
+                customer_code,
                 company_name,
                 name,
                 jid,
@@ -35,6 +40,7 @@ class UserService {
         return db.prepare(`
             SELECT
                 id,
+                customer_code,
                 company_name,
                 name,
                 jid,
@@ -45,9 +51,15 @@ class UserService {
 
     }
 
+    buscarPorCodigo(codigo) {
+        if (!codigo?.trim()) return null;
+        return db.prepare("SELECT id FROM users WHERE customer_code = ?").get(codigo.trim());
+    }
+
     criar(dados) {
 
         const {
+            customer_code,
             company_name,
             name,
             telefone
@@ -57,19 +69,25 @@ class UserService {
             throw new Error("Telefone é obrigatório.");
         }
 
+        if (!name?.trim() && !company_name?.trim()) {
+            throw new Error("Informe o nome ou a empresa do cliente.");
+        }
+
         const jid = formatarJid(telefone);
         try {
 
             db.prepare(`
                 INSERT INTO users (
+                    customer_code,
                     company_name,
                     name,
                     jid
                 )
-                VALUES (?, ?, ?)
+                VALUES (?, ?, ?, ?)
             `).run(
-                company_name,
-                name,
+                customer_code?.trim() || null,
+                company_name?.trim() || null,
+                name?.trim() || null,
                 jid
             );
 
@@ -80,6 +98,9 @@ class UserService {
         } catch (erro) {
 
             if (erro.code === "SQLITE_CONSTRAINT_UNIQUE") {
+                if (customer_code && db.prepare("SELECT id FROM users WHERE customer_code = ?").get(customer_code.trim())) {
+                    throw new Error("Este código de cliente já está cadastrado.");
+                }
                 throw new Error("Este telefone já está cadastrado.");
             }
 
@@ -92,6 +113,7 @@ class UserService {
     atualizar(id, dados) {
 
         const {
+            customer_code,
             company_name,
             name,
             telefone
@@ -99,6 +121,9 @@ class UserService {
 
         if (!telefone) {
             throw new Error("Telefone é obrigatório.");
+        }
+        if (!name?.trim() && !company_name?.trim()) {
+            throw new Error("Informe o nome ou a empresa do cliente.");
         }
 
         const jid = formatarJid(telefone);
@@ -124,16 +149,24 @@ class UserService {
             throw new Error("Telefone já cadastrado.");
         }
 
+        if (customer_code?.trim()) {
+            const codigoExistente = db.prepare("SELECT id FROM users WHERE customer_code = ? AND id != ?")
+                .get(customer_code.trim(), id);
+            if (codigoExistente) throw new Error("Código de cliente já cadastrado.");
+        }
+
         db.prepare(`
             UPDATE users
             SET
+                customer_code = ?,
                 company_name = ?,
                 name = ?,
                 jid = ?
             WHERE id = ?
         `).run(
-            company_name,
-            name,
+            customer_code?.trim() || null,
+            company_name?.trim() || null,
+            name?.trim() || null,
             jid,
             id
         );

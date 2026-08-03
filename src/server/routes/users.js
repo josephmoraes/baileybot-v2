@@ -1,7 +1,27 @@
 import express from "express";
 import userService from "../../services/userService.js";
+import excelService from "../../services/excel.js";
 
 const router = express.Router();
+
+router.get("/export-excel", (req, res) => {
+    try {
+        const arquivo = excelService.exportar();
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", "attachment; filename=clientes-baileybot.xlsx");
+        res.send(arquivo);
+    } catch (erro) {
+        res.status(500).json({ error: "Não foi possível exportar os clientes." });
+    }
+});
+
+router.post("/import-excel", (req, res) => {
+    try {
+        res.json(excelService.importar(req.body.base64));
+    } catch (erro) {
+        res.status(400).json({ error: erro.message });
+    }
+});
 
 router.get("/", (req, res) => {
 

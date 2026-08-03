@@ -18,6 +18,11 @@ router.put(
     campaignController.salvarDestinatarios
 );
 
+router.post(
+    "/:id/send",
+    campaignController.enviar
+);
+
 router.get(
     "/:id",
     campaignController.buscarPorId

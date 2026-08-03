@@ -13,6 +13,17 @@ export function startApp() {
 
     initDatabase();
     seedMessages();
-    startServer(port);
+    const server = startServer(port);
+
+    const encerrar = signal => {
+        console.log(`Encerrando BaileyBot (${signal})...`);
+        server.close(() => process.exit(0));
+        setTimeout(() => process.exit(1), 5000).unref();
+    };
+
+    process.once("SIGINT", () => encerrar("SIGINT"));
+    process.once("SIGTERM", () => encerrar("SIGTERM"));
+
+    return server;
 
 }

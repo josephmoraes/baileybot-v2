@@ -1,58 +1,9 @@
-<div class="d-flex justify-content-between align-items-start mb-4">
-    <div>
-        <h1 class="mb-1">Comissões</h1>
-        <p class="text-secondary mb-0">Visão geral do desempenho dos técnicos</p>
-    </div>
-    <span class="badge bg-warning text-dark">Dados demonstrativos</span>
-</div>
-
+<div class="page-heading"><h1>Comissões</h1><p class="text-secondary mb-0">Indicadores calculados a partir das vendas importadas</p></div>
+<div id="alertaComissoes" class="alert d-none"></div>
 <div class="row g-4 mb-4">
-    <div class="col-md-6 col-xl-3">
-        <div class="card bg-secondary text-light border-0 shadow h-100"><div class="card-body d-flex justify-content-between align-items-center">
-            <div><h2 class="mb-1">18</h2><p class="text-light-emphasis mb-0">Técnicos cadastrados</p></div>
-            <div class="commission-stat-icon"><i class="bi bi-person-badge fs-3 text-success"></i></div>
-        </div></div>
-    </div>
-    <div class="col-md-6 col-xl-3">
-        <div class="card bg-secondary text-light border-0 shadow h-100"><div class="card-body">
-            <div class="small text-light-emphasis">Vendas no mês</div><h2 class="mt-2 mb-1">R$ 184.320,00</h2><span class="text-success small"><i class="bi bi-arrow-up"></i> 12,4% vs. mês anterior</span>
-        </div></div>
-    </div>
-    <div class="col-md-6 col-xl-3">
-        <div class="card bg-secondary text-light border-0 shadow h-100"><div class="card-body">
-            <div class="small text-light-emphasis">Comissões geradas</div><h2 class="mt-2 mb-1">R$ 5.529,60</h2><span class="text-light-emphasis small">Percentual médio de 3%</span>
-        </div></div>
-    </div>
-    <div class="col-md-6 col-xl-3">
-        <div class="card bg-secondary text-light border-0 shadow h-100"><div class="card-body">
-            <div class="small text-light-emphasis">Saldo liberado</div><h2 class="mt-2 mb-1">R$ 3.842,10</h2><span class="text-warning small">R$ 1.687,50 pendente</span>
-        </div></div>
-    </div>
+ <div class="col-md-6 col-xl"><div class="card bg-secondary border-0 h-100"><div class="card-body"><small>Técnicos ativos</small><h2 id="comTecnicos">0</h2></div></div></div>
+ <div class="col-md-6 col-xl"><div class="card bg-secondary border-0 h-100"><div class="card-body"><small>Vendas no mês</small><h2 id="comVendas">R$ 0,00</h2></div></div></div>
+ <div class="col-md-6 col-xl"><div class="card bg-secondary border-0 h-100"><div class="card-body"><small>Comissões geradas</small><h2 id="comGeradas">R$ 0,00</h2></div></div></div>
+ <div class="col-md-6 col-xl"><div class="card bg-secondary border-0 h-100"><div class="card-body"><small>Saldo liberado</small><h2 id="comLiberado">R$ 0,00</h2><small id="comPendente" class="text-warning"></small></div></div></div>
 </div>
-
-<div class="row g-4">
-    <div class="col-xl-6">
-        <div class="card bg-dark border-secondary shadow h-100">
-            <div class="card-header"><h5 class="mb-0"><i class="bi bi-trophy text-warning me-2"></i>Top 5 maiores vendas</h5></div>
-            <div class="table-responsive"><table class="table table-dark table-hover align-middle mb-0"><thead><tr><th>#</th><th>Técnico</th><th>Vendas</th><th class="text-end">Total</th></tr></thead><tbody>
-                <tr><td>1</td><td>Marcos Silva</td><td>42</td><td class="text-end fw-semibold">R$ 28.450,00</td></tr>
-                <tr><td>2</td><td>Juliana Costa</td><td>39</td><td class="text-end fw-semibold">R$ 24.880,00</td></tr>
-                <tr><td>3</td><td>José Carlos</td><td>35</td><td class="text-end fw-semibold">R$ 21.390,00</td></tr>
-                <tr><td>4</td><td>Paulo Nunes</td><td>31</td><td class="text-end fw-semibold">R$ 18.740,00</td></tr>
-                <tr><td>5</td><td>Ana Beatriz</td><td>28</td><td class="text-end fw-semibold">R$ 16.920,00</td></tr>
-            </tbody></table></div>
-        </div>
-    </div>
-    <div class="col-xl-6">
-        <div class="card bg-dark border-secondary shadow h-100">
-            <div class="card-header"><h5 class="mb-0"><i class="bi bi-graph-down-arrow text-info me-2"></i>Top 5 menores vendas</h5></div>
-            <div class="table-responsive"><table class="table table-dark table-hover align-middle mb-0"><thead><tr><th>#</th><th>Técnico</th><th>Vendas</th><th class="text-end">Total</th></tr></thead><tbody>
-                <tr><td>1</td><td>Rafael Melo</td><td>6</td><td class="text-end">R$ 2.180,00</td></tr>
-                <tr><td>2</td><td>Bruno Lima</td><td>8</td><td class="text-end">R$ 3.240,00</td></tr>
-                <tr><td>3</td><td>Carla Souza</td><td>9</td><td class="text-end">R$ 3.810,00</td></tr>
-                <tr><td>4</td><td>André Rocha</td><td>11</td><td class="text-end">R$ 4.670,00</td></tr>
-                <tr><td>5</td><td>Luciana Alves</td><td>12</td><td class="text-end">R$ 5.120,00</td></tr>
-            </tbody></table></div>
-        </div>
-    </div>
-</div>
+<div class="row g-4"><div class="col-xl-6"><div class="card bg-dark border-secondary"><div class="card-header">Maiores vendas</div><div class="table-responsive"><table class="table table-dark mb-0"><thead><tr><th>Técnico</th><th>Vendas</th><th>Total</th></tr></thead><tbody id="rankingMaiores"></tbody></table></div></div></div><div class="col-xl-6"><div class="card bg-dark border-secondary"><div class="card-header">Menores vendas</div><div class="table-responsive"><table class="table table-dark mb-0"><thead><tr><th>Técnico</th><th>Vendas</th><th>Total</th></tr></thead><tbody id="rankingMenores"></tbody></table></div></div></div></div>

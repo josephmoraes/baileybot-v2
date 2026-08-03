@@ -1,5 +1,6 @@
 import db from "../database/database.js";
 import whatsappService from "./whatsappService.js";
+import settingsService from "./settingsService.js";
 
 let ultimoTemplateId = null;
 
@@ -26,8 +27,8 @@ class MessageService {
             )
             VALUES (?, ?, ?)
         `).run(
-            nome,
-            mensagem,
+            nome.trim(),
+            mensagem.trim(),
             ativo ? 1 : 0
         );
 
@@ -45,8 +46,8 @@ class MessageService {
                 ativo = ?
             WHERE id = ?
         `).run(
-            nome,
-            mensagem,
+            nome.trim(),
+            mensagem.trim(),
             ativo ? 1 : 0,
             id
         );
@@ -56,6 +57,13 @@ class MessageService {
     }
 
     excluirTemplate(id) {
+
+        const emUso = db.prepare(`
+            SELECT COUNT(*) AS total FROM campaigns WHERE template_id = ?
+        `).get(id).total;
+        if (emUso) {
+            throw new Error("Este template está vinculado a uma campanha e não pode ser excluído.");
+        }
 
         const resultado = db.prepare(`
             DELETE FROM message_templates
@@ -111,6 +119,11 @@ class MessageService {
             cliente.name || "Cliente"
         );
 
+        mensagem = mensagem.replaceAll(
+            "{vendedor}",
+            settingsService.obterBot().nomeVendedor
+        );
+
         return mensagem;
     }
 
@@ -152,6 +165,17 @@ class MessageService {
     }
 
     async enviarMensagem(cliente, templateId) {
+
+        const config = settingsService.obterBot();
+        if (!settingsService.dentroHorario(config)) {
+            throw new Error(`Envios permitidos somente entre ${config.horarioInicio} e ${config.horarioFim}.`);
+        }
+        if (settingsService.mensagensEnviadasHoje() >= config.limiteDiario) {
+            throw new Error("O limite diário de mensagens foi atingido.");
+        }
+        if (settingsService.estaBloqueado(cliente.jid)) {
+            throw new Error("Este contato está na lista de bloqueio.");
+        }
 
         const template = db.prepare(`
             SELECT *
@@ -206,7 +230,8 @@ class MessageService {
             clienteId,
             status,
             dataInicio,
-            dataFim
+            dataFim,
+            pesquisa
         } = filtros;
 
         const condicoes = [];
@@ -232,11 +257,27 @@ class MessageService {
             parametros.push(dataFim);
         }
 
+        if (pesquisa?.trim()) {
+            condicoes.push("(COALESCE(u.name, m.cliente_nome) LIKE ? OR COALESCE(t.nome, '') LIKE ?)");
+            const termo = `%${pesquisa.trim()}%`;
+            parametros.push(termo, termo);
+        }
+
         const whereClause = condicoes.length
             ? `WHERE ${condicoes.join(" AND ")}`
             : "";
 
-        return db.prepare(`
+        const pagina = Math.max(1, Number.parseInt(filtros.pagina, 10) || 1);
+        const porPagina = Math.min(100, Math.max(5, Number.parseInt(filtros.porPagina, 10) || 20));
+        const total = db.prepare(`
+            SELECT COUNT(*) AS total
+            FROM messages m
+            LEFT JOIN users u ON u.id = m.cliente_id
+            LEFT JOIN message_templates t ON t.id = m.template_id
+            ${whereClause}
+        `).get(...parametros).total;
+
+        const itens = db.prepare(`
             SELECT
                 m.id,
                 m.cliente_id,
@@ -252,7 +293,18 @@ class MessageService {
                 ON t.id = m.template_id
             ${whereClause}
             ORDER BY m.enviado_em DESC
-        `).all(...parametros);
+            LIMIT ? OFFSET ?
+        `).all(...parametros, porPagina, (pagina - 1) * porPagina);
+
+        return {
+            itens,
+            paginacao: {
+                pagina,
+                porPagina,
+                total,
+                totalPaginas: Math.max(1, Math.ceil(total / porPagina))
+            }
+        };
 
     }
 

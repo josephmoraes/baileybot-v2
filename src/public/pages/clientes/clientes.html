@@ -6,7 +6,7 @@
         type="text"
         id="pesquisaCliente"
         class="form-control"
-        placeholder="🔍 Pesquisar por empresa, nome ou telefone..."
+        placeholder="🔍 Pesquisar por código, empresa, nome ou telefone..."
     >
 </div>
 
@@ -32,17 +32,25 @@
 
             <button
                 type="button"
-                class="btn btn-primary btn-sm">
+                id="btnImportarClientes"
+                class="btn btn-primary btn-sm"
+                title="Importar Excel">
 
                 <i class="bi bi-file-earmark-excel"></i>
+                Importar
 
             </button>
 
+            <input id="arquivoClientesExcel" type="file" class="d-none" accept=".xlsx,.xls,.csv">
+
             <button
                 type="button"
-                class="btn btn-outline-light btn-sm">
+                id="btnExportarClientes"
+                class="btn btn-outline-light btn-sm"
+                title="Exportar Excel">
 
-                <i class="bi bi-arrow-clockwise"></i>
+                <i class="bi bi-download"></i>
+                Exportar
 
             </button>
 
@@ -58,6 +66,7 @@
 
                 <tr>
 
+                    <th>Código</th>
                     <th>Nome da Empresa</th>
                     <th>Nome</th>
                     <th>Telefone</th>
@@ -72,7 +81,7 @@
 
                 <tr>
 
-                    <td colspan="5" class="text-center text-secondary py-4">
+                    <td colspan="6" class="text-center text-secondary py-4">
                         Nenhum cliente cadastrado.
                     </td>
 
@@ -108,6 +117,11 @@
             </div>
 
             <div class="modal-body">
+
+                <div class="mb-3">
+                    <label class="form-label">Código do cliente</label>
+                    <input type="text" class="form-control" id="customer_code">
+                </div>
 
                 <div class="mb-3">
 

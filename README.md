@@ -43,17 +43,18 @@ src/
 
 ## ✨ Funcionalidades
 
-- [ ] Interface Web
-- [ ] Dashboard
-- [ ] Cadastro de clientes
-- [ ] Importação de Excel
-- [ ] Exportação de Excel
-- [ ] Banco SQLite
-- [ ] Conexão com WhatsApp
-- [ ] QR Code na interface
-- [ ] Envio de mensagens
-- [ ] Logs em tempo real
-- [ ] Configurações do sistema
+- [x] Interface Web responsiva
+- [x] Dashboard
+- [x] Cadastro de clientes
+- [x] Banco SQLite
+- [x] Conexão com WhatsApp
+- [x] QR Code na interface
+- [x] Envio individual de mensagens
+- [x] Campanhas com seleção de destinatários, histórico e reenvio de falhas
+- [x] Templates de mensagens
+- [x] Histórico com filtros e paginação
+- [x] Backup do banco nas configurações
+- [x] Comissões: técnicos, importação OG1, saldos e solicitações de crédito
 
 ---
 
@@ -77,29 +78,27 @@ Abra:
 http://localhost:3000
 ```
 
+## Configuração opcional
+
+Crie ou ajuste o arquivo `.env`:
+
+```env
+PORT=3000
+CAMPAIGN_DELAY_MS=1500
+```
+
+O intervalo reduz disparos consecutivos muito rápidos. No módulo Comissões, cadastre primeiro os técnicos com o mesmo código usado no relatório do OG1; depois importe o arquivo de vendas.
+
 ---
 
 ## 📌 Roadmap
 
-### Sprint 1
-- [x] Estrutura inicial
-- [ ] Servidor Express
-- [ ] Bootstrap
-
-### Sprint 2
-- [ ] Dashboard
-
-### Sprint 3
-- [ ] CRUD de clientes
-
-### Sprint 4
-- [ ] Banco SQLite
-
-### Sprint 5
-- [ ] WhatsApp (Baileys)
-
-### Sprint 6
-- [ ] Envio de mensagens
+### V1 operacional
+- [x] Clientes, dashboard e banco SQLite
+- [x] WhatsApp via Baileys
+- [x] Templates, envio individual e histórico
+- [x] Campanhas completas
+- [x] Backup e diagnóstico da instalação
 
 ---
 

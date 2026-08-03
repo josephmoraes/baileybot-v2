@@ -1,4 +1,8 @@
 import db from "../database/database.js";
+import whatsappService from "./whatsappService.js";
+import messageService from "./messageService.js";
+import { sleep } from "../utils/sleep.js";
+import settingsService from "./settingsService.js";
 
 class CampaignService {
 
@@ -13,12 +17,13 @@ class CampaignService {
                 c.updated_at,
                 t.nome AS template_nome,
                 COUNT(cr.id) AS total_destinatarios,
-                SUM(
+                COALESCE(SUM(
                     CASE
                         WHEN cr.status = 'enviado' THEN 1
                         ELSE 0
                     END
-                ) AS total_enviados
+                ), 0) AS total_enviados,
+                COALESCE(SUM(CASE WHEN cr.status = 'erro' THEN 1 ELSE 0 END), 0) AS total_erros
             FROM campaigns c
             INNER JOIN message_templates t
                 ON t.id = c.template_id
@@ -249,6 +254,100 @@ class CampaignService {
         salvar();
 
         return this.listarDestinatarios(campaignId);
+    }
+
+    async enviar(campaignId, { somenteErros = false } = {}) {
+        const campanha = this.buscarPorId(campaignId);
+
+        if (!campanha) throw new Error("Campanha não encontrada.");
+        if (campanha.status === "processando") {
+            throw new Error("Esta campanha já está sendo enviada.");
+        }
+        if (whatsappService.getStatus() !== "connected") {
+            throw new Error("Conecte o WhatsApp antes de iniciar a campanha.");
+        }
+        const config = settingsService.obterBot();
+        if (!settingsService.dentroHorario(config)) {
+            throw new Error(`Campanhas permitidas somente entre ${config.horarioInicio} e ${config.horarioFim}.`);
+        }
+        const restanteDiario = config.limiteDiario - settingsService.mensagensEnviadasHoje();
+        if (restanteDiario <= 0) throw new Error("O limite diário de mensagens foi atingido.");
+
+        const statusPermitidos = somenteErros
+            ? ["erro"]
+            : ["pendente", "erro"];
+        const placeholders = statusPermitidos.map(() => "?").join(", ");
+        const destinatarios = db.prepare(`
+            SELECT * FROM campaign_recipients
+            WHERE campaign_id = ? AND status IN (${placeholders})
+            ORDER BY id
+        `).all(campaignId, ...statusPermitidos);
+
+        if (destinatarios.length === 0) {
+            throw new Error(somenteErros
+                ? "Não há envios com erro para tentar novamente."
+                : "Selecione ao menos um destinatário pendente.");
+        }
+
+        db.prepare(`UPDATE campaigns SET status = 'processando', updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+            .run(campaignId);
+
+        let enviados = 0;
+        let erros = 0;
+        let bloqueados = 0;
+        const intervaloAleatorio = () => Math.round(
+            config.intervaloMinimoMs + Math.random() * (config.intervaloMaximoMs - config.intervaloMinimoMs)
+        );
+
+        for (const destinatario of destinatarios) {
+            if (enviados >= restanteDiario) break;
+            if (settingsService.estaBloqueado(destinatario.cliente_jid)) {
+                db.prepare(`UPDATE campaign_recipients SET status='bloqueado',erro='Contato na lista de bloqueio' WHERE id=?`).run(destinatario.id);
+                bloqueados += 1;
+                continue;
+            }
+            const cliente = {
+                id: destinatario.cliente_id,
+                name: destinatario.cliente_nome,
+                jid: destinatario.cliente_jid
+            };
+            const mensagem = messageService.gerarMensagem(
+                { mensagem: campanha.template_mensagem },
+                cliente
+            );
+
+            try {
+                await whatsappService.enviarMensagem(cliente.jid, mensagem);
+                messageService.salvarHistorico(cliente, campanha.template_id, mensagem, "enviado");
+                db.prepare(`
+                    UPDATE campaign_recipients
+                    SET status = 'enviado', erro = NULL, enviado_em = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                `).run(destinatario.id);
+                enviados += 1;
+            } catch (erro) {
+                const motivo = erro?.message || "Falha desconhecida no envio.";
+                messageService.salvarHistorico(cliente, campanha.template_id, mensagem, "erro");
+                db.prepare(`
+                    UPDATE campaign_recipients
+                    SET status = 'erro', erro = ?, enviado_em = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                `).run(motivo.slice(0, 500), destinatario.id);
+                erros += 1;
+            }
+
+            if (destinatario !== destinatarios.at(-1)) await sleep(intervaloAleatorio());
+        }
+
+        const pendentes = db.prepare(`
+            SELECT COUNT(*) AS total FROM campaign_recipients
+            WHERE campaign_id = ? AND status = 'pendente'
+        `).get(campaignId).total;
+        const statusFinal = erros > 0 || bloqueados > 0 || pendentes > 0 ? "parcial" : "concluida";
+        db.prepare(`UPDATE campaigns SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+            .run(statusFinal, campaignId);
+
+        return { success: true, enviados, erros, bloqueados, pendentes, status: statusFinal, notificarConclusao: config.notificarConclusao };
     }
 }
 

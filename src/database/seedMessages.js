@@ -8,7 +8,11 @@ export function seedMessages() {
         VALUES (1, ?, ?)
     `).run(
         "Primeiro contato",
-        "Olá {nome}! Tudo bem? Aqui é o Noberto da Refricom. Estamos à disposição caso precise de algum produto ou orçamento. 😊"
+        "Olá {nome}! Tudo bem? Aqui é o {vendedor} da Refricom. Estamos à disposição caso precise de algum produto ou orçamento. 😊"
     );
+
+    db.prepare(`UPDATE message_templates
+        SET mensagem = replace(mensagem, 'Noberto da Refricom', '{vendedor} da Refricom')
+        WHERE id = 1 AND mensagem LIKE '%Noberto da Refricom%'`).run();
 
 }

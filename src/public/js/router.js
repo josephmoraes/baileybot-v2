@@ -115,6 +115,19 @@ const Router = {
 
                     break;
 
+                case "comissoes-dashboard":
+                    await carregarComissoesDashboard();
+                    break;
+                case "comissoes-tecnicos":
+                    await inicializarTecnicosComissao();
+                    break;
+                case "comissoes-historico":
+                    await inicializarHistoricoComissoes();
+                    break;
+                case "comissoes-solicitacao":
+                    await inicializarSolicitacaoComissao();
+                    break;
+
             }
 
         } catch (erro) {

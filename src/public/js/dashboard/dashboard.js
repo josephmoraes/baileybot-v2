@@ -141,6 +141,8 @@ async function conectarWhatsapp() {
 
 async function desconectarWhatsapp() {
 
+    if (!confirm("Desconectar este WhatsApp? A sessão atual será removida e, ao iniciar novamente, será exibido um novo QR Code.")) return;
+
     try {
 
         const response = await fetch("/api/whatsapp/disconnect", {
@@ -150,6 +152,7 @@ async function desconectarWhatsapp() {
         const data = await response.json();
 
         console.log(data.message);
+        alert("WhatsApp desconectado. Clique em Iniciar para conectar outra conta.");
 
         carregarStatusWhatsapp();
         carregarQRCode();

@@ -148,6 +148,19 @@ class CampaignController {
         }
     }
 
+    async enviar(req, res) {
+        try {
+            const resultado = await campaignService.enviar(req.params.id, {
+                somenteErros: req.body?.somenteErros === true
+            });
+            res.json(resultado);
+        } catch (erro) {
+            console.error(erro);
+            const status = erro.message === "Campanha não encontrada." ? 404 : 400;
+            res.status(status).json({ error: erro.message });
+        }
+    }
+
 }
 
 export default new CampaignController();

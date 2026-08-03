@@ -66,11 +66,21 @@ function renderizarCampanhas(campanhas) {
         const celulaStatus = document.createElement("td");
         const status = document.createElement("span");
 
-        status.className = campanha.status === "rascunho"
-            ? "badge bg-secondary"
-            : "badge bg-primary";
+        const classesStatus = {
+            rascunho: "bg-secondary",
+            processando: "bg-warning text-dark",
+            concluida: "bg-success",
+            parcial: "bg-danger"
+        };
+        status.className = `badge ${classesStatus[campanha.status] || "bg-primary"}`;
 
-        status.textContent = campanha.status;
+        const nomesStatus = {
+            rascunho: "Rascunho",
+            processando: "Processando",
+            concluida: "Concluída",
+            parcial: "Parcial"
+        };
+        status.textContent = nomesStatus[campanha.status] || campanha.status;
 
         celulaStatus.appendChild(status);
         linha.appendChild(celulaStatus);
@@ -110,6 +120,17 @@ function renderizarCampanhas(campanhas) {
         btnClientes.addEventListener("click", () => {
             abrirDestinatarios(campanha.id);
         });
+        btnClientes.disabled = campanha.status !== "rascunho";
+
+        const btnEnviar = document.createElement("button");
+        btnEnviar.type = "button";
+        btnEnviar.className = "btn btn-sm btn-success me-2";
+        btnEnviar.title = campanha.status === "parcial" ? "Tentar erros novamente" : "Enviar campanha";
+        btnEnviar.innerHTML = campanha.status === "processando"
+            ? '<span class="spinner-border spinner-border-sm"></span>'
+            : '<i class="bi bi-send"></i>';
+        btnEnviar.disabled = campanha.status === "processando" || Number(campanha.total_destinatarios) === 0;
+        btnEnviar.addEventListener("click", () => enviarCampanha(campanha));
 
         const btnEditar = document.createElement("button");
 
@@ -123,6 +144,7 @@ function renderizarCampanhas(campanhas) {
         btnEditar.addEventListener("click", () => {
             editarCampanha(campanha.id);
         });
+        btnEditar.disabled = campanha.status !== "rascunho";
 
         const btnExcluir = document.createElement("button");
 
@@ -136,8 +158,10 @@ function renderizarCampanhas(campanhas) {
         btnExcluir.addEventListener("click", () => {
             excluirCampanha(campanha.id);
         });
+        btnExcluir.disabled = campanha.status !== "rascunho";
 
         celulaAcoes.appendChild(btnClientes);
+        celulaAcoes.appendChild(btnEnviar);
         celulaAcoes.appendChild(btnEditar);
         celulaAcoes.appendChild(btnExcluir);
         linha.appendChild(celulaAcoes);
@@ -155,6 +179,42 @@ function atualizarResumoCampanhas() {
         rascunhos.textContent = campanhasCache.filter(
             campanha => campanha.status === "rascunho"
         ).length;
+    }
+}
+
+async function enviarCampanha(campanha) {
+    const somenteErros = campanha.status === "parcial" && Number(campanha.total_erros) > 0;
+    const texto = somenteErros
+        ? `Tentar novamente os ${campanha.total_erros} envio(s) com erro da campanha “${campanha.nome}”?`
+        : `Enviar “${campanha.nome}” para ${campanha.total_destinatarios} destinatário(s)?\n\nMantenha o BaileyBot aberto até o término.`;
+
+    if (!confirm(texto)) return;
+
+    mostrarAlertaCampanha("Campanha em processamento. Aguarde...", "warning");
+
+    try {
+        const resposta = await fetch(`/api/campaigns/${campanha.id}/send`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ somenteErros })
+        });
+        const dados = await resposta.json();
+        if (!resposta.ok) throw new Error(dados.error || "Erro ao enviar campanha.");
+
+        mostrarAlertaCampanha(
+            `Campanha finalizada: ${dados.enviados} enviado(s), ${dados.erros} erro(s), ${dados.bloqueados || 0} bloqueado(s).`,
+            dados.erros ? "warning" : "success"
+        );
+        if (dados.notificarConclusao && "Notification" in window && Notification.permission === "granted") {
+            new Notification("BaileyBot — campanha finalizada", {
+                body: `${campanha.nome}: ${dados.enviados} enviado(s), ${dados.erros} erro(s).`
+            });
+        }
+        await carregarCampanhas();
+        await carregarDashboard();
+    } catch (erro) {
+        mostrarAlertaCampanha(erro.message, "danger");
+        await carregarCampanhas();
     }
 }
 

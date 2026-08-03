@@ -1,5 +1,25 @@
 let clientesCache = [];
 
+async function importarClientesExcel(arquivo) {
+    if (!arquivo) return;
+    const base64 = await new Promise((resolve, reject) => {
+        const leitor = new FileReader();
+        leitor.onload = () => resolve(String(leitor.result).split(",")[1]);
+        leitor.onerror = () => reject(new Error("Não foi possível ler a planilha."));
+        leitor.readAsDataURL(arquivo);
+    });
+    const resposta = await fetch("/api/users/import-excel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ base64 })
+    });
+    const dados = await resposta.json();
+    if (!resposta.ok) throw new Error(dados.error || "Erro ao importar planilha.");
+    alert(`Importação concluída: ${dados.importados} novo(s), ${dados.duplicados} duplicado(s), ${dados.invalidos} inválido(s).`);
+    await carregarClientes();
+    await carregarDashboard();
+}
+
 async function carregarClientes() {
 
     try {
@@ -16,7 +36,7 @@ async function carregarClientes() {
 
             tabela.innerHTML = `
                 <tr>
-                    <td colspan="5" class="text-center text-secondary py-4">
+                    <td colspan="6" class="text-center text-secondary py-4">
                         Nenhum cliente cadastrado.
                     </td>
                 </tr>
@@ -48,7 +68,7 @@ function renderizarClientes(clientes) {
 
         tabela.innerHTML = `
             <tr>
-                <td colspan="5" class="text-center text-secondary py-4">
+                <td colspan="6" class="text-center text-secondary py-4">
                     Nenhum cliente encontrado.
                 </td>
             </tr>
@@ -64,6 +84,7 @@ function renderizarClientes(clientes) {
 
         tabela.innerHTML += `
             <tr>
+                <td>${cliente.customer_code ?? "—"}</td>
                 <td>${cliente.company_name ?? ""}</td>
                 <td>${cliente.name ?? ""}</td>
                <td>${
@@ -96,6 +117,7 @@ function renderizarClientes(clientes) {
 
 async function salvarCliente() {
 
+    const customer_code = document.getElementById("customer_code").value.trim();
     const company_name = document.getElementById("company_name").value.trim();
     const name = document.getElementById("name").value.trim();
     const telefone = document.getElementById("telefone").value.trim();
@@ -124,6 +146,7 @@ async function salvarCliente() {
             },
 
             body: JSON.stringify({
+                customer_code,
                 company_name,
                 name,
                 telefone
@@ -149,6 +172,7 @@ async function salvarCliente() {
         ).hide();
 
         // Limpa os campos
+        document.getElementById("customer_code").value = "";
         document.getElementById("company_name").value = "";
         document.getElementById("name").value = "";
         document.getElementById("telefone").value = "";
@@ -179,6 +203,8 @@ async function salvarCliente() {
 function editarCliente(cliente) {
 
     clienteEditando = cliente.id;
+
+    document.getElementById("customer_code").value = cliente.customer_code ?? "";
 
     document.getElementById("company_name").value =
         cliente.company_name ?? "";
@@ -302,6 +328,7 @@ function inicializarClientes() {
 
             const resultado = clientesCache.filter(cliente =>
 
+                (cliente.customer_code ?? "").toLowerCase().includes(termo) ||
                 (cliente.company_name ?? "").toLowerCase().includes(termo) ||
                 (cliente.name ?? "").toLowerCase().includes(termo) ||
                 (
@@ -320,5 +347,20 @@ function inicializarClientes() {
     }
 
     aplicarMascaraTelefone();
+
+    const campoArquivo = document.getElementById("arquivoClientesExcel");
+    document.getElementById("btnImportarClientes")?.addEventListener("click", () => campoArquivo?.click());
+    campoArquivo?.addEventListener("change", async () => {
+        try {
+            await importarClientesExcel(campoArquivo.files?.[0]);
+        } catch (erro) {
+            alert(erro.message);
+        } finally {
+            campoArquivo.value = "";
+        }
+    });
+    document.getElementById("btnExportarClientes")?.addEventListener("click", () => {
+        window.location.href = "/api/users/export-excel";
+    });
 
 }

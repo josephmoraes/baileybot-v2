@@ -57,7 +57,8 @@ class MessagesController {
 
             console.error(erro);
 
-            res.status(500).json({
+            const status = erro.message === "Template ativo não encontrado." ? 400 : 500;
+            res.status(status).json({
                 error: erro.message
             });
 
@@ -69,13 +70,14 @@ class MessagesController {
 
         try {
 
-            const { clienteId, status, dataInicio, dataFim, pagina, porPagina } = req.query;
+            const { clienteId, status, dataInicio, dataFim, pesquisa, pagina, porPagina } = req.query;
 
             const resultado = messageService.listarHistorico({
                 clienteId,
                 status,
                 dataInicio,
                 dataFim,
+                pesquisa,
                 pagina,
                 porPagina
             });
@@ -194,7 +196,8 @@ class MessagesController {
 
             console.error(erro);
 
-            res.status(500).json({
+            const status = erro.message.includes("vinculado a uma campanha") ? 409 : 500;
+            res.status(status).json({
                 error: erro.message
             });
 
