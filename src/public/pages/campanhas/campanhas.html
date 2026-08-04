@@ -8,6 +8,130 @@
     </button>
 </div>
 
+<div class="modal fade" id="modalDetalhesCampanha" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="tituloDetalhesCampanha">Detalhes da campanha</h5>
+                    <div class="small text-secondary" id="resumoDetalhesCampanha"></div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="progressoEnvioCampanha" class="card bg-secondary border-0 mb-3 d-none">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between gap-3 mb-2">
+                            <strong id="textoProgressoEnvio">Preparando envio...</strong>
+                            <span id="percentualProgressoEnvio">0%</span>
+                        </div>
+                        <div class="progress mb-2" style="height: 12px;">
+                            <div id="barraProgressoEnvio" class="progress-bar progress-bar-striped progress-bar-animated bg-success" style="width: 0%"></div>
+                        </div>
+                        <div class="d-flex flex-wrap justify-content-between small">
+                            <span id="proximoContatoEnvio"></span>
+                            <span id="temporizadorProximoEnvio" class="fw-semibold text-warning"></span>
+                        </div>
+                    </div>
+                </div>
+                <div id="carregandoDetalhesCampanha" class="text-center text-secondary py-5">
+                    <div class="spinner-border mb-3" role="status"></div>
+                    <div>Carregando contatos...</div>
+                </div>
+                <div class="table-responsive d-none" id="conteudoDetalhesCampanha">
+                    <table class="table table-dark table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Telefone</th>
+                                <th>Situação</th>
+                                <th>Erro ou observação</th>
+                                <th>Data do envio</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaDetalhesCampanha"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-warning" id="btnEditarCampanhaDetalhes">
+                    <i class="bi bi-pencil me-1"></i> Editar
+                </button>
+                <button type="button" class="btn btn-primary" id="btnContatosCampanhaDetalhes">
+                    <i class="bi bi-people me-1"></i> Gerenciar contatos
+                </button>
+                <button type="button" class="btn btn-danger d-none" id="btnCancelarCampanhaDetalhes">
+                    <i class="bi bi-stop-circle me-1"></i> Cancelar campanha
+                </button>
+                <button type="button" class="btn btn-success" id="btnIniciarCampanhaDetalhes">
+                    <i class="bi bi-send me-1"></i> Iniciar campanha
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalValidacaoCampanha" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title">Validar contatos</h5>
+                    <div class="small text-secondary" id="nomeCampanhaValidacao"></div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <div id="progressoValidacaoCampanha" class="text-center py-5">
+                    <div class="spinner-border text-success mb-3" role="status"></div>
+                    <h5>Consultando os contatos no WhatsApp...</h5>
+                    <p class="text-secondary mb-0">Mantenha o BaileyBot conectado até a validação terminar.</p>
+                </div>
+
+                <div id="resultadoValidacaoCampanha" class="d-none">
+                    <div class="row g-3 mb-4">
+                        <div class="col-6 col-lg-2"><div class="card bg-secondary border-0"><div class="card-body"><div class="small">Selecionados</div><h3 id="validacaoSelecionados" class="mb-0">0</h3></div></div></div>
+                        <div class="col-6 col-lg-2"><div class="card bg-success border-0"><div class="card-body"><div class="small">Válidos</div><h3 id="validacaoValidos" class="mb-0">0</h3></div></div></div>
+                        <div class="col-6 col-lg-2"><div class="card bg-danger border-0"><div class="card-body"><div class="small">Sem WhatsApp</div><h3 id="validacaoSemWhatsapp" class="mb-0">0</h3></div></div></div>
+                        <div class="col-6 col-lg-2"><div class="card bg-warning text-dark border-0"><div class="card-body"><div class="small">Inválidos</div><h3 id="validacaoInvalidos" class="mb-0">0</h3></div></div></div>
+                        <div class="col-6 col-lg-2"><div class="card bg-secondary border-0"><div class="card-body"><div class="small">Bloqueados</div><h3 id="validacaoBloqueados" class="mb-0">0</h3></div></div></div>
+                        <div class="col-6 col-lg-2"><div class="card bg-secondary border-0"><div class="card-body"><div class="small">Erros</div><h3 id="validacaoErros" class="mb-0">0</h3></div></div></div>
+                        <div class="col-6 col-lg-2"><div class="card bg-primary border-0"><div class="card-body"><div class="small">Já enviados</div><h3 id="validacaoJaEnviados" class="mb-0">0</h3></div></div></div>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <button type="button" class="btn btn-sm btn-outline-warning active" data-filtro-validacao="problemas">Problemas</button>
+                        <button type="button" class="btn btn-sm btn-outline-success" data-filtro-validacao="validos">Válidos</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-filtro-validacao="enviados">Já enviados</button>
+                        <button type="button" class="btn btn-sm btn-outline-light" data-filtro-validacao="todos">Todos</button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Telefone cadastrado</th>
+                                    <th>Resultado</th>
+                                    <th>Detalhes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaResultadoValidacao"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-success d-none" id="btnContinuarCampanhaValidada">Continuar com os válidos</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-xl-3"><div class="card bg-secondary border-0 h-100"><div class="card-body"><div class="small text-light-emphasis">Total</div><h3 id="totalCampanhasLista" class="mb-0 mt-2">0</h3></div></div></div>
     <div class="col-sm-6 col-xl-3"><div class="card bg-secondary border-0 h-100"><div class="card-body"><div class="small text-light-emphasis">Rascunhos</div><h3 id="totalCampanhasRascunho" class="mb-0 mt-2">0</h3></div></div></div>
@@ -40,7 +164,7 @@
                     <th>Destinatários</th>
                     <th>Enviados</th>
                     <th>Data</th>
-                    <th width="190">Ações</th>
+                    <th width="110">Ações</th>
                 </tr>
 
             </thead>
@@ -194,6 +318,26 @@
                 </div>
 
                 <div class="modal-body">
+
+                    <div class="d-flex justify-content-end mb-3">
+                        <button type="button" class="btn btn-outline-success btn-sm" id="btnMostrarNovoClienteCampanha">
+                            <i class="bi bi-person-plus me-1"></i> Cadastrar novo contato
+                        </button>
+                    </div>
+
+                    <div id="formNovoClienteCampanha" class="card bg-secondary border-0 mb-3 d-none">
+                        <div class="card-body">
+                            <h6>Novo contato</h6>
+                            <div class="row g-2">
+                                <div class="col-md-4"><input id="novoClienteNomeCampanha" class="form-control" placeholder="Nome"></div>
+                                <div class="col-md-4"><input id="novoClienteEmpresaCampanha" class="form-control" placeholder="Empresa (opcional)"></div>
+                                <div class="col-md-4"><input id="novoClienteTelefoneCampanha" class="form-control" maxlength="15" placeholder="Telefone com DDD"></div>
+                            </div>
+                            <div class="d-flex justify-content-end mt-2">
+                                <button type="button" class="btn btn-success btn-sm" id="btnCadastrarClienteCampanha">Cadastrar e selecionar</button>
+                            </div>
+                        </div>
+                    </div>
 
                     <input
                         type="text"

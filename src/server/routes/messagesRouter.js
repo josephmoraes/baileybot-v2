@@ -28,6 +28,11 @@ router.get(
     messagesController.listarHistorico
 );
 
+router.delete(
+    "/history",
+    messagesController.limparHistorico
+);
+
 router.post(
     "/send/:id",
     messagesController.enviarMensagem

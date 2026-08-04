@@ -36,6 +36,8 @@ class WhatsAppService {
         return;
     }
 
+    this.manualDisconnect = false;
+
     this.isConnecting = true;
     this.status = "connecting";
 
@@ -176,28 +178,81 @@ class WhatsAppService {
 
     }
 
-    async enviarMensagem(jid, mensagem) {
-
-        console.log("JID recebido:", jid);
-        console.log("Tipo:", typeof jid);
-
-        if (!this.sock) {
-            throw new Error("WhatsApp não está conectado.");
-        }
-
-        if (!jid || !jid.includes("@s.whatsapp.net")) {
+    async verificarNumero(jidOuNumero) {
+        if (
+            !this.sock ||
+            this.status !== "connected"
+        ) {
             throw new Error(
-                "JID inválido. Cliente não possui WhatsApp configurado corretamente."
+                "WhatsApp não está conectado."
             );
         }
 
-        await this.sock.sendMessage(
-            jid,
+        const numero = String(jidOuNumero || "")
+            .replace("@s.whatsapp.net", "")
+            .replace(/\D/g, "");
+
+        if (numero.length < 10 || numero.length > 13) {
+            throw new Error(
+                "O cliente não possui um telefone válido."
+            );
+        }
+
+        const verificacao =
+            await this.sock.onWhatsApp(numero);
+
+        const contato = verificacao?.find(
+            resultado => resultado.exists
+        );
+
+        if (!contato) {
+            return {
+                exists: false,
+                jid: null
+            };
+        }
+
+        return {
+            exists: true,
+            jid: contato.jid
+        };
+    }
+
+    async enviarMensagem(jid, mensagem) {
+        const contato = await this.verificarNumero(jid);
+
+        if (!contato.exists) {
+            throw new Error(
+                "Este número não foi encontrado no WhatsApp."
+            );
+        }
+
+        const resultado =
+            await this.sock.sendMessage(
+                contato.jid,
+                {
+                    text: mensagem
+                }
+            );
+
+        if (!resultado?.key?.id) {
+            throw new Error(
+                "O WhatsApp não confirmou o envio da mensagem."
+            );
+        }
+
+        console.log(
+            "Mensagem aceita pelo WhatsApp:",
             {
-                text: mensagem
+                jid: contato.jid,
+                messageId: resultado.key.id
             }
         );
 
+        return {
+            jid: contato.jid,
+            messageId: resultado.key.id
+        };
     }
 
 

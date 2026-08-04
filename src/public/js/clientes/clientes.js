@@ -127,6 +127,13 @@ async function salvarCliente() {
         return;
     }
 
+    const telefoneNumeros = telefone.replace(/\D/g, "");
+
+    if (![10, 11].includes(telefoneNumeros.length)) {
+        alert("Informe o DDD e o telefone completo: 10 dígitos para residencial ou 11 para celular.");
+        return;
+    }
+
     try {
 
         const url = clienteEditando
@@ -278,10 +285,19 @@ function aplicarMascaraTelefone() {
 
         valor = valor.substring(0, 11);
 
-        if (valor.length > 6) {
+        if (valor.length > 10) {
 
+            // Celular: (00) 00000-0000
             valor = valor.replace(
                 /^(\d{2})(\d{5})(\d{0,4}).*/,
+                "($1) $2-$3"
+            );
+
+        } else if (valor.length > 6) {
+
+            // Residencial: (00) 0000-0000
+            valor = valor.replace(
+                /^(\d{2})(\d{4})(\d{0,4}).*/,
                 "($1) $2-$3"
             );
 

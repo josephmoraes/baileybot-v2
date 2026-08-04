@@ -19,8 +19,18 @@ router.put(
 );
 
 router.post(
+    "/:id/validate",
+    campaignController.validarDestinatarios
+);
+
+router.post(
     "/:id/send",
     campaignController.enviar
+);
+
+router.post(
+    "/:id/cancel",
+    campaignController.cancelar
 );
 
 router.get(

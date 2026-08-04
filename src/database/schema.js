@@ -155,6 +155,30 @@ if (!colunasUsers.some(coluna => coluna.name === "customer_code")) {
     db.exec("ALTER TABLE users ADD COLUMN customer_code TEXT");
 }
 db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_customer_code ON users(customer_code) WHERE customer_code IS NOT NULL AND customer_code <> ''");
+
+const adicionarColunaSeAusente = (tabela, coluna, definicao) => {
+    const colunas = db.prepare(`PRAGMA table_info(${tabela})`).all();
+    if (!colunas.some(item => item.name === coluna)) {
+        db.exec(`ALTER TABLE ${tabela} ADD COLUMN ${coluna} ${definicao}`);
+    }
+};
+
+adicionarColunaSeAusente("campaigns", "validation_status", "TEXT NOT NULL DEFAULT 'nao_validada'");
+adicionarColunaSeAusente("campaigns", "validated_at", "DATETIME");
+adicionarColunaSeAusente("campaigns", "cancel_requested", "INTEGER NOT NULL DEFAULT 0");
+adicionarColunaSeAusente("campaigns", "progress_total", "INTEGER NOT NULL DEFAULT 0");
+adicionarColunaSeAusente("campaigns", "progress_processed", "INTEGER NOT NULL DEFAULT 0");
+adicionarColunaSeAusente("campaigns", "current_recipient", "TEXT");
+adicionarColunaSeAusente("campaigns", "next_send_at", "DATETIME");
+adicionarColunaSeAusente("campaigns", "cooldown_ms", "INTEGER NOT NULL DEFAULT 0");
+adicionarColunaSeAusente("campaign_recipients", "validation_status", "TEXT NOT NULL DEFAULT 'nao_validado'");
+adicionarColunaSeAusente("campaign_recipients", "validation_error", "TEXT");
+adicionarColunaSeAusente("campaign_recipients", "validated_jid", "TEXT");
+adicionarColunaSeAusente("campaign_recipients", "validated_at", "DATETIME");
+adicionarColunaSeAusente("campaign_recipients", "active", "INTEGER NOT NULL DEFAULT 1");
+adicionarColunaSeAusente("messages", "campaign_id", "INTEGER");
+adicionarColunaSeAusente("messages", "campaign_nome", "TEXT");
+
 const inserirConfig = db.prepare("INSERT OR IGNORE INTO app_settings(key, value) VALUES(?, ?)");
 inserirConfig.run("campaign_delay_ms", String(process.env.CAMPAIGN_DELAY_MS ?? 1500));
 inserirConfig.run("seller_name", "Noberto");

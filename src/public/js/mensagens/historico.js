@@ -44,7 +44,7 @@ async function carregarHistorico() {
         if (tabela) {
             tabela.innerHTML = `
                 <tr>
-                    <td colspan="4" class="text-center text-danger py-4">
+                    <td colspan="5" class="text-center text-danger py-4">
                         Erro ao carregar histórico.
                     </td>
                 </tr>`;
@@ -61,7 +61,7 @@ function renderizarHistorico(historico) {
     if (historico.length === 0) {
         tabela.innerHTML = `
             <tr>
-                <td colspan="4" class="text-center text-secondary py-4">
+                <td colspan="5" class="text-center text-secondary py-4">
                     Nenhuma mensagem encontrada.
                 </td>
             </tr>`;
@@ -76,6 +76,7 @@ function renderizarHistorico(historico) {
         linha.innerHTML = `
             <td>${textoSeguro(item.cliente)}</td>
             <td>${textoSeguro(item.template || "Template excluído")}</td>
+            <td>${textoSeguro(item.campanha || "Envio individual")}</td>
             <td><span class="badge ${classeStatus}">${textoSeguro(item.status)}</span></td>
             <td>${textoSeguro(data)}</td>`;
 
@@ -93,6 +94,20 @@ function atualizarPaginacaoHistorico() {
 }
 
 function inicializarHistorico() {
+    document.getElementById("btnLimparHistorico")?.addEventListener("click", async () => {
+        if (!confirm("Apagar todo o histórico de mensagens? Esta ação não pode ser desfeita.")) return;
+        try {
+            const resposta = await fetch("/api/messages/history", { method: "DELETE" });
+            const dados = await resposta.json();
+            if (!resposta.ok) throw new Error(dados.error || "Não foi possível limpar o histórico.");
+            paginaHistorico = 1;
+            await carregarHistorico();
+            alert(`${dados.removidos} registro(s) removido(s).`);
+        } catch (erro) {
+            alert(erro.message);
+        }
+    });
+
     document.getElementById("pesquisaHistorico")
         ?.addEventListener("input", () => {
             clearTimeout(timerPesquisaHistorico);

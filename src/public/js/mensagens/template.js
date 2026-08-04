@@ -77,31 +77,40 @@ async function carregarTemplates() {
 }
 
 async function excluirTemplate(id) {
-
-    const confirmar = confirm("Deseja realmente excluir este template?");
+    const confirmar = confirm(
+        "Deseja realmente excluir este template?"
+    );
 
     if (!confirmar) return;
 
     try {
-
-        const resposta = await fetch(`/api/messages/templates/${id}`, {
-            method: "DELETE"
-        });
+        const resposta = await fetch(
+            `/api/messages/templates/${id}`,
+            {
+                method: "DELETE"
+            }
+        );
 
         const dados = await resposta.json();
 
-        alert(dados.message);
+        if (!resposta.ok) {
+            throw new Error(
+                dados.error ||
+                "Não foi possível excluir o template."
+            );
+        }
 
-        carregarTemplates();
+        alert(
+            dados.message ||
+            "Template excluído com sucesso."
+        );
 
+        await carregarTemplates();
     } catch (erro) {
-
         console.error(erro);
 
-        alert("Erro ao excluir template.");
-
+        alert(erro.message);
     }
-
 }
 
 async function editarTemplate(id) {

@@ -97,6 +97,15 @@ class MessagesController {
 
     }
 
+    limparHistorico(req, res) {
+        try {
+            res.json(messageService.limparHistorico());
+        } catch (erro) {
+            console.error(erro);
+            res.status(500).json({ error: "Não foi possível limpar o histórico." });
+        }
+    }
+
     criarTemplate(req, res) {
 
         try {

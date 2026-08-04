@@ -142,22 +142,26 @@ class MessageService {
 
     }
 
-    salvarHistorico(cliente, templateId, mensagem, status) {
+    salvarHistorico(cliente, templateId, mensagem, status, campanha = null) {
 
         db.prepare(`
             INSERT INTO messages (
                 cliente_id,
                 cliente_nome,
                 template_id,
+                campaign_id,
+                campaign_nome,
                 mensagem,
                 status,
                 enviado_em
             )
-            VALUES (?, ?, ?, ?, ?, datetime('now'))
+            VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
         `).run(
             cliente.id,
             cliente.name,
             templateId,
+            campanha?.id || null,
+            campanha?.nome || null,
             mensagem,
             status
         );
@@ -258,9 +262,9 @@ class MessageService {
         }
 
         if (pesquisa?.trim()) {
-            condicoes.push("(COALESCE(u.name, m.cliente_nome) LIKE ? OR COALESCE(t.nome, '') LIKE ?)");
+            condicoes.push("(COALESCE(u.name, m.cliente_nome) LIKE ? OR COALESCE(t.nome, '') LIKE ? OR COALESCE(m.campaign_nome, '') LIKE ?)");
             const termo = `%${pesquisa.trim()}%`;
-            parametros.push(termo, termo);
+            parametros.push(termo, termo, termo);
         }
 
         const whereClause = condicoes.length
@@ -283,6 +287,7 @@ class MessageService {
                 m.cliente_id,
                 COALESCE(u.name, m.cliente_nome) AS cliente,
                 t.nome AS template,
+                m.campaign_nome AS campanha,
                 m.mensagem,
                 m.status,
                 m.enviado_em
@@ -306,6 +311,11 @@ class MessageService {
             }
         };
 
+    }
+
+    limparHistorico() {
+        const resultado = db.prepare("DELETE FROM messages").run();
+        return { success: true, removidos: resultado.changes };
     }
 
 }

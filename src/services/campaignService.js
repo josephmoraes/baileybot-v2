@@ -13,6 +13,13 @@ class CampaignService {
                 c.nome,
                 c.template_id,
                 c.status,
+                c.validation_status,
+                c.validated_at,
+                c.progress_total,
+                c.progress_processed,
+                c.current_recipient,
+                c.next_send_at,
+                c.cooldown_ms,
                 c.created_at,
                 c.updated_at,
                 t.nome AS template_nome,
@@ -23,12 +30,14 @@ class CampaignService {
                         ELSE 0
                     END
                 ), 0) AS total_enviados,
-                COALESCE(SUM(CASE WHEN cr.status = 'erro' THEN 1 ELSE 0 END), 0) AS total_erros
+                COALESCE(SUM(CASE WHEN cr.status = 'erro' THEN 1 ELSE 0 END), 0) AS total_erros,
+                COALESCE(SUM(CASE WHEN cr.validation_status = 'valido' THEN 1 ELSE 0 END), 0) AS total_validos,
+                COALESCE(SUM(CASE WHEN cr.validation_status NOT IN ('valido', 'nao_validado') THEN 1 ELSE 0 END), 0) AS total_invalidos
             FROM campaigns c
             INNER JOIN message_templates t
                 ON t.id = c.template_id
             LEFT JOIN campaign_recipients cr
-                ON cr.campaign_id = c.id
+                ON cr.campaign_id = c.id AND cr.active = 1
             GROUP BY c.id
             ORDER BY c.created_at DESC
         `).all();
@@ -75,9 +84,9 @@ class CampaignService {
             throw new Error("Campanha não encontrada.");
         }
 
-        if (campanha.status !== "rascunho") {
+        if (["processando", "cancelando"].includes(campanha.status)) {
             throw new Error(
-                "Somente campanhas em rascunho podem ser editadas."
+                "A campanha não pode ser editada enquanto está em processamento."
             );
         }
 
@@ -86,6 +95,9 @@ class CampaignService {
             SET
                 nome = ?,
                 template_id = ?,
+                status = 'rascunho',
+                validation_status = 'nao_validada',
+                validated_at = NULL,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         `).run(
@@ -104,9 +116,9 @@ class CampaignService {
             throw new Error("Campanha não encontrada.");
         }
 
-        if (campanha.status !== "rascunho") {
+        if (["processando", "cancelando"].includes(campanha.status)) {
             throw new Error(
-                "Somente campanhas em rascunho podem ser excluídas."
+                "A campanha não pode ser excluída enquanto está em processamento."
             );
         }
 
@@ -159,9 +171,13 @@ class CampaignService {
             cr.cliente_jid,
             cr.status,
             cr.erro,
-            cr.enviado_em
+            cr.enviado_em,
+            cr.validation_status,
+            cr.validation_error,
+            cr.validated_jid,
+            cr.validated_at
         FROM campaign_recipients cr
-        WHERE cr.campaign_id = ?
+        WHERE cr.campaign_id = ? AND cr.active = 1
         ORDER BY cr.cliente_nome
     `).all(campaignId);
 }
@@ -173,9 +189,9 @@ class CampaignService {
             throw new Error("Campanha não encontrada.");
         }
 
-        if (campanha.status !== "rascunho") {
+        if (["processando", "cancelando"].includes(campanha.status)) {
             throw new Error(
-                "Os destinatários só podem ser alterados enquanto a campanha estiver em rascunho."
+                "Os destinatários não podem ser alterados durante ou após a conclusão do envio."
             );
         }
 
@@ -194,16 +210,84 @@ class CampaignService {
         ];
 
         const salvar = db.transaction(() => {
-            db.prepare(`
-                DELETE FROM campaign_recipients
+            const existentes = db.prepare(`
+                SELECT id, cliente_id, status, active
+                FROM campaign_recipients
                 WHERE campaign_id = ?
+            `).all(campaignId);
+
+            const selecionados = new Set(idsUnicos);
+            const idsRemover = existentes
+                .filter(item => item.active && !selecionados.has(item.cliente_id))
+                .map(item => item.id);
+
+            if (idsRemover.length > 0) {
+                const marcadores = idsRemover.map(() => "?").join(", ");
+                db.prepare(`
+                    UPDATE campaign_recipients
+                    SET active = 0
+                    WHERE id IN (${marcadores})
+                `).run(...idsRemover);
+            }
+
+            const idsExistentes = new Set(
+                existentes
+                    .filter(item => item.cliente_id !== null)
+                    .map(item => item.cliente_id)
+            );
+
+            const idsReativar = existentes
+                .filter(item => selecionados.has(item.cliente_id))
+                .map(item => item.id);
+
+            if (idsReativar.length > 0) {
+                const marcadores = idsReativar.map(() => "?").join(", ");
+                db.prepare(`UPDATE campaign_recipients SET active = 1 WHERE id IN (${marcadores})`)
+                    .run(...idsReativar);
+            }
+
+            const idsReiniciar = existentes
+                .filter(item => item.status !== "enviado" && selecionados.has(item.cliente_id))
+                .map(item => item.id);
+
+            if (idsReiniciar.length > 0) {
+                const marcadores = idsReiniciar.map(() => "?").join(", ");
+                db.prepare(`
+                    UPDATE campaign_recipients
+                    SET
+                        status = 'pendente',
+                        erro = NULL,
+                        enviado_em = NULL,
+                        validation_status = 'nao_validado',
+                        validation_error = NULL,
+                        validated_jid = NULL,
+                        validated_at = NULL
+                    WHERE id IN (${marcadores})
+                `).run(...idsReiniciar);
+            }
+
+            db.prepare(`
+                UPDATE campaigns
+                SET
+                    validation_status = 'nao_validada',
+                    validated_at = NULL,
+                    status = 'rascunho',
+                    cancel_requested = 0,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
             `).run(campaignId);
 
             if (idsUnicos.length === 0) {
                 return;
             }
 
-            const placeholders = idsUnicos
+            const idsNovos = idsUnicos.filter(id => !idsExistentes.has(id));
+
+            if (idsNovos.length === 0) {
+                return;
+            }
+
+            const placeholders = idsNovos
                 .map(() => "?")
                 .join(", ");
 
@@ -215,9 +299,9 @@ class CampaignService {
                     jid
                 FROM users
                 WHERE id IN (${placeholders})
-            `).all(...idsUnicos);
+            `).all(...idsNovos);
 
-            if (clientes.length !== idsUnicos.length) {
+            if (clientes.length !== idsNovos.length) {
                 throw new Error(
                     "Um ou mais clientes não foram encontrados."
                 );
@@ -244,11 +328,6 @@ class CampaignService {
                 );
             });
 
-            db.prepare(`
-                UPDATE campaigns
-                SET updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-            `).run(campaignId);
         });
 
         salvar();
@@ -256,12 +335,128 @@ class CampaignService {
         return this.listarDestinatarios(campaignId);
     }
 
+    async validarDestinatarios(campaignId) {
+        const campanha = this.buscarPorId(campaignId);
+
+        if (!campanha) {
+            throw new Error("Campanha não encontrada.");
+        }
+
+        if (["processando", "cancelando"].includes(campanha.status)) {
+            throw new Error("Esta campanha não pode ser validada no estado atual.");
+        }
+
+        if (whatsappService.getStatus() !== "connected") {
+            throw new Error("Conecte o WhatsApp antes de validar os contatos.");
+        }
+
+        const destinatarios = this.listarDestinatarios(campaignId);
+
+        if (destinatarios.length === 0) {
+            throw new Error("Selecione ao menos um destinatário.");
+        }
+
+        db.prepare(`
+            UPDATE campaigns
+            SET validation_status = 'validando', validated_at = NULL
+            WHERE id = ?
+        `).run(campaignId);
+
+        const atualizar = db.prepare(`
+            UPDATE campaign_recipients
+            SET
+                validation_status = ?,
+                validation_error = ?,
+                validated_jid = ?,
+                validated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `);
+
+        for (const destinatario of destinatarios) {
+            let status = "erro_validacao";
+            let erro = null;
+            let jidValidado = null;
+
+            try {
+                if (destinatario.status === "enviado") {
+                    atualizar.run("ja_enviado", "Mensagem já enviada nesta campanha.", destinatario.validated_jid, destinatario.id);
+                    continue;
+                }
+
+                const numero = String(destinatario.cliente_jid || "")
+                    .replace("@s.whatsapp.net", "")
+                    .replace(/\D/g, "");
+
+                if (numero.length < 10 || numero.length > 13) {
+                    status = "telefone_invalido";
+                    erro = "Telefone com quantidade de dígitos inválida.";
+                } else if (settingsService.estaBloqueado(destinatario.cliente_jid)) {
+                    status = "bloqueado";
+                    erro = "Contato na lista de bloqueio.";
+                } else {
+                    const resultado = await whatsappService.verificarNumero(numero);
+
+                    if (resultado.exists) {
+                        status = "valido";
+                        jidValidado = resultado.jid;
+                    } else {
+                        status = "sem_whatsapp";
+                        erro = "Número não encontrado no WhatsApp.";
+                    }
+                }
+            } catch (falha) {
+                status = "erro_validacao";
+                erro = falha?.message || "Não foi possível validar o contato.";
+            }
+
+            atualizar.run(status, erro, jidValidado, destinatario.id);
+        }
+
+        db.prepare(`
+            UPDATE campaigns
+            SET
+                validation_status = 'validada',
+                validated_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `).run(campaignId);
+
+        const resultados = this.listarDestinatarios(campaignId);
+        const resumo = resultados.reduce((totais, item) => {
+            totais.selecionados += 1;
+            if (item.validation_status === "valido") totais.validos += 1;
+            if (item.validation_status === "sem_whatsapp") totais.semWhatsapp += 1;
+            if (item.validation_status === "telefone_invalido") totais.telefoneInvalido += 1;
+            if (item.validation_status === "bloqueado") totais.bloqueados += 1;
+            if (item.validation_status === "erro_validacao") totais.erros += 1;
+            if (item.validation_status === "ja_enviado") totais.jaEnviados += 1;
+            return totais;
+        }, {
+            selecionados: 0,
+            validos: 0,
+            semWhatsapp: 0,
+            telefoneInvalido: 0,
+            bloqueados: 0,
+            erros: 0,
+            jaEnviados: 0
+        });
+
+        return {
+            campanha: this.buscarPorId(campaignId),
+            resumo,
+            destinatarios: resultados
+        };
+    }
+
     async enviar(campaignId, { somenteErros = false } = {}) {
         const campanha = this.buscarPorId(campaignId);
 
         if (!campanha) throw new Error("Campanha não encontrada.");
-        if (campanha.status === "processando") {
+        if (["processando", "cancelando"].includes(campanha.status)) {
             throw new Error("Esta campanha já está sendo enviada.");
+        }
+        if (!somenteErros && campanha.validation_status !== "validada") {
+            throw new Error("Valide os contatos antes de iniciar a campanha.");
         }
         if (whatsappService.getStatus() !== "connected") {
             throw new Error("Conecte o WhatsApp antes de iniciar a campanha.");
@@ -279,7 +474,10 @@ class CampaignService {
         const placeholders = statusPermitidos.map(() => "?").join(", ");
         const destinatarios = db.prepare(`
             SELECT * FROM campaign_recipients
-            WHERE campaign_id = ? AND status IN (${placeholders})
+            WHERE campaign_id = ?
+              AND active = 1
+              AND status IN (${placeholders})
+              AND validation_status = 'valido'
             ORDER BY id
         `).all(campaignId, ...statusPermitidos);
 
@@ -289,27 +487,48 @@ class CampaignService {
                 : "Selecione ao menos um destinatário pendente.");
         }
 
-        db.prepare(`UPDATE campaigns SET status = 'processando', updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
-            .run(campaignId);
+        db.prepare(`
+            UPDATE campaigns
+            SET status = 'processando', cancel_requested = 0,
+                progress_total = ?, progress_processed = 0,
+                current_recipient = NULL, next_send_at = NULL, cooldown_ms = 0,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `).run(destinatarios.length, campaignId);
 
         let enviados = 0;
         let erros = 0;
         let bloqueados = 0;
+        let cancelada = false;
         const intervaloAleatorio = () => Math.round(
             config.intervaloMinimoMs + Math.random() * (config.intervaloMaximoMs - config.intervaloMinimoMs)
         );
 
-        for (const destinatario of destinatarios) {
+        for (let indice = 0; indice < destinatarios.length; indice += 1) {
+            const destinatario = destinatarios[indice];
+            const cancelamento = db.prepare(`
+                SELECT cancel_requested FROM campaigns WHERE id = ?
+            `).get(campaignId);
+
+            if (cancelamento?.cancel_requested) {
+                cancelada = true;
+                break;
+            }
+
             if (enviados >= restanteDiario) break;
+            db.prepare(`UPDATE campaigns SET current_recipient = ?, next_send_at = NULL WHERE id = ?`)
+                .run(destinatario.cliente_nome, campaignId);
             if (settingsService.estaBloqueado(destinatario.cliente_jid)) {
                 db.prepare(`UPDATE campaign_recipients SET status='bloqueado',erro='Contato na lista de bloqueio' WHERE id=?`).run(destinatario.id);
                 bloqueados += 1;
+                db.prepare(`UPDATE campaigns SET progress_processed = ? WHERE id = ?`)
+                    .run(indice + 1, campaignId);
                 continue;
             }
             const cliente = {
                 id: destinatario.cliente_id,
                 name: destinatario.cliente_nome,
-                jid: destinatario.cliente_jid
+                jid: destinatario.validated_jid || destinatario.cliente_jid
             };
             const mensagem = messageService.gerarMensagem(
                 { mensagem: campanha.template_mensagem },
@@ -318,7 +537,7 @@ class CampaignService {
 
             try {
                 await whatsappService.enviarMensagem(cliente.jid, mensagem);
-                messageService.salvarHistorico(cliente, campanha.template_id, mensagem, "enviado");
+                messageService.salvarHistorico(cliente, campanha.template_id, mensagem, "enviado", campanha);
                 db.prepare(`
                     UPDATE campaign_recipients
                     SET status = 'enviado', erro = NULL, enviado_em = CURRENT_TIMESTAMP
@@ -327,7 +546,7 @@ class CampaignService {
                 enviados += 1;
             } catch (erro) {
                 const motivo = erro?.message || "Falha desconhecida no envio.";
-                messageService.salvarHistorico(cliente, campanha.template_id, mensagem, "erro");
+                messageService.salvarHistorico(cliente, campanha.template_id, mensagem, "erro", campanha);
                 db.prepare(`
                     UPDATE campaign_recipients
                     SET status = 'erro', erro = ?, enviado_em = CURRENT_TIMESTAMP
@@ -336,18 +555,57 @@ class CampaignService {
                 erros += 1;
             }
 
-            if (destinatario !== destinatarios.at(-1)) await sleep(intervaloAleatorio());
+            db.prepare(`UPDATE campaigns SET progress_processed = ? WHERE id = ?`)
+                .run(indice + 1, campaignId);
+
+            if (indice < destinatarios.length - 1) {
+                const intervalo = intervaloAleatorio();
+                const proximoEnvio = new Date(Date.now() + intervalo).toISOString();
+                db.prepare(`UPDATE campaigns SET next_send_at = ?, cooldown_ms = ?, current_recipient = ? WHERE id = ?`)
+                    .run(proximoEnvio, intervalo, destinatarios[indice + 1].cliente_nome, campaignId);
+                await sleep(intervalo);
+            }
         }
 
         const pendentes = db.prepare(`
             SELECT COUNT(*) AS total FROM campaign_recipients
-            WHERE campaign_id = ? AND status = 'pendente'
+            WHERE campaign_id = ?
+              AND status = 'pendente'
+              AND active = 1
+              AND validation_status = 'valido'
         `).get(campaignId).total;
-        const statusFinal = erros > 0 || bloqueados > 0 || pendentes > 0 ? "parcial" : "concluida";
-        db.prepare(`UPDATE campaigns SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+        const statusFinal = cancelada
+            ? "cancelada"
+            : erros > 0 || bloqueados > 0 || pendentes > 0
+                ? "parcial"
+                : "concluida";
+        db.prepare(`UPDATE campaigns SET status = ?, cancel_requested = 0, current_recipient = NULL, next_send_at = NULL, cooldown_ms = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
             .run(statusFinal, campaignId);
 
-        return { success: true, enviados, erros, bloqueados, pendentes, status: statusFinal, notificarConclusao: config.notificarConclusao };
+        return { success: true, enviados, erros, bloqueados, pendentes, cancelada, status: statusFinal, notificarConclusao: config.notificarConclusao };
+    }
+
+    cancelar(campaignId) {
+        const campanha = this.buscarPorId(campaignId);
+
+        if (!campanha) {
+            throw new Error("Campanha não encontrada.");
+        }
+
+        if (campanha.status !== "processando") {
+            throw new Error("Somente campanhas em processamento podem ser canceladas.");
+        }
+
+        db.prepare(`
+            UPDATE campaigns
+            SET status = 'cancelando', cancel_requested = 1, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `).run(campaignId);
+
+        return {
+            success: true,
+            message: "Cancelamento solicitado. O envio atual será concluído e os próximos serão interrompidos."
+        };
     }
 }
 

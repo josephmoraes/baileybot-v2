@@ -148,11 +148,42 @@ class CampaignController {
         }
     }
 
+    async validarDestinatarios(req, res) {
+        try {
+            const resultado = await campaignService.validarDestinatarios(
+                req.params.id
+            );
+
+            res.json(resultado);
+        } catch (erro) {
+            console.error(erro);
+
+            const status = erro.message === "Campanha não encontrada."
+                ? 404
+                : 400;
+
+            res.status(status).json({
+                error: erro.message
+            });
+        }
+    }
+
     async enviar(req, res) {
         try {
             const resultado = await campaignService.enviar(req.params.id, {
                 somenteErros: req.body?.somenteErros === true
             });
+            res.json(resultado);
+        } catch (erro) {
+            console.error(erro);
+            const status = erro.message === "Campanha não encontrada." ? 404 : 400;
+            res.status(status).json({ error: erro.message });
+        }
+    }
+
+    cancelar(req, res) {
+        try {
+            const resultado = campaignService.cancelar(req.params.id);
             res.json(resultado);
         } catch (erro) {
             console.error(erro);
