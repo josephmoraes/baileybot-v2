@@ -15,7 +15,7 @@ export const config = {
     },
 
     envio: {
-        delayMin: Number(process.env.DELAY_MIN),
-        delayMax: Number(process.env.DELAY_MAX)
+        delayMinMs: Number(process.env.CAMPAIGN_DELAY_MIN_MS ?? 60000),
+        delayMaxMs: Number(process.env.CAMPAIGN_DELAY_MAX_MS ?? 180000)
     }
 };

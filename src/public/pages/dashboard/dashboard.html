@@ -1,129 +1,122 @@
-<div class="page-heading">
-    <h1>Dashboard</h1>
-    <p class="text-secondary mb-0">Visão geral da operação do BaileyBot</p>
-</div>
+<section class="dashboard-page" aria-labelledby="dashboardTitulo">
+    <div class="page-heading d-flex flex-wrap justify-content-between align-items-end gap-3">
+        <div>
+            <p class="dashboard-eyebrow mb-1">VISÃO GERAL</p>
+            <h1 id="dashboardTitulo">Olá! Como está a operação hoje?</h1>
+            <p class="text-secondary mb-0">Acompanhe mensagens, campanhas e a conexão do BaileyBot.</p>
+        </div>
+        <span id="dashboardAtualizado" class="small text-secondary">Atualizando...</span>
+    </div>
 
-<!-- Cards -->
-<div class="row g-4 mb-5">
+    <div class="row g-3 mb-4" aria-label="Indicadores principais">
+        <div class="col-sm-6 col-xl-3">
+            <article class="dashboard-kpi h-100">
+                <div class="dashboard-icon text-primary"><i class="bi bi-people"></i></div>
+                <div><span class="text-secondary small">Clientes cadastrados</span><strong id="totalClientes">0</strong></div>
+            </article>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <article class="dashboard-kpi h-100">
+                <div class="dashboard-icon text-info"><i class="bi bi-chat-dots"></i></div>
+                <div><span class="text-secondary small">Mensagens hoje</span><strong id="mensagensHoje">0</strong></div>
+            </article>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <article class="dashboard-kpi h-100">
+                <div class="dashboard-icon text-warning"><i class="bi bi-megaphone"></i></div>
+                <div><span class="text-secondary small">Campanhas ativas</span><strong id="campanhasAtivas">0</strong></div>
+            </article>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <article class="dashboard-kpi h-100">
+                <div class="dashboard-icon text-success"><i class="bi bi-whatsapp"></i></div>
+                <div><span class="text-secondary small">WhatsApp</span><strong id="statusWhatsappKpi" class="dashboard-status-text">Verificando</strong></div>
+            </article>
+        </div>
+    </div>
 
-    <!-- Clientes -->
-    <div class="col-md-6 col-xl-3">
-        <div class="card bg-secondary text-light border-0 shadow h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
+    <div class="row g-3 mb-4" aria-label="Indicadores executivos">
+        <div class="col-sm-6 col-xl-3"><article class="dashboard-kpi h-100"><div class="dashboard-icon text-info"><i class="bi bi-send-check"></i></div><div><span class="text-secondary small">Mensagens enviadas</span><strong id="totalMensagens">0</strong></div></article></div>
+        <div class="col-sm-6 col-xl-3"><article class="dashboard-kpi h-100"><div class="dashboard-icon text-warning"><i class="bi bi-collection"></i></div><div><span class="text-secondary small">Campanhas cadastradas</span><strong id="totalCampanhas">0</strong></div></article></div>
+        <div class="col-sm-6 col-xl-3"><article class="dashboard-kpi h-100"><div class="dashboard-icon text-primary"><i class="bi bi-person-badge"></i></div><div><span class="text-secondary small">Técnicos ativos</span><strong id="totalTecnicos">0</strong></div></article></div>
+        <div class="col-sm-6 col-xl-3"><article class="dashboard-kpi h-100"><div class="dashboard-icon text-success"><i class="bi bi-cash-stack"></i></div><div><span class="text-secondary small">Comissões</span><strong id="comissaoLiberada" class="dashboard-money">R$ 0</strong><small id="comissaoPendente" class="commission-kpi-note">R$ 0 pendente</small></div></article></div>
+    </div>
 
-                    <div>
-                        <h2 id="totalClientes">0</h2>
-                        <p class="text-light-emphasis mb-0">
-                            Clientes cadastrados
-                        </p>
+    <div class="row g-4 mb-4">
+        <div class="col-xl-8">
+            <article class="dashboard-panel h-100">
+                <div class="dashboard-panel-header">
+                    <div><h2>Mensagens enviadas</h2><p>Últimos 7 dias</p></div>
+                    <span id="totalSemana" class="dashboard-chip">0 na semana</span>
+                </div>
+                <div id="graficoMensagens" class="dashboard-chart" aria-label="Gráfico de mensagens dos últimos sete dias"></div>
+            </article>
+        </div>
+        <div class="col-xl-4">
+            <article class="dashboard-panel h-100">
+                <div class="dashboard-panel-header"><div><h2>Meta do dia</h2><p>Limite diário configurado</p></div><i class="bi bi-bullseye text-success fs-4"></i></div>
+                <div class="d-flex align-items-end justify-content-between mb-2">
+                    <strong id="metaProgresso" class="display-6">0%</strong>
+                    <span id="metaResumo" class="text-secondary">0 de 0</span>
+                </div>
+                <div class="progress dashboard-progress" role="progressbar" aria-label="Progresso da meta diária">
+                    <div id="metaBarra" class="progress-bar bg-success" style="width: 0%"></div>
+                </div>
+                <p id="metaMensagem" class="small text-secondary mt-3 mb-0">Carregando progresso...</p>
+            </article>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-12"><article class="dashboard-panel"><div class="dashboard-panel-header"><div><h2>Últimos envios</h2><p>Mensagens mais recentes e situação de entrega</p></div><button class="btn btn-sm btn-outline-success" data-dashboard-page="historico">Abrir histórico</button></div><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Cliente</th><th>Origem</th><th>Status</th><th>Data</th></tr></thead><tbody id="ultimosEnvios"></tbody></table></div></article></div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-xl-5">
+            <article class="dashboard-panel h-100">
+                <div class="dashboard-panel-header"><div><h2>Atividade recente</h2><p>Últimos movimentos da operação</p></div><i class="bi bi-activity text-primary fs-4"></i></div>
+                <div id="atividadeRecente" class="dashboard-timeline"></div>
+            </article>
+        </div>
+        <div class="col-xl-7">
+            <article class="dashboard-panel h-100">
+                <div class="dashboard-panel-header"><div><h2>Campanhas</h2><p>Desempenho das campanhas mais recentes</p></div><button class="btn btn-sm btn-outline-success" data-dashboard-page="campanhas">Ver todas</button></div>
+                <div id="campanhasResumo" class="dashboard-campaigns"></div>
+            </article>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-4">
+            <article class="dashboard-panel h-100">
+                <div class="dashboard-panel-header"><div><h2>Status do WhatsApp</h2><p>Conexão principal</p></div><i class="bi bi-whatsapp text-success fs-4"></i></div>
+                <div class="dashboard-whatsapp">
+                    <span id="statusWhatsappCard" class="badge rounded-pill bg-secondary">Carregando...</span>
+                    <p id="whatsappDescricao" class="text-secondary small mb-3">Consultando a sessão atual.</p>
+                    <div id="qrContainer" class="text-center mb-3 d-none"><img id="qrCode" class="img-fluid rounded bg-white p-2" style="max-width:150px" alt="QR Code para conectar o WhatsApp"></div>
+                    <div class="d-flex gap-2">
+                        <button data-whatsapp-action="connect" class="btn btn-success btn-sm flex-grow-1"><i class="bi bi-play-fill"></i> Iniciar</button>
+                        <button data-whatsapp-action="disconnect" class="btn btn-outline-danger btn-sm flex-grow-1"><i class="bi bi-box-arrow-right"></i> Desconectar</button>
                     </div>
-
-                    <i class="bi bi-people fs-1 text-primary"></i>
-
                 </div>
-            </div>
+            </article>
+        </div>
+        <div class="col-xl-4">
+            <article class="dashboard-panel h-100">
+                <div class="dashboard-panel-header"><div><h2>Avisos</h2><p>Pontos que precisam de atenção</p></div><i class="bi bi-bell text-warning fs-4"></i></div>
+                <div id="dashboardAvisos" class="dashboard-alerts"></div>
+            </article>
+        </div>
+        <div class="col-xl-4">
+            <article class="dashboard-panel h-100">
+                <div class="dashboard-panel-header"><div><h2>Ações rápidas</h2><p>Acesse as tarefas mais usadas</p></div><i class="bi bi-lightning-charge text-warning fs-4"></i></div>
+                <div class="dashboard-actions">
+                    <button data-dashboard-page="campanhas"><i class="bi bi-plus-circle"></i><span>Nova campanha</span></button>
+                    <button data-dashboard-page="envio"><i class="bi bi-send"></i><span>Enviar mensagem</span></button>
+                    <button data-dashboard-page="clientes"><i class="bi bi-person-plus"></i><span>Cadastrar cliente</span></button>
+                    <button data-dashboard-page="historico"><i class="bi bi-clock-history"></i><span>Abrir histórico</span></button>
+                </div>
+            </article>
         </div>
     </div>
-
-    <!-- Campanhas -->
-    <div class="col-md-6 col-xl-3">
-        <div class="card bg-secondary text-light border-0 shadow h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-
-                    <div>
-                        <h2 id="totalCampanhas">0</h2>
-                        <p class="text-light-emphasis mb-0">
-                            Campanhas criadas
-                        </p>
-                    </div>
-
-                    <i class="bi bi-send fs-1 text-warning"></i>
-
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- WhatsApp -->
-    <div class="col-md-6 col-xl-3">
-        <div class="card bg-secondary text-light border-0 shadow h-100">
-
-            <div class="card-body d-flex flex-column">
-
-                <!-- Cabeçalho -->
-                <div class="d-flex justify-content-between align-items-center">
-
-                    <h5 class="mb-0">WhatsApp</h5>
-
-                    <i class="bi bi-whatsapp text-success fs-2"></i>
-
-                </div>
-
-
-                <!-- Status -->
-                <div class="d-flex justify-content-center align-items-center flex-grow-1">
-
-                    <span id="statusWhatsappCard"
-                        class="badge border bg-light text-dark fs-6 px-3 py-2">
-                        Carregando...
-                    </span>
-
-                </div>
-
-
-                <!-- QR Code -->
-                <div id="qrContainer"
-                    class="text-center mb-3 d-none">
-
-                    <img id="qrCode"
-                        class="img-fluid border rounded p-2 bg-white"
-                        style="max-width:180px;"
-                        alt="QR Code WhatsApp">
-
-                </div>
-
-
-                <!-- Botões -->
-                <div class="d-flex justify-content-center gap-2">
-
-                    <button data-whatsapp-action="connect"
-                        class="btn btn-success btn-sm">
-
-                        <i class="bi bi-play-fill"></i>
-                        Iniciar
-
-                    </button>
-
-
-                    <button data-whatsapp-action="disconnect"
-                        class="btn btn-danger btn-sm">
-
-                        <i class="bi bi-box-arrow-right"></i>
-                        Desconectar
-
-                    </button>
-
-                </div>
-
-            </div>
-
-        </div>
-    </div>
-
-    <div class="col-md-6 col-xl-3">
-        <div class="card bg-secondary text-light border-0 shadow h-100">
-            <div class="card-body d-flex justify-content-between align-items-center">
-                <div>
-                    <h2 id="totalMensagens">0</h2>
-                    <p class="text-light-emphasis mb-0">Mensagens registradas</p>
-                </div>
-                <i class="bi bi-chat-dots fs-1 text-info"></i>
-            </div>
-        </div>
-    </div>
-
-</div>
-    
-
+</section>

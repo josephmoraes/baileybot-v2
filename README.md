@@ -1,111 +1,126 @@
-# 🤖 BaileyBot V2
+# BaileyBot V2
 
-Sistema web para gerenciamento de clientes e envio de mensagens pelo WhatsApp utilizando **Baileys**, **Express**, **Socket.IO** e **SQLite**.
+Plataforma web local para organizar clientes, templates, campanhas, mensagens e comissões, com integração ao WhatsApp por meio do Baileys. A aplicação foi desenhada para uma operação administrativa em um único computador, com dados persistidos em SQLite.
 
-> Projeto desenvolvido para uso interno da Refricom Refrigeração.
+## Visão geral
 
----
+- Dashboard executivo com indicadores operacionais e financeiros.
+- Clientes com importação por PDF, Excel ou CSV e exportação Excel.
+- Templates, envio individual e histórico pesquisável.
+- Campanhas com destinatários, validação, intervalo aleatório, cancelamento e reenvio de falhas.
+- Conexão WhatsApp com QR Code.
+- Técnicos, comissões, importações por PDF, Excel ou CSV e solicitações de crédito.
+- Configurações, bloqueio de contatos e backup do banco.
 
-## 🚀 Tecnologias
+## Arquitetura
 
-- Node.js
-- Express
-- Socket.IO
-- Baileys
-- SQLite (better-sqlite3)
-- Bootstrap 5
-- JavaScript (ES Modules)
-
----
-
-## 📂 Estrutura do Projeto
-
-```
-src/
-│
-├── config/
-├── controllers/
-├── database/
-├── middleware/
-├── public/
-│   ├── css/
-│   ├── img/
-│   ├── js/
-│   └── index.html
-├── routes/
-├── server/
-├── services/
-├── sockets/
-└── utils/
+```text
+Browser (Bootstrap + Hash Router)
+        |
+Express routes -> controllers -> services -> repositories
+        |                            |
+        +----------------------------+-> SQLite
+                                     +-> Baileys / WhatsApp
 ```
 
----
+Responsabilidades principais:
 
-## ✨ Funcionalidades
+- `src/server/routes`: endpoints HTTP.
+- `src/controllers`: tradução entre HTTP e regras da aplicação.
+- `src/services`: regras de negócio e integrações.
+- `src/repositories`: consultas de leitura agregada.
+- `src/database`: conexão, schema, migrations e dados iniciais.
+- `src/public`: interface SPA, páginas, estilos e scripts.
+- `test`: testes automatizados com banco e autenticação temporários.
 
-- [x] Interface Web responsiva
-- [x] Dashboard
-- [x] Cadastro de clientes
-- [x] Banco SQLite
-- [x] Conexão com WhatsApp
-- [x] QR Code na interface
-- [x] Envio individual de mensagens
-- [x] Campanhas com seleção de destinatários, histórico e reenvio de falhas
-- [x] Templates de mensagens
-- [x] Histórico com filtros e paginação
-- [x] Backup do banco nas configurações
-- [x] Comissões: técnicos, importação OG1, saldos e solicitações de crédito
+## Requisitos
 
----
+- Node.js 20 ou superior.
+- Windows, macOS ou Linux.
+- Navegador moderno.
 
-## ▶️ Como executar
-
-### Instalar dependências
+## Instalação
 
 ```bash
 npm install
 ```
 
-### Iniciar o projeto
+Crie um arquivo `.env` na raiz quando precisar sobrescrever os padrões:
+
+```env
+PORT=3000
+HOST=127.0.0.1
+ADMIN_PASSWORD=troque-por-uma-senha-forte
+CAMPAIGN_DELAY_MIN_MS=60000
+CAMPAIGN_DELAY_MAX_MS=180000
+DAILY_MESSAGE_LIMIT=200
+DB_PATH=./database/bot.db
+AUTH_PATH=./auth_info
+```
+
+`ADMIN_PASSWORD` ativa a tela de login e protege todas as APIs administrativas por sessão. Sem essa variável, o servidor continua restrito por padrão a `127.0.0.1`, adequado para uso local. Não publique o serviço na internet sem senha, HTTPS e um proxy configurado.
+
+## Como executar
+
+Desenvolvimento:
 
 ```bash
 npm run dev
 ```
 
-Abra:
+Uso normal:
 
-```
-http://localhost:3000
-```
-
-## Configuração opcional
-
-Crie ou ajuste o arquivo `.env`:
-
-```env
-PORT=3000
-CAMPAIGN_DELAY_MS=1500
+```bash
+npm start
 ```
 
-O intervalo reduz disparos consecutivos muito rápidos. No módulo Comissões, cadastre primeiro os técnicos com o mesmo código usado no relatório do OG1; depois importe o arquivo de vendas.
+Acesse `http://127.0.0.1:3000/#/dashboard`.
 
----
+## Qualidade e testes
 
-## 📌 Roadmap
+```bash
+npm test
+npm run lint
+npm run format:check
+npm run check
+```
 
-### V1 operacional
-- [x] Clientes, dashboard e banco SQLite
-- [x] WhatsApp via Baileys
-- [x] Templates, envio individual e histórico
-- [x] Campanhas completas
-- [x] Backup e diagnóstico da instalação
+Os testes usam `DB_PATH` e `AUTH_PATH` temporários e substituem o envio do WhatsApp. Eles não devem apontar para o banco ou para a sessão reais.
 
----
+PDFs importados precisam conter texto selecionável e uma tabela com os mesmos cabeçalhos esperados nas planilhas. PDFs escaneados como imagem não passam por OCR.
 
-# BaileyBot V2
+## Banco e migrations
 
-![Dashboard](docs/dashboard.png)
+O schema base é criado de forma idempotente. Ajustes compatíveis com bancos existentes são registrados em `schema_migrations`; assim, uma atualização não recria nem apaga tabelas existentes. Antes de uma atualização importante, gere um backup em **Configurações**.
 
-## 👨‍💻 Autor
+## Capturas
+
+Adicione as capturas finais na pasta `docs/` com estes nomes:
+
+- `docs/dashboard.png`
+- `docs/campanhas.png`
+- `docs/comissoes.png`
+
+> As imagens devem ser capturadas com dados de demonstração, nunca com contatos reais.
+
+## Segurança
+
+- O servidor escuta apenas em `127.0.0.1` por padrão.
+- APIs administrativas podem ser protegidas por sessão com `ADMIN_PASSWORD`.
+- Cookies de sessão são `HttpOnly` e `SameSite=Strict`.
+- Cabeçalhos básicos de proteção são aplicados pelo Express.
+- Banco, backups, `.env` e credenciais do WhatsApp não devem ser versionados.
+- Desconectar o WhatsApp remove a sessão salva e exige um novo QR Code.
+
+## Roadmap
+
+- [x] Operação local de clientes, mensagens e campanhas.
+- [x] Dashboard executivo e módulo de comissões.
+- [x] Navegação por URL e estrutura inicial de migrations.
+- [ ] Capturas oficiais da apresentação.
+- [ ] Auditoria de acessibilidade com usuários reais.
+- [ ] Autenticação persistente com usuários e perfis, caso o sistema passe a ser multiusuário.
+
+## Autor
 
 Desenvolvido por **Joseph Moraes**.

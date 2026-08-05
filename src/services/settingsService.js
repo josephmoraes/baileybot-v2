@@ -13,10 +13,9 @@ class SettingsService {
 
     obterBot() {
         return {
-            intervaloCampanhaMs: Number(this.obterValor("campaign_delay_ms", "1500")),
             nomeVendedor: this.obterValor("seller_name", "Noberto"),
-            intervaloMinimoMs: Number(this.obterValor("campaign_delay_min_ms", "8000")),
-            intervaloMaximoMs: Number(this.obterValor("campaign_delay_max_ms", "15000")),
+            intervaloMinimoMs: Number(this.obterValor("campaign_delay_min_ms", String(process.env.CAMPAIGN_DELAY_MIN_MS ?? 60000))),
+            intervaloMaximoMs: Number(this.obterValor("campaign_delay_max_ms", String(process.env.CAMPAIGN_DELAY_MAX_MS ?? 180000))),
             horarioInicio: this.obterValor("sending_start_time", "08:00"),
             horarioFim: this.obterValor("sending_end_time", "18:00"),
             limiteDiario: Number(this.obterValor("daily_message_limit", "200")),
@@ -29,7 +28,6 @@ class SettingsService {
         const maximo = Number(dados.intervaloMaximoSegundos);
         const limite = Number(dados.limiteDiario);
         const horarioValido = valor => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(valor));
-        const segundos = Number(dados.intervaloCampanhaSegundos ?? minimo);
         const vendedor = String(dados.nomeVendedor ?? "").trim();
         if (![minimo, maximo].every(v => Number.isFinite(v) && v >= 1 && v <= 300) || minimo > maximo) {
             throw new Error("Informe intervalos entre 1 e 300 segundos; o mínimo não pode superar o máximo.");
@@ -42,7 +40,6 @@ class SettingsService {
         const salvar = db.prepare(`INSERT INTO app_settings(key,value,updated_at) VALUES(?,?,CURRENT_TIMESTAMP)
             ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP`);
         db.transaction(() => {
-            salvar.run("campaign_delay_ms", String(Math.round(segundos * 1000)));
             salvar.run("seller_name", vendedor);
             salvar.run("campaign_delay_min_ms", String(Math.round(minimo * 1000)));
             salvar.run("campaign_delay_max_ms", String(Math.round(maximo * 1000)));

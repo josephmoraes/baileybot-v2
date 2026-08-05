@@ -1,19 +1,21 @@
 $ErrorActionPreference = "Stop"
 $projectPath = "C:\Users\refri\OneDrive\Documentos\Kalleb\baileyBot-v2-main"
-$url = "http://localhost:3000"
+$url = "http://127.0.0.1:3000/#/dashboard"
+$healthUrl = "http://127.0.0.1:3000/api/health"
 
 $server = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue
 
 if (-not $server) {
-    Start-Process -FilePath "cmd.exe" `
-        -ArgumentList "/k", "npm start" `
+    $nodePath = (Get-Command node -ErrorAction Stop).Source
+    Start-Process -FilePath $nodePath `
+        -ArgumentList "index.js" `
         -WorkingDirectory $projectPath `
-        -WindowStyle Minimized
+        -WindowStyle Hidden
 
-    for ($attempt = 0; $attempt -lt 20; $attempt++) {
+    for ($attempt = 0; $attempt -lt 40; $attempt++) {
         Start-Sleep -Milliseconds 500
         try {
-            $response = Invoke-WebRequest -Uri "$url/api/health" -UseBasicParsing -TimeoutSec 1
+            $response = Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -TimeoutSec 1
             if ($response.StatusCode -eq 200) { break }
         } catch {
             # Aguarda o servidor concluir a inicialização.

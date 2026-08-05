@@ -1,7 +1,7 @@
 import { Router } from "express";
 import service from "../../services/commissionService.js";
 const router=Router();
-const enviar=(res,fn,status=200)=>{try{res.status(status).json(fn());}catch(e){console.error(e);res.status(400).json({error:e.message});}};
+const enviar=async(res,fn,status=200)=>{try{res.status(status).json(await fn());}catch(e){console.error(e);res.status(400).json({error:e.message});}};
 router.get("/dashboard",(q,s)=>enviar(s,()=>service.dashboard()));
 router.get("/technicians",(q,s)=>enviar(s,()=>service.listarTecnicos()));
 router.post("/technicians",(q,s)=>enviar(s,()=>service.salvarTecnico(q.body),201));

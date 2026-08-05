@@ -1,197 +1,99 @@
 const paginas = {
-    dashboard: "dashboard/dashboard.html",
-    clientes: "clientes/clientes.html",
-    mensagens: "mensagens/mensagens.html",
-    templates: "mensagens/templates.html",
-    historico: "mensagens/historico.html",
-    campanhas: "campanhas/campanhas.html",
-    configuracoes: "configuracoes/configuracoes.html",
-    envio: "mensagens/envio.html",
-    "comissoes-dashboard": "comissoes/dashboard.html",
-    "comissoes-historico": "comissoes/historico.html",
-    "comissoes-tecnicos": "comissoes/tecnicos.html",
-    "comissoes-solicitacao": "comissoes/solicitacao.html",
+    dashboard: { arquivo: "dashboard/dashboard.html", hash: "dashboard" },
+    clientes: { arquivo: "clientes/clientes.html", hash: "clientes" },
+    campanhas: { arquivo: "campanhas/campanhas.html", hash: "campanhas" },
+    mensagens: { arquivo: "mensagens/mensagens.html", hash: "mensagens" },
+    templates: { arquivo: "mensagens/templates.html", hash: "mensagens/templates" },
+    envio: { arquivo: "mensagens/envio.html", hash: "mensagens/envio" },
+    historico: { arquivo: "mensagens/historico.html", hash: "mensagens/historico" },
+    "comissoes-dashboard": { arquivo: "comissoes/dashboard.html", hash: "comissoes/dashboard" },
+    "comissoes-historico": { arquivo: "comissoes/historico.html", hash: "comissoes/historico" },
+    "comissoes-tecnicos": { arquivo: "comissoes/tecnicos.html", hash: "comissoes/tecnicos" },
+    "comissoes-solicitacao": { arquivo: "comissoes/solicitacao.html", hash: "comissoes/solicitacoes" },
+    configuracoes: { arquivo: "configuracoes/configuracoes.html", hash: "configuracoes" }
 };
 
 const Router = {
+    paginaAtual: null,
+    paginaPeloHash() {
+        const caminho = location.hash.replace(/^#\/?/, "").replace(/\/$/, "") || "dashboard";
+        return Object.entries(paginas).find(([, config]) => config.hash === caminho)?.[0] || "dashboard";
+    },
 
-    async carregarPagina(pagina) {
-
-        try {
-
-            const arquivo = paginas[pagina];
-
-            if (!arquivo) {
-                throw new Error(`Página "${pagina}" não encontrada.`);
-            }
-
-            const resposta = await fetch(`/pages/${arquivo}`);
-
-            if (!resposta.ok) {
-                throw new Error("Página não encontrada.");
-            }
-
-            const html = await resposta.text();
-
-            document.getElementById("content").innerHTML = html;
-
-            this.atualizarMenu(pagina);
-
-            switch (pagina) {
-
-                case "dashboard":
-
-                    if (typeof carregarDashboard === "function") {
-                        await carregarDashboard();
-                    }
-
-                    break;
-
-                case "clientes":
-
-                    if (typeof carregarClientes === "function") {
-                        await carregarClientes();
-                    }
-
-                    if (typeof inicializarClientes === "function") {
-                        inicializarClientes();
-                    }
-
-                    break;
-
-                case "templates":
-
-                if (typeof carregarTemplates === "function") {
-                    await carregarTemplates();
-                }
-
-                if (typeof inicializarTemplates === "function") {
-                    inicializarTemplates();
-                }
-
-                break;
-
-                case "envio":
-
-                    if (typeof carregarEnvio === "function") {
-                        await carregarEnvio();
-                    }
-
-                    break;
-
-                case "historico":
-
-                    if (typeof carregarHistorico === "function") {
-                        await carregarHistorico();
-                    }
-
-                    if (typeof inicializarHistorico === "function") {
-                        inicializarHistorico();
-                    }
-
-                    break;
-
-                case "mensagens":
-
-                    if (typeof inicializarMensagens === "function") {
-                        inicializarMensagens();
-                    }
-
-                    break;
-
-                case "campanhas":
-
-                    if (typeof inicializarCampanhas === "function") {
-                        inicializarCampanhas();
-                    }
-
-                    break;
-
-                case "configuracoes":
-
-                    if (typeof inicializarConfiguracoes === "function") {
-                        inicializarConfiguracoes();
-                    }
-
-                    break;
-
-                case "comissoes-dashboard":
-                    await carregarComissoesDashboard();
-                    break;
-                case "comissoes-tecnicos":
-                    await inicializarTecnicosComissao();
-                    break;
-                case "comissoes-historico":
-                    await inicializarHistoricoComissoes();
-                    break;
-                case "comissoes-solicitacao":
-                    await inicializarSolicitacaoComissao();
-                    break;
-
-            }
-
-        } catch (erro) {
-
-            console.error(erro);
-
-            document.getElementById("content").innerHTML = `
-                <div class="alert alert-danger">
-                    Erro ao carregar a página.
-                </div>
-            `;
-
+    async carregarPagina(pagina, opcoes = {}) {
+        const config = paginas[pagina];
+        if (!config) pagina = "dashboard";
+        const destino = paginas[pagina];
+        const hash = `#/${destino.hash}`;
+        if (!opcoes.fromHash && location.hash !== hash) {
+            location.hash = hash;
+            return;
         }
 
+        const content = document.getElementById("content");
+        this.mostrarLoading(true);
+        try {
+            const resposta = await fetch(`/pages/${destino.arquivo}`);
+            if (!resposta.ok) throw new Error("Não foi possível abrir esta tela.");
+            content.innerHTML = await resposta.text();
+            this.paginaAtual = pagina;
+            this.atualizarMenu(pagina);
+            await this.inicializarPagina(pagina);
+            content.focus({ preventScroll: true });
+        } catch (erro) {
+            console.error(erro);
+            content.innerHTML = `<div class="app-state app-state-error"><i class="bi bi-cloud-slash"></i><h2>Não foi possível carregar a tela</h2><p>${this.textoSeguro(erro.message)}</p><button class="btn btn-success" data-router-retry><i class="bi bi-arrow-clockwise"></i> Tentar novamente</button></div>`;
+            content.querySelector("[data-router-retry]")?.addEventListener("click", () => this.carregarPagina(pagina, { fromHash: true }));
+        } finally {
+            this.mostrarLoading(false);
+        }
+    },
+
+    async inicializarPagina(pagina) {
+        const inicializadores = {
+            dashboard: () => carregarDashboard?.(),
+            clientes: async () => { await carregarClientes?.(); inicializarClientes?.(); },
+            templates: async () => { await carregarTemplates?.(); inicializarTemplates?.(); },
+            envio: () => carregarEnvio?.(),
+            historico: async () => { await carregarHistorico?.(); inicializarHistorico?.(); },
+            mensagens: () => inicializarMensagens?.(),
+            campanhas: () => inicializarCampanhas?.(),
+            configuracoes: () => inicializarConfiguracoes?.(),
+            "comissoes-dashboard": () => carregarComissoesDashboard?.(),
+            "comissoes-tecnicos": () => inicializarTecnicosComissao?.(),
+            "comissoes-historico": () => inicializarHistoricoComissoes?.(),
+            "comissoes-solicitacao": () => inicializarSolicitacaoComissao?.()
+        };
+        await inicializadores[pagina]?.();
     },
 
     atualizarMenu(pagina) {
+        document.querySelectorAll("[data-page]").forEach(link => {
+            link.classList.toggle("active", link.dataset.page === pagina);
+            if (link.dataset.page === pagina) link.setAttribute("aria-current", "page");
+            else link.removeAttribute("aria-current");
+        });
+        const grupo = pagina.startsWith("comissoes-") ? "submenuComissoes" : ["templates", "envio", "historico"].includes(pagina) ? "submenuMensagens" : null;
+        if (grupo) bootstrap.Collapse.getOrCreateInstance(document.getElementById(grupo), { toggle: false }).show();
+    },
 
-        document
-            .querySelectorAll("[data-page]")
-            .forEach(link => {
+    mostrarLoading(visivel) {
+        document.getElementById("appLoading")?.classList.toggle("d-none", !visivel);
+        document.getElementById("content")?.setAttribute("aria-busy", String(visivel));
+    },
 
-                link.classList.remove("active");
-
-                if (link.dataset.page === pagina) {
-                    link.classList.add("active");
-                }
-
-            });
-
-        if (pagina.startsWith("comissoes-")) {
-            bootstrap.Collapse.getOrCreateInstance(
-                document.getElementById("submenuComissoes"),
-                { toggle: false }
-            ).show();
-        }
-
+    textoSeguro(valor) {
+        return String(valor ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
     },
 
     iniciar() {
-
-        document
-            .querySelectorAll("[data-page]")
-            .forEach(link => {
-
-                link.addEventListener("click", e => {
-
-                    e.preventDefault();
-
-                    this.carregarPagina(link.dataset.page);
-
-                    if (window.innerWidth < 992) {
-                        bootstrap.Collapse.getOrCreateInstance(
-                            document.getElementById("sidebarMenu"),
-                            { toggle: false }
-                        ).hide();
-                    }
-
-                });
-
-            });
-
-        this.carregarPagina("dashboard");
-
+        document.querySelectorAll("[data-page]").forEach(link => link.addEventListener("click", evento => {
+            evento.preventDefault();
+            this.carregarPagina(link.dataset.page);
+            if (window.innerWidth < 992) bootstrap.Collapse.getOrCreateInstance(document.getElementById("sidebarMenu"), { toggle: false }).hide();
+        }));
+        window.addEventListener("hashchange", () => this.carregarPagina(this.paginaPeloHash(), { fromHash: true }));
+        if (!location.hash) history.replaceState(null, "", "#/dashboard");
+        this.carregarPagina(this.paginaPeloHash(), { fromHash: true });
     }
-
 };

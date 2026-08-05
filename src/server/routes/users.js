@@ -15,9 +15,9 @@ router.get("/export-excel", (req, res) => {
     }
 });
 
-router.post("/import-excel", (req, res) => {
+router.post("/import-excel", async (req, res) => {
     try {
-        res.json(excelService.importar(req.body.base64));
+        res.json(await excelService.importar(req.body.base64, req.body.filename));
     } catch (erro) {
         res.status(400).json({ error: erro.message });
     }

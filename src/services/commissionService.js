@@ -1,5 +1,6 @@
 import XLSX from "xlsx";
 import db from "../database/database.js";
+import fileImportService from "./fileImportService.js";
 
 const hoje = () => new Date().toISOString().slice(0, 10);
 const chave = valor => String(valor ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -43,22 +44,68 @@ class CommissionService {
     }
     dashboard() {
         this.atualizarLiberacoes();
-        const resumo = db.prepare(`SELECT COUNT(DISTINCT t.id) tecnicos,
-            COALESCE(SUM(c.sale_value),0) vendas, COALESCE(SUM(c.commission_value),0) comissoes,
-            COALESCE(SUM(CASE WHEN c.status='liberada' THEN c.commission_value ELSE 0 END),0) liberado,
-            COALESCE(SUM(CASE WHEN c.status='pendente' THEN c.commission_value ELSE 0 END),0) pendente
-            FROM technicians t LEFT JOIN commissions c ON c.technician_id=t.id AND substr(c.sale_date,1,7)=substr(?,1,7) WHERE t.active=1`).get(hoje());
-        const ranking = db.prepare(`SELECT t.name,COUNT(c.id) vendas_count,COALESCE(SUM(c.sale_value),0) total FROM technicians t LEFT JOIN commissions c ON c.technician_id=t.id GROUP BY t.id ORDER BY total DESC`).all();
-        return { resumo, maiores: ranking.slice(0,5), menores: [...ranking].sort((a,b)=>a.total-b.total).slice(0,5) };
+        const resumo = db.prepare(`SELECT
+            (SELECT COUNT(*) FROM technicians WHERE active=1) tecnicos,
+            (SELECT COUNT(*) FROM technicians) tecnicos_total,
+            COUNT(CASE WHEN substr(sale_date,1,7)=substr(?,1,7) THEN 1 END) vendas_count,
+            COALESCE(SUM(CASE WHEN substr(sale_date,1,7)=substr(?,1,7) THEN sale_value ELSE 0 END),0) vendas,
+            COALESCE(SUM(CASE WHEN substr(sale_date,1,7)=substr(?,1,7) THEN commission_value ELSE 0 END),0) comissoes,
+            COALESCE(SUM(CASE WHEN status='liberada' THEN commission_value ELSE 0 END),0) liberado,
+            COUNT(CASE WHEN status='liberada' THEN 1 END) liberadas_count,
+            COALESCE(SUM(CASE WHEN status='pendente' THEN commission_value ELSE 0 END),0) pendente,
+            COUNT(CASE WHEN status='pendente' THEN 1 END) pendentes_count
+            FROM commissions`).get(hoje(), hoje(), hoje());
+
+        const ranking = db.prepare(`SELECT t.name,t.og1_code,COUNT(c.id) vendas_count,
+            COALESCE(SUM(c.sale_value),0) total,COALESCE(SUM(c.commission_value),0) comissao
+            FROM technicians t JOIN commissions c ON c.technician_id=t.id
+            GROUP BY t.id ORDER BY total DESC LIMIT 5`).all();
+
+        const mensal = db.prepare(`WITH RECURSIVE meses(mes) AS (
+            SELECT strftime('%Y-%m','now','localtime','-5 months')
+            UNION ALL SELECT strftime('%Y-%m',mes||'-01','+1 month') FROM meses WHERE mes<strftime('%Y-%m','now','localtime')
+        ) SELECT meses.mes,COALESCE(SUM(c.sale_value),0) vendas,COALESCE(SUM(c.commission_value),0) comissoes
+          FROM meses LEFT JOIN commissions c ON substr(c.sale_date,1,7)=meses.mes GROUP BY meses.mes ORDER BY meses.mes`).all();
+
+        const distribuicao = db.prepare(`SELECT status,COUNT(*) quantidade,COALESCE(SUM(commission_value),0) valor
+            FROM commissions GROUP BY status ORDER BY valor DESC`).all();
+
+        const previsoes = [7,15,30].map(dias => db.prepare(`SELECT COUNT(*) quantidade,COALESCE(SUM(commission_value),0) valor
+            FROM commissions WHERE status='pendente' AND release_date>? AND release_date<=date(?,'+'||?||' days')`).get(hoje(), hoje(), dias));
+
+        const atividades = db.prepare(`SELECT tipo,titulo,descricao,data FROM (
+            SELECT 'importacao' tipo,'Planilha importada' titulo,filename||' · '||imported_rows||' linha(s)' descricao,created_at data FROM commission_imports
+            UNION ALL
+            SELECT 'solicitacao','Solicitação '||COALESCE(number,'criada'),t.name||' · R$ '||printf('%.2f',r.amount),r.created_at
+            FROM credit_requests r JOIN technicians t ON t.id=r.technician_id
+        ) ORDER BY datetime(data) DESC LIMIT 5`).all();
+
+        const ultimaImportacao = db.prepare(`SELECT * FROM commission_imports ORDER BY id DESC LIMIT 1`).get() || null;
+        const solicitacoesRascunho = db.prepare(`SELECT COUNT(*) quantidade,COALESCE(SUM(amount),0) valor FROM credit_requests WHERE status='rascunho'`).get();
+        const semContato = db.prepare(`SELECT COUNT(*) total FROM technicians WHERE active=1 AND COALESCE(TRIM(phone),'')='' AND COALESCE(TRIM(email),'')=''`).get().total;
+        const avisos = [];
+        if (ultimaImportacao?.error_rows) avisos.push({ texto: `${ultimaImportacao.error_rows} linha(s) ignorada(s) na última importação.`, icone: "bi-file-earmark-excel" });
+        if (solicitacoesRascunho.quantidade) avisos.push({ texto: `${solicitacoesRascunho.quantidade} solicitação(ões) em rascunho.`, icone: "bi-file-earmark-text" });
+        if (semContato) avisos.push({ texto: `${semContato} técnico(s) ativo(s) sem telefone ou e-mail.`, icone: "bi-person-exclamation" });
+
+        return {
+            resumo,
+            ranking,
+            mensal,
+            distribuicao,
+            previsoes: previsoes.map((item, indice) => ({ dias: [7,15,30][indice], ...item })),
+            atividades,
+            avisos,
+            ultimaImportacao,
+            solicitacoesRascunho,
+            atualizadoEm: new Date().toISOString()
+        };
     }
     atualizarLiberacoes() { db.prepare(`UPDATE commissions SET status='liberada' WHERE status='pendente' AND release_date<=?`).run(hoje()); }
     listarComissoes() { this.atualizarLiberacoes(); return db.prepare(`SELECT c.*,t.name technician_name,t.og1_code FROM commissions c JOIN technicians t ON t.id=c.technician_id ORDER BY c.sale_date DESC,c.id DESC LIMIT 500`).all(); }
     listarImportacoes() { return db.prepare(`SELECT * FROM commission_imports ORDER BY id DESC LIMIT 50`).all(); }
-    importar({ base64, filename }) {
-        if (!base64) throw new Error("Selecione um arquivo CSV ou Excel.");
-        const wb = XLSX.read(Buffer.from(base64,"base64"),{type:"buffer"});
-        const linhas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:""});
-        if (!linhas.length) throw new Error("O arquivo está vazio.");
+    async importar({ base64, filename }) {
+        const linhas = await fileImportService.extrairLinhas({ base64, filename });
         const imp = db.prepare(`INSERT INTO commission_imports(filename,total_rows) VALUES(?,?)`).run(filename || "importacao.xlsx",linhas.length).lastInsertRowid;
         let importados=0,erros=0,vendas=0,comissoes=0,tecnicosCriados=0;
         const inserir=db.prepare(`INSERT INTO commissions(movement,technician_id,sale_date,sale_value,rate,commission_value,release_date,status,import_id) VALUES(?,?,?,?,?,?,?,?,?)`);

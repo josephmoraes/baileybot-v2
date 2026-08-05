@@ -1,5 +1,6 @@
 import XLSX from "xlsx";
 import userService from "./userService.js";
+import fileImportService from "./fileImportService.js";
 
 function normalizarChave(valor) {
     return String(valor ?? "")
@@ -21,12 +22,8 @@ function obter(linha, nomes) {
 }
 
 class ExcelService {
-    importar(base64) {
-        if (!base64) throw new Error("Selecione uma planilha para importar.");
-        const workbook = XLSX.read(Buffer.from(base64, "base64"), { type: "buffer" });
-        const planilha = workbook.Sheets[workbook.SheetNames[0]];
-        const linhas = XLSX.utils.sheet_to_json(planilha, { defval: "" });
-        if (!linhas.length) throw new Error("A planilha está vazia.");
+    async importar(base64, filename = "clientes.xlsx") {
+        const linhas = await fileImportService.extrairLinhas({ base64, filename });
 
         const resultado = { total: linhas.length, importados: 0, duplicados: 0, invalidos: 0, erros: [] };
         linhas.forEach((linha, indice) => {

@@ -1,9 +1,84 @@
-<div class="page-heading"><h1>Comissões</h1><p class="text-secondary mb-0">Indicadores calculados a partir das vendas importadas</p></div>
-<div id="alertaComissoes" class="alert d-none"></div>
-<div class="row g-4 mb-4">
- <div class="col-md-6 col-xl"><div class="card bg-secondary border-0 h-100"><div class="card-body"><small>Técnicos ativos</small><h2 id="comTecnicos">0</h2></div></div></div>
- <div class="col-md-6 col-xl"><div class="card bg-secondary border-0 h-100"><div class="card-body"><small>Vendas no mês</small><h2 id="comVendas">R$ 0,00</h2></div></div></div>
- <div class="col-md-6 col-xl"><div class="card bg-secondary border-0 h-100"><div class="card-body"><small>Comissões geradas</small><h2 id="comGeradas">R$ 0,00</h2></div></div></div>
- <div class="col-md-6 col-xl"><div class="card bg-secondary border-0 h-100"><div class="card-body"><small>Saldo liberado</small><h2 id="comLiberado">R$ 0,00</h2><small id="comPendente" class="text-warning"></small></div></div></div>
-</div>
-<div class="row g-4"><div class="col-xl-6"><div class="card bg-dark border-secondary"><div class="card-header">Maiores vendas</div><div class="table-responsive"><table class="table table-dark mb-0"><thead><tr><th>Técnico</th><th>Vendas</th><th>Total</th></tr></thead><tbody id="rankingMaiores"></tbody></table></div></div></div><div class="col-xl-6"><div class="card bg-dark border-secondary"><div class="card-header">Menores vendas</div><div class="table-responsive"><table class="table table-dark mb-0"><thead><tr><th>Técnico</th><th>Vendas</th><th>Total</th></tr></thead><tbody id="rankingMenores"></tbody></table></div></div></div></div>
+<section class="commission-dashboard" aria-labelledby="comDashboardTitulo">
+    <div class="page-heading d-flex flex-wrap justify-content-between align-items-end gap-3">
+        <div>
+            <p class="dashboard-eyebrow mb-1">COMISSÕES</p>
+            <h1 id="comDashboardTitulo">Visão geral financeira</h1>
+            <p class="text-secondary mb-0">Valores calculados exclusivamente a partir das vendas importadas.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span id="comPeriodo" class="dashboard-chip">Mês atual</span>
+            <span id="comAtualizado" class="small text-secondary">Atualizando...</span>
+        </div>
+    </div>
+
+    <div id="alertaComissoes" class="alert d-none" role="alert"></div>
+
+    <div class="row g-3 mb-4" aria-label="Indicadores de comissões">
+        <div class="col-sm-6 col-xl-3"><article class="dashboard-kpi h-100"><div class="dashboard-icon text-primary"><i class="bi bi-person-check"></i></div><div><span class="text-secondary small">Técnicos ativos</span><strong id="comTecnicos">0</strong><small id="comTecnicosTotal" class="commission-kpi-note"></small></div></article></div>
+        <div class="col-sm-6 col-xl-3"><article class="dashboard-kpi h-100"><div class="dashboard-icon text-info"><i class="bi bi-receipt"></i></div><div><span class="text-secondary small">Vendas no mês</span><strong id="comVendas">R$ 0,00</strong><small id="comVendasQtd" class="commission-kpi-note"></small></div></article></div>
+        <div class="col-sm-6 col-xl-3"><article class="dashboard-kpi h-100"><div class="dashboard-icon text-warning"><i class="bi bi-hourglass-split"></i></div><div><span class="text-secondary small">Comissões pendentes</span><strong id="comPendente">R$ 0,00</strong><small id="comPendentesQtd" class="commission-kpi-note"></small></div></article></div>
+        <div class="col-sm-6 col-xl-3"><article class="dashboard-kpi h-100"><div class="dashboard-icon text-success"><i class="bi bi-check2-circle"></i></div><div><span class="text-secondary small">Saldo liberado</span><strong id="comLiberado">R$ 0,00</strong><small id="comLiberadasQtd" class="commission-kpi-note"></small></div></article></div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-xl-8">
+            <article class="dashboard-panel h-100">
+                <div class="dashboard-panel-header"><div><h2>Vendas e comissões</h2><p>Evolução real dos últimos 6 meses</p></div><span id="comGeradas" class="dashboard-chip">R$ 0,00 em comissões</span></div>
+                <div id="comGraficoMensal" class="commission-chart" aria-label="Gráfico de vendas e comissões dos últimos seis meses"></div>
+                <div class="commission-chart-legend"><span><i class="vendas"></i> Vendas</span><span><i class="comissoes"></i> Comissões</span></div>
+            </article>
+        </div>
+        <div class="col-xl-4">
+            <article class="dashboard-panel h-100">
+                <div class="dashboard-panel-header"><div><h2>Próximas liberações</h2><p>Previsão das comissões pendentes</p></div><i class="bi bi-calendar-check text-success fs-4"></i></div>
+                <div id="comPrevisoes" class="commission-forecasts"></div>
+            </article>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-xl-7">
+            <article class="dashboard-panel h-100">
+                <div class="dashboard-panel-header"><div><h2>Ranking de técnicos</h2><p>Desempenho acumulado pelas vendas importadas</p></div><button class="btn btn-sm btn-outline-success" data-commission-page="comissoes-tecnicos">Ver técnicos</button></div>
+                <div class="table-responsive">
+                    <table class="table table-dark commission-ranking-table align-middle mb-0">
+                        <thead><tr><th>#</th><th>Técnico</th><th class="text-end">Vendas</th><th class="text-end">Valor vendido</th><th class="text-end">Comissão</th></tr></thead>
+                        <tbody id="comRanking"></tbody>
+                    </table>
+                </div>
+            </article>
+        </div>
+        <div class="col-xl-5">
+            <article class="dashboard-panel h-100">
+                <div class="dashboard-panel-header"><div><h2>Distribuição do saldo</h2><p>Situação atual das comissões</p></div><i class="bi bi-pie-chart text-info fs-4"></i></div>
+                <div id="comDistribuicao" class="commission-distribution"></div>
+            </article>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-5">
+            <article class="dashboard-panel h-100">
+                <div class="dashboard-panel-header"><div><h2>Atividade recente</h2><p>Importações e solicitações registradas</p></div><i class="bi bi-activity text-primary fs-4"></i></div>
+                <div id="comAtividades" class="dashboard-timeline"></div>
+            </article>
+        </div>
+        <div class="col-xl-3">
+            <article class="dashboard-panel h-100">
+                <div class="dashboard-panel-header"><div><h2>Avisos</h2><p>Pendências encontradas</p></div><i class="bi bi-bell text-warning fs-4"></i></div>
+                <div id="comAvisos" class="dashboard-alerts"></div>
+            </article>
+        </div>
+        <div class="col-xl-4">
+            <article class="dashboard-panel h-100">
+                <div class="dashboard-panel-header"><div><h2>Ações rápidas</h2><p>Atalhos da área de comissões</p></div><i class="bi bi-lightning-charge text-warning fs-4"></i></div>
+                <div class="dashboard-actions">
+                    <button data-commission-page="comissoes-historico"><i class="bi bi-file-earmark-arrow-up"></i><span>Importar planilha</span></button>
+                    <button data-commission-page="comissoes-tecnicos"><i class="bi bi-person-plus"></i><span>Cadastrar técnico</span></button>
+                    <button data-commission-page="comissoes-solicitacao"><i class="bi bi-file-earmark-text"></i><span>Nova solicitação</span></button>
+                    <button data-commission-page="comissoes-historico"><i class="bi bi-clock-history"></i><span>Abrir histórico</span></button>
+                </div>
+            </article>
+        </div>
+    </div>
+</section>

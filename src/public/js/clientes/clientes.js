@@ -11,7 +11,7 @@ async function importarClientesExcel(arquivo) {
     const resposta = await fetch("/api/users/import-excel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ base64 })
+        body: JSON.stringify({ base64, filename: arquivo.name })
     });
     const dados = await resposta.json();
     if (!resposta.ok) throw new Error(dados.error || "Erro ao importar planilha.");
