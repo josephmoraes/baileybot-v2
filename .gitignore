@@ -28,6 +28,7 @@ Thumbs.db
 database/*.db
 database/*.db-shm
 database/*.db-wal
+database/backups/*.db
 
 # Sessão WhatsApp
 auth_info/

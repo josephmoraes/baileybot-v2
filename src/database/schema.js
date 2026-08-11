@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS campaigns (
     status TEXT NOT NULL DEFAULT 'rascunho',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    fixed_key TEXT,
 
     FOREIGN KEY (template_id)
         REFERENCES message_templates(id)
@@ -52,6 +53,7 @@ CREATE TABLE IF NOT EXISTS campaign_recipients (
     cliente_id INTEGER,
     cliente_nome TEXT NOT NULL,
     cliente_jid TEXT NOT NULL,
+    customer_code TEXT,
     status TEXT NOT NULL DEFAULT 'pendente',
     erro TEXT,
     enviado_em DATETIME,
@@ -71,7 +73,6 @@ CREATE INDEX IF NOT EXISTS idx_messages_sent_at ON messages(enviado_em DESC);
 CREATE INDEX IF NOT EXISTS idx_messages_status ON messages(status);
 CREATE INDEX IF NOT EXISTS idx_campaign_recipients_campaign_status
     ON campaign_recipients(campaign_id, status);
-
 CREATE TABLE IF NOT EXISTS technicians (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -89,6 +90,8 @@ CREATE TABLE IF NOT EXISTS commission_imports (
     filename TEXT NOT NULL,
     total_rows INTEGER NOT NULL DEFAULT 0,
     imported_rows INTEGER NOT NULL DEFAULT 0,
+    commissioned_rows INTEGER NOT NULL DEFAULT 0,
+    duplicate_rows INTEGER NOT NULL DEFAULT 0,
     error_rows INTEGER NOT NULL DEFAULT 0,
     sales_total REAL NOT NULL DEFAULT 0,
     commission_total REAL NOT NULL DEFAULT 0,
@@ -98,6 +101,13 @@ CREATE TABLE IF NOT EXISTS commission_imports (
 CREATE TABLE IF NOT EXISTS commissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     movement TEXT NOT NULL UNIQUE,
+    document_number TEXT,
+    commissioned_code TEXT,
+    commissioned_name TEXT,
+    customer_name TEXT,
+    report_seller TEXT,
+    source_filename TEXT,
+    imported_at DATETIME,
     technician_id INTEGER NOT NULL,
     sale_date TEXT NOT NULL,
     sale_value REAL NOT NULL,
@@ -134,6 +144,48 @@ CREATE TABLE IF NOT EXISTS credit_request_commissions (
     FOREIGN KEY (request_id) REFERENCES credit_requests(id) ON DELETE CASCADE,
     FOREIGN KEY (commission_id) REFERENCES commissions(id) ON DELETE RESTRICT
 );
+
+CREATE TABLE IF NOT EXISTS commission_notification_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    import_id INTEGER,
+    kind TEXT NOT NULL CHECK(kind IN ('novos_creditos','consulta_saldo')),
+    status TEXT NOT NULL DEFAULT 'pendente',
+    initiated_by TEXT NOT NULL,
+    cancel_requested INTEGER NOT NULL DEFAULT 0,
+    total INTEGER NOT NULL DEFAULT 0,
+    processed INTEGER NOT NULL DEFAULT 0,
+    sent INTEGER NOT NULL DEFAULT 0,
+    failed INTEGER NOT NULL DEFAULT 0,
+    current_technician TEXT,
+    next_send_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    finished_at DATETIME,
+    FOREIGN KEY (import_id) REFERENCES commission_imports(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS commission_notification_recipients (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id INTEGER NOT NULL,
+    import_id INTEGER,
+    technician_id INTEGER NOT NULL,
+    technician_name TEXT NOT NULL,
+    phone TEXT,
+    kind TEXT NOT NULL CHECK(kind IN ('novos_creditos','consulta_saldo')),
+    message TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pendente',
+    error TEXT,
+    sent_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (job_id) REFERENCES commission_notification_jobs(id) ON DELETE CASCADE,
+    FOREIGN KEY (import_id) REFERENCES commission_imports(id) ON DELETE SET NULL,
+    FOREIGN KEY (technician_id) REFERENCES technicians(id) ON DELETE RESTRICT
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_notification_once
+    ON commission_notification_recipients(import_id, technician_id, kind)
+    WHERE import_id IS NOT NULL AND kind='novos_creditos' AND status='enviado';
+CREATE INDEX IF NOT EXISTS idx_commission_notification_history
+    ON commission_notification_recipients(created_at DESC, status);
 
 CREATE INDEX IF NOT EXISTS idx_commissions_technician_status ON commissions(technician_id, status);
 

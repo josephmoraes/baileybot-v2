@@ -6,7 +6,64 @@ import settingsService from "./settingsService.js";
 
 class CampaignService {
 
+    ensureWaitingCampaign() {
+        const fixedKey = "reactivation_waiting";
+        let template = db.prepare("SELECT id FROM message_templates WHERE nome=? ORDER BY id LIMIT 1").get("Reativação - Clientes aguardando");
+        if (!template) {
+            const result = db.prepare("INSERT INTO message_templates(nome,mensagem,ativo) VALUES(?,?,1)").run(
+                "Reativação - Clientes aguardando",
+                "Olá {nome}! Tudo bem? Aqui é o {vendedor} da Refricom. Podemos ajudar com algum produto, orçamento ou necessidade para sua empresa?"
+            );
+            template = { id: Number(result.lastInsertRowid) };
+        }
+        let campaign = db.prepare("SELECT * FROM campaigns WHERE fixed_key=?").get(fixedKey);
+        if (!campaign) {
+            const result = db.prepare("INSERT INTO campaigns(nome,template_id,fixed_key) VALUES(?,?,?)").run(
+                "Reativação — Clientes aguardando", template.id, fixedKey
+            );
+            campaign = db.prepare("SELECT * FROM campaigns WHERE id=?").get(result.lastInsertRowid);
+        }
+        this.syncWaitingRecipients(campaign.id);
+        return this.buscarPorId(campaign.id);
+    }
+
+    syncWaitingRecipients(campaignId) {
+        const campaign = db.prepare("SELECT * FROM campaigns WHERE id=?").get(campaignId);
+        if (campaign?.fixed_key !== "reactivation_waiting" || ["processando", "cancelando"].includes(campaign.status)) return;
+        db.transaction(() => {
+            db.prepare(`UPDATE campaign_recipients SET active=0 WHERE campaign_id=? AND
+                (status='enviado' OR customer_code IS NULL OR NOT EXISTS (SELECT 1 FROM users u
+                    WHERE u.id=campaign_recipients.cliente_id AND u.reactivation_status='Aguardando'
+                    AND u.customer_code=campaign_recipients.customer_code))`).run(campaignId);
+            const clients = db.prepare(`SELECT u.id,u.customer_code,
+                COALESCE(NULLIF(u.name,''),NULLIF(u.company_name,''),'Cliente') name,u.jid FROM users u
+                WHERE u.reactivation_status='Aguardando' AND u.customer_code IS NOT NULL AND trim(u.customer_code)<>''
+                AND u.jid IS NOT NULL AND trim(u.jid)<>'' AND NOT EXISTS (SELECT 1 FROM campaign_recipients sent
+                    WHERE sent.campaign_id=? AND sent.customer_code=u.customer_code AND sent.status='enviado') ORDER BY name`).all(campaignId);
+            const existing = db.prepare("SELECT * FROM campaign_recipients WHERE campaign_id=? AND customer_code=? ORDER BY id DESC LIMIT 1");
+            const insert = db.prepare(`INSERT INTO campaign_recipients(campaign_id,cliente_id,cliente_nome,cliente_jid,customer_code)
+                VALUES(?,?,?,?,?)`);
+            const update = db.prepare(`UPDATE campaign_recipients SET cliente_id=?,cliente_nome=?,cliente_jid=?,active=1,
+                status='pendente',erro=NULL,enviado_em=NULL,validation_status='nao_validado',validation_error=NULL,
+                validated_jid=NULL,validated_at=NULL WHERE id=?`);
+            let changed = 0;
+            for (const client of clients) {
+                const recipient = existing.get(campaignId, client.customer_code);
+                if (!recipient) {
+                    insert.run(campaignId, client.id, client.name, client.jid, client.customer_code);
+                    changed += 1;
+                } else if (!recipient.active || recipient.cliente_id !== client.id || recipient.cliente_jid !== client.jid) {
+                    update.run(client.id, client.name, client.jid, recipient.id);
+                    changed += 1;
+                }
+            }
+            if (changed) db.prepare(`UPDATE campaigns SET status='rascunho',validation_status='nao_validada',
+                validated_at=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(campaignId);
+        })();
+    }
+
     listar() {
+        this.ensureWaitingCampaign();
         return db.prepare(`
             SELECT
                 c.id,
@@ -20,6 +77,7 @@ class CampaignService {
                 c.current_recipient,
                 c.next_send_at,
                 c.cooldown_ms,
+                c.fixed_key,
                 c.created_at,
                 c.updated_at,
                 t.nome AS template_nome,
@@ -84,6 +142,8 @@ class CampaignService {
             throw new Error("Campanha não encontrada.");
         }
 
+        if (campanha.fixed_key) throw new Error("A campanha fixa pode ter apenas sua mensagem alterada na área de templates.");
+
         if (["processando", "cancelando"].includes(campanha.status)) {
             throw new Error(
                 "A campanha não pode ser editada enquanto está em processamento."
@@ -115,6 +175,8 @@ class CampaignService {
         if (!campanha) {
             throw new Error("Campanha não encontrada.");
         }
+
+        if (campanha.fixed_key) throw new Error("A campanha fixa de clientes aguardando não pode ser excluída.");
 
         if (["processando", "cancelando"].includes(campanha.status)) {
             throw new Error(
@@ -162,6 +224,8 @@ class CampaignService {
         throw new Error("Campanha não encontrada.");
     }
 
+    if (campanha.fixed_key) this.syncWaitingRecipients(campaignId);
+
     return db.prepare(`
         SELECT
             cr.id,
@@ -169,6 +233,7 @@ class CampaignService {
             cr.cliente_id,
             cr.cliente_nome,
             cr.cliente_jid,
+            cr.customer_code,
             cr.status,
             cr.erro,
             cr.enviado_em,
@@ -188,6 +253,8 @@ class CampaignService {
         if (!campanha) {
             throw new Error("Campanha não encontrada.");
         }
+
+        if (campanha.fixed_key) throw new Error("Os contatos desta campanha são definidos automaticamente pelo status Aguardando.");
 
         if (["processando", "cancelando"].includes(campanha.status)) {
             throw new Error(
@@ -296,7 +363,8 @@ class CampaignService {
                     id,
                     name,
                     company_name,
-                    jid
+                    jid,
+                    customer_code
                 FROM users
                 WHERE id IN (${placeholders})
             `).all(...idsNovos);
@@ -312,9 +380,10 @@ class CampaignService {
                     campaign_id,
                     cliente_id,
                     cliente_nome,
-                    cliente_jid
+                    cliente_jid,
+                    customer_code
                 )
-                VALUES (?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?)
             `);
 
             clientes.forEach(cliente => {
@@ -324,7 +393,8 @@ class CampaignService {
                     cliente.name ||
                         cliente.company_name ||
                         "Cliente",
-                    cliente.jid
+                    cliente.jid,
+                    cliente.customer_code
                 );
             });
 
@@ -543,6 +613,16 @@ class CampaignService {
                     SET status = 'enviado', erro = NULL, enviado_em = CURRENT_TIMESTAMP
                     WHERE id = ?
                 `).run(destinatario.id);
+                if (campanha.fixed_key === "reactivation_waiting" && destinatario.customer_code) {
+                    db.transaction(() => {
+                        db.prepare(`INSERT INTO reactivation_contacts(user_id,kind,notes,contacted_at)
+                            SELECT id,'whatsapp_campanha',?,CURRENT_TIMESTAMP FROM users WHERE customer_code=?`)
+                            .run(`Contato enviado pela campanha ${campanha.nome}.`, destinatario.customer_code);
+                        db.prepare(`UPDATE users SET reactivation_status='Último Contato',reactivation_updated_at=CURRENT_TIMESTAMP,
+                            reactivation_sequence=COALESCE((SELECT MAX(reactivation_sequence)+1 FROM users),1)
+                            WHERE customer_code=?`).run(destinatario.customer_code);
+                    })();
+                }
                 enviados += 1;
             } catch (erro) {
                 const motivo = erro?.message || "Falha desconhecida no envio.";

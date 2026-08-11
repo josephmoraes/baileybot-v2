@@ -2,6 +2,38 @@ let modalTemplate;
 let templateEditando = null;
 let templatesCache = [];
 
+const templateSeguro = valor => String(valor ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+
+async function carregarTemplatesCreditos() {
+    const container = document.getElementById("templatesCredito");
+    if (!container) return;
+    const resposta = await fetch("/api/messages/credit-templates");
+    const templates = await resposta.json();
+    if (!resposta.ok) throw new Error(templates.error || "Não foi possível carregar os templates de créditos.");
+    container.innerHTML = templates.map(template => `
+        <div class="col-xl-6">
+            <article class="border border-secondary rounded p-3 h-100">
+                <h6>${templateSeguro(template.name)}</h6>
+                <p class="small text-secondary">${templateSeguro(template.description)}</p>
+                <textarea class="form-control mb-2" rows="8" data-credit-template="${templateSeguro(template.key)}">${templateSeguro(template.template)}</textarea>
+                <div class="text-end"><button class="btn btn-success btn-sm" data-save-credit-template="${templateSeguro(template.key)}">Salvar mensagem</button></div>
+            </article>
+        </div>`).join("");
+    container.querySelectorAll("[data-save-credit-template]").forEach(button => button.addEventListener("click", () => salvarTemplateCredito(button.dataset.saveCreditTemplate).catch(erro => alert(erro.message))));
+}
+
+async function salvarTemplateCredito(key) {
+    const mensagem = document.querySelector(`[data-credit-template="${key}"]`)?.value.trim();
+    const resposta = await fetch(`/api/messages/credit-templates/${key}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mensagem })
+    });
+    const dados = await resposta.json();
+    if (!resposta.ok) throw new Error(dados.error || "Não foi possível salvar a mensagem.");
+    alert("Mensagem de crédito atualizada com sucesso.");
+}
+
 async function carregarTemplates() {
 
     try {
@@ -26,6 +58,7 @@ async function carregarTemplates() {
                 </tr>
             `;
 
+            await carregarTemplatesCreditos();
             return;
 
         }
@@ -67,6 +100,8 @@ async function carregarTemplates() {
             `;
 
         });
+
+        await carregarTemplatesCreditos();
 
     } catch (erro) {
 

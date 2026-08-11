@@ -2,8 +2,8 @@
     <div class="page-heading d-flex flex-wrap justify-content-between align-items-end gap-3">
         <div>
             <p class="dashboard-eyebrow mb-1">COMISSÕES</p>
-            <h1 id="comDashboardTitulo">Visão geral financeira</h1>
-            <p class="text-secondary mb-0">Valores calculados exclusivamente a partir das vendas importadas.</p>
+            <h1 id="comDashboardTitulo">Visão geral de créditos</h1>
+            <p class="text-secondary mb-0">Créditos calculados exclusivamente a partir das vendas importadas.</p>
         </div>
         <div class="d-flex align-items-center gap-2">
             <span id="comPeriodo" class="dashboard-chip">Mês atual</span>
@@ -16,16 +16,16 @@
     <div class="row g-3 mb-4" aria-label="Indicadores de comissões">
         <div class="col-sm-6 col-xl-3"><article class="dashboard-kpi h-100"><div class="dashboard-icon text-primary"><i class="bi bi-person-check"></i></div><div><span class="text-secondary small">Técnicos ativos</span><strong id="comTecnicos">0</strong><small id="comTecnicosTotal" class="commission-kpi-note"></small></div></article></div>
         <div class="col-sm-6 col-xl-3"><article class="dashboard-kpi h-100"><div class="dashboard-icon text-info"><i class="bi bi-receipt"></i></div><div><span class="text-secondary small">Vendas no mês</span><strong id="comVendas">R$ 0,00</strong><small id="comVendasQtd" class="commission-kpi-note"></small></div></article></div>
-        <div class="col-sm-6 col-xl-3"><article class="dashboard-kpi h-100"><div class="dashboard-icon text-warning"><i class="bi bi-hourglass-split"></i></div><div><span class="text-secondary small">Comissões pendentes</span><strong id="comPendente">R$ 0,00</strong><small id="comPendentesQtd" class="commission-kpi-note"></small></div></article></div>
-        <div class="col-sm-6 col-xl-3"><article class="dashboard-kpi h-100"><div class="dashboard-icon text-success"><i class="bi bi-check2-circle"></i></div><div><span class="text-secondary small">Saldo liberado</span><strong id="comLiberado">R$ 0,00</strong><small id="comLiberadasQtd" class="commission-kpi-note"></small></div></article></div>
+        <div class="col-sm-6 col-xl-3"><article class="dashboard-kpi h-100"><div class="dashboard-icon text-warning"><i class="bi bi-hourglass-split"></i></div><div><span class="text-secondary small">Créditos pendentes</span><strong id="comPendente">0,00</strong><small id="comPendentesQtd" class="commission-kpi-note"></small></div></article></div>
+        <div class="col-sm-6 col-xl-3"><article class="dashboard-kpi h-100"><div class="dashboard-icon text-success"><i class="bi bi-check2-circle"></i></div><div><span class="text-secondary small">Créditos liberados</span><strong id="comLiberado">0,00</strong><small id="comLiberadasQtd" class="commission-kpi-note"></small></div></article></div>
     </div>
 
     <div class="row g-4 mb-4">
         <div class="col-xl-8">
             <article class="dashboard-panel h-100">
-                <div class="dashboard-panel-header"><div><h2>Vendas e comissões</h2><p>Evolução real dos últimos 6 meses</p></div><span id="comGeradas" class="dashboard-chip">R$ 0,00 em comissões</span></div>
+                <div class="dashboard-panel-header"><div><h2>Vendas e créditos</h2><p>Evolução real dos últimos 6 meses</p></div><span id="comGeradas" class="dashboard-chip">0,00 créditos gerados</span></div>
                 <div id="comGraficoMensal" class="commission-chart" aria-label="Gráfico de vendas e comissões dos últimos seis meses"></div>
-                <div class="commission-chart-legend"><span><i class="vendas"></i> Vendas</span><span><i class="comissoes"></i> Comissões</span></div>
+                <div class="commission-chart-legend"><span><i class="vendas"></i> Vendas</span><span><i class="comissoes"></i> Créditos</span></div>
             </article>
         </div>
         <div class="col-xl-4">
@@ -42,7 +42,7 @@
                 <div class="dashboard-panel-header"><div><h2>Ranking de técnicos</h2><p>Desempenho acumulado pelas vendas importadas</p></div><button class="btn btn-sm btn-outline-success" data-commission-page="comissoes-tecnicos">Ver técnicos</button></div>
                 <div class="table-responsive">
                     <table class="table table-dark commission-ranking-table align-middle mb-0">
-                        <thead><tr><th>#</th><th>Técnico</th><th class="text-end">Vendas</th><th class="text-end">Valor vendido</th><th class="text-end">Comissão</th></tr></thead>
+                        <thead><tr><th>#</th><th>Técnico</th><th class="text-end">Vendas</th><th class="text-end">Valor vendido</th><th class="text-end">Créditos</th></tr></thead>
                         <tbody id="comRanking"></tbody>
                     </table>
                 </div>

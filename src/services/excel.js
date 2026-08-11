@@ -1,6 +1,7 @@
 import XLSX from "xlsx";
 import userService from "./userService.js";
 import fileImportService from "./fileImportService.js";
+import { cleanCustomerName } from "../utils/customerName.js";
 
 function normalizarChave(valor) {
     return String(valor ?? "")
@@ -30,7 +31,7 @@ class ExcelService {
             const dados = {
                 customer_code: obter(linha, ["codigo", "codigo cliente", "cod cliente", "codigo og1", "cliente codigo", "customer_code"]),
                 company_name: obter(linha, ["empresa", "razao social", "company_name"]),
-                name: obter(linha, ["nome", "cliente", "contato", "name"]),
+                name: cleanCustomerName(obter(linha, ["nome", "contato", "name"])),
                 telefone: obter(linha, ["telefone", "celular", "whatsapp", "fone", "jid"])
             };
             try {

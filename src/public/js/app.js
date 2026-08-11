@@ -15,6 +15,26 @@ async function verificarSessao() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+    const aplicarEstadoSidebar = recolhida => {
+        document.body.classList.toggle("sidebar-collapsed", recolhida);
+        const botao = document.getElementById("btnToggleSidebar");
+        if (!botao) return;
+        botao.setAttribute("aria-label", recolhida ? "Expandir menu lateral" : "Recolher menu lateral");
+        botao.title = recolhida ? "Expandir menu lateral" : "Recolher menu lateral";
+        botao.querySelector("i").className = `bi ${recolhida ? "bi-layout-sidebar" : "bi-layout-sidebar-inset"}`;
+    };
+    aplicarEstadoSidebar(window.localStorage.getItem("baileybot_sidebar_collapsed") === "1");
+    document.getElementById("btnToggleSidebar")?.addEventListener("click", () => {
+        const recolhida = !document.body.classList.contains("sidebar-collapsed");
+        aplicarEstadoSidebar(recolhida);
+        window.localStorage.setItem("baileybot_sidebar_collapsed", recolhida ? "1" : "0");
+    });
+    document.querySelectorAll("#sidebarMenu [data-bs-toggle='collapse']").forEach(botao => botao.addEventListener("click", () => {
+        if (!document.body.classList.contains("sidebar-collapsed")) return;
+        aplicarEstadoSidebar(false);
+        window.localStorage.setItem("baileybot_sidebar_collapsed", "0");
+    }));
+
     document.getElementById("loginForm")?.addEventListener("submit", async evento => {
         evento.preventDefault();
         const botao = evento.currentTarget.querySelector("button");

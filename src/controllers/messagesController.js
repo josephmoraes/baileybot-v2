@@ -1,9 +1,22 @@
 import messageService from "../services/messageService.js";
 import userService from "../services/userService.js";
+import creditMessageTemplateService from "../services/creditMessageTemplateService.js";
 
 
 
 class MessagesController {
+
+    listarTemplatesCredito(req, res) {
+        res.json(creditMessageTemplateService.list());
+    }
+
+    editarTemplateCredito(req, res) {
+        try {
+            res.json(creditMessageTemplateService.update(req.params.key, req.body.mensagem));
+        } catch (erro) {
+            res.status(erro.message.includes("não encontrado") ? 404 : 400).json({ error: erro.message });
+        }
+    }
 
     listarTemplates(req, res) {
 

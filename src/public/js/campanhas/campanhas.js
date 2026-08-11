@@ -114,9 +114,14 @@ function renderizarCampanhas(campanhas) {
         linha.title = "Clique para ver os contatos e detalhes da campanha";
         linha.addEventListener("click", () => abrirDetalhesCampanha(campanha));
 
-        linha.appendChild(
-            criarCelulaCampanha(campanha.nome)
-        );
+        const celulaNome = criarCelulaCampanha(campanha.nome);
+        if (campanha.fixed_key) {
+            const badgeFixa = document.createElement("span");
+            badgeFixa.className = "badge bg-info text-dark ms-2";
+            badgeFixa.textContent = "Automática";
+            celulaNome.appendChild(badgeFixa);
+        }
+        linha.appendChild(celulaNome);
 
         linha.appendChild(
             criarCelulaCampanha(campanha.template_nome)
@@ -207,7 +212,7 @@ function renderizarCampanhas(campanhas) {
             excluirCampanha(campanha.id);
         });
 
-        if (!["processando", "cancelando"].includes(campanha.status)) {
+        if (!["processando", "cancelando"].includes(campanha.status) && !campanha.fixed_key) {
             celulaAcoes.appendChild(btnSelecionarClientes);
             celulaAcoes.appendChild(btnExcluir);
         }
@@ -268,8 +273,8 @@ async function abrirDetalhesCampanha(campanha) {
     const btnIniciar = document.getElementById("btnIniciarCampanhaDetalhes");
     const btnCancelar = document.getElementById("btnCancelarCampanhaDetalhes");
 
-    btnEditar.classList.toggle("d-none", emProcessamento);
-    btnContatos.classList.toggle("d-none", emProcessamento);
+    btnEditar.classList.toggle("d-none", emProcessamento || Boolean(campanha.fixed_key));
+    btnContatos.classList.toggle("d-none", emProcessamento || Boolean(campanha.fixed_key));
     btnIniciar.classList.toggle("d-none", emProcessamento);
     btnIniciar.disabled = Number(campanha.total_destinatarios) === 0;
     btnIniciar.title = btnIniciar.disabled ? "Adicione contatos antes de iniciar" : "";

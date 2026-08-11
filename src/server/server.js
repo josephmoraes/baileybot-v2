@@ -10,6 +10,7 @@ import settingsRoutes from "./routes/settings.js";
 import commissionsRoutes from "./routes/commissions.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import authRoutes from "./routes/auth.js";
+import reactivationRoutes from "./routes/reactivation.js";
 import { protegerApi } from "../middleware/adminSession.js";
 
 const app = express();
@@ -37,6 +38,7 @@ app.use("/api/campaigns", campaignsRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/commissions", commissionsRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/reactivation", reactivationRoutes);
 app.use("/api", apiRoutes);
 
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "../public/index.html")));

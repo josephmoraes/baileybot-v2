@@ -1,5 +1,6 @@
 const dashboardFormatador = new Intl.NumberFormat("pt-BR");
 const dashboardMoeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const dashboardCredito = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dashboardSeguro = valor => String(valor ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 
 function dashboardTextoStatus(status) {
@@ -89,8 +90,8 @@ async function carregarDashboard() {
         document.getElementById("totalMensagens").textContent = dashboardFormatador.format(dados.kpis.totalMensagens);
         document.getElementById("totalCampanhas").textContent = dashboardFormatador.format(dados.kpis.totalCampanhas);
         document.getElementById("totalTecnicos").textContent = dashboardFormatador.format(dados.kpis.totalTecnicos);
-        document.getElementById("comissaoLiberada").textContent = dashboardMoeda.format(dados.kpis.comissaoLiberada);
-        document.getElementById("comissaoPendente").textContent = `${dashboardMoeda.format(dados.kpis.comissaoPendente)} pendente`;
+        document.getElementById("comissaoLiberada").textContent = dashboardCredito.format(dados.kpis.comissaoLiberada);
+        document.getElementById("comissaoPendente").textContent = `${dashboardCredito.format(dados.kpis.comissaoPendente)} pendentes`;
         document.getElementById("statusWhatsappKpi").textContent = dashboardTextoStatus(dados.whatsapp.status);
         document.getElementById("totalSemana").textContent = `${dashboardFormatador.format(dados.mensagensSemana)} na semana`;
         document.getElementById("metaProgresso").textContent = `${dados.meta.percentual}%`;

@@ -1,0 +1,17 @@
+<section class="reactivation-page">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div><p class="dashboard-eyebrow mb-1">REATIVAÇÃO</p><h1 class="h3 mb-1">Resumo</h1><p class="text-secondary mb-0">Visão geral da carteira e clientes que merecem atenção primeiro.</p></div>
+        <button class="btn btn-outline-success" data-page-link="reativacao-vendedores"><i class="bi bi-people me-1"></i> Ver vendedores</button>
+    </div>
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3"><div class="dashboard-kpi"><div class="dashboard-icon text-success"><i class="bi bi-people"></i></div><div><small class="text-secondary">Clientes</small><strong id="reativacaoTotal">0</strong></div></div></div>
+        <div class="col-sm-6 col-xl-3"><div class="dashboard-kpi"><div class="dashboard-icon text-info"><i class="bi bi-person-badge"></i></div><div><small class="text-secondary">Vendedores</small><strong id="reativacaoVendedores">0</strong></div></div></div>
+        <div class="col-sm-6 col-xl-3"><div class="dashboard-kpi"><div class="dashboard-icon text-primary"><i class="bi bi-telephone"></i></div><div><small class="text-secondary">Contatos na semana</small><strong id="reativacaoContatosSemana">0</strong></div></div></div>
+        <div class="col-sm-6 col-xl-3"><div class="dashboard-kpi"><div class="dashboard-icon text-warning"><i class="bi bi-calendar-check"></i></div><div><small class="text-secondary">Contatos hoje</small><strong id="reativacaoContatosHoje">0</strong></div></div></div>
+    </div>
+    <div class="row g-4">
+        <div class="col-xl-5"><div class="dashboard-panel h-100"><div class="dashboard-panel-header"><div><h2>Clientes por status</h2><p>Distribuição atual da carteira</p></div></div><div id="reativacaoGraficoStatus" class="reactivation-bars"></div></div></div>
+        <div class="col-xl-7"><div class="dashboard-panel h-100"><div class="dashboard-panel-header"><div><h2>Clientes por vendedor</h2><p>Quantidade de clientes sob responsabilidade</p></div></div><div id="reativacaoGraficoVendedor" class="reactivation-bars"></div></div></div>
+        <div class="col-12"><div class="dashboard-panel"><div class="dashboard-panel-header"><div><h2>Prioridade de reativação</h2><p>Combina dias sem comprar e valor acumulado; maior pontuação aparece primeiro.</p></div><span class="dashboard-chip">Top 10</span></div><div class="table-responsive"><table class="table table-dark table-hover align-middle reactivation-table"><thead><tr><th>#</th><th>Cliente</th><th>Vendedor</th><th>Última movimentação</th><th>Dias sem comprar</th><th>Valor acumulado</th></tr></thead><tbody id="reativacaoPrioridades"></tbody></table></div></div></div>
+    </div>
+</section>

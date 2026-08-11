@@ -1,78 +1,252 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#111315">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#111315" />
     <title>BaileyBot V2</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/css/style.css">
-</head>
-<body class="bg-dark text-light">
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body class="bg-dark text-light">
     <nav class="navbar navbar-dark app-navbar sticky-top">
-        <div class="container-fluid">
-            <div class="d-flex align-items-center gap-3">
-                <button class="navbar-toggler d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-label="Abrir menu"><span class="navbar-toggler-icon"></span></button>
-                <div class="brand-mark"><i class="bi bi-whatsapp"></i></div>
-                <div><span class="navbar-brand fw-bold mb-0">BaileyBot <small>V2</small></span><div class="small text-secondary d-none d-sm-block">Central de relacionamento e campanhas</div></div>
+      <div class="container-fluid">
+        <div class="d-flex align-items-center gap-3">
+          <button
+            class="navbar-toggler d-lg-none"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#sidebarMenu"
+            aria-label="Abrir menu"
+          >
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          <button
+            id="btnToggleSidebar"
+            class="btn btn-dark btn-sm d-none d-lg-inline-flex sidebar-toggle"
+            type="button"
+            aria-label="Recolher menu lateral"
+            title="Recolher menu lateral"
+          >
+            <i class="bi bi-layout-sidebar-inset"></i>
+          </button>
+          <div class="brand-mark"><i class="bi bi-whatsapp"></i></div>
+          <div>
+            <span class="navbar-brand fw-bold mb-0"
+              >BaileyBot <small>V2</small></span
+            >
+            <div class="small text-secondary d-none d-sm-block">
+              Central de relacionamento e campanhas
             </div>
-            <div class="d-flex align-items-center gap-2 ms-auto">
-                <button class="btn btn-success btn-sm d-none d-md-inline-flex gap-1" data-whatsapp-action="connect"><i class="bi bi-play-fill"></i> Conectar</button>
-                <button class="btn btn-outline-danger btn-sm d-none d-md-inline-flex gap-1" data-whatsapp-action="disconnect"><i class="bi bi-box-arrow-right"></i> Desconectar</button>
-                <span id="statusWhatsappNav" class="badge rounded-pill bg-secondary">Verificando</span>
-                <button id="btnLogout" class="btn btn-dark btn-sm d-none" title="Encerrar sessão"><i class="bi bi-lock"></i></button>
-            </div>
+          </div>
         </div>
+        <div class="d-flex align-items-center gap-2 ms-auto">
+          <button
+            class="btn btn-success btn-sm d-none d-md-inline-flex gap-1"
+            data-whatsapp-action="connect"
+          >
+            <i class="bi bi-play-fill"></i> Conectar
+          </button>
+          <button
+            class="btn btn-outline-danger btn-sm d-none d-md-inline-flex gap-1"
+            data-whatsapp-action="disconnect"
+          >
+            <i class="bi bi-box-arrow-right"></i> Desconectar
+          </button>
+          <span id="statusWhatsappNav" class="badge rounded-pill bg-secondary"
+            >Verificando</span
+          >
+          <button
+            id="btnLogout"
+            class="btn btn-dark btn-sm d-none"
+            title="Encerrar sessão"
+          >
+            <i class="bi bi-lock"></i>
+          </button>
+        </div>
+      </div>
     </nav>
 
-    <div class="container-fluid"><div class="row">
+    <div class="container-fluid">
+      <div class="row">
         <aside id="sidebarMenu" class="col-lg-2 collapse d-lg-block sidebar">
-            <nav class="sidebar-nav" aria-label="Navegação principal">
-                <span class="sidebar-label">Principal</span>
-                <a href="#/dashboard" class="sidebar-link active" data-page="dashboard"><i class="bi bi-grid-1x2"></i><span>Dashboard</span></a>
-                <a href="#/clientes" class="sidebar-link" data-page="clientes"><i class="bi bi-people"></i><span>Clientes</span></a>
-                <a href="#/campanhas" class="sidebar-link" data-page="campanhas"><i class="bi bi-megaphone"></i><span>Campanhas</span></a>
+          <nav class="sidebar-nav" aria-label="Navegação principal">
+            <span class="sidebar-label">Principal</span>
+            <a
+              href="#/dashboard"
+              class="sidebar-link active"
+              data-page="dashboard"
+              ><i class="bi bi-grid-1x2"></i><span>Dashboard</span></a
+            >
+            <a href="#/clientes" class="sidebar-link" data-page="clientes"
+              ><i class="bi bi-people"></i><span>Clientes</span></a
+            >
+            <a href="#/campanhas" class="sidebar-link" data-page="campanhas"
+              ><i class="bi bi-megaphone"></i><span>Campanhas</span></a
+            >
 
-                <span class="sidebar-label">Comunicação</span>
-                <button class="sidebar-link w-100" type="button" data-bs-toggle="collapse" data-bs-target="#submenuMensagens" aria-expanded="false"><i class="bi bi-chat-dots"></i><span>Mensagens</span><i class="bi bi-chevron-down ms-auto small"></i></button>
-                <div class="collapse sidebar-submenu" id="submenuMensagens">
-                    <a href="#/mensagens/templates" class="sidebar-link" data-page="templates">Templates</a>
-                    <a href="#/mensagens/envio" class="sidebar-link" data-page="envio">Envio individual</a>
-                    <a href="#/mensagens/historico" class="sidebar-link" data-page="historico">Histórico</a>
-                </div>
+            <button
+              class="sidebar-link w-100"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#submenuReativacao"
+              aria-expanded="false"
+            >
+              <i class="bi bi-arrow-repeat"></i><span>Reativação</span
+              ><i class="bi bi-chevron-down ms-auto small"></i>
+            </button>
+            <div class="collapse sidebar-submenu" id="submenuReativacao">
+              <a
+                href="#/reativacao/resumo"
+                class="sidebar-link"
+                data-page="reativacao-resumo"
+                >Resumo</a
+              >
+              <a
+                href="#/reativacao/vendedores"
+                class="sidebar-link"
+                data-page="reativacao-vendedores"
+                >Vendedores</a
+              >
+              <a
+                href="#/reativacao/relatorios"
+                class="sidebar-link"
+                data-page="reativacao-relatorios"
+                >Relatórios</a
+              >
+            </div>
 
-                <span class="sidebar-label">Financeiro</span>
-                <button class="sidebar-link w-100" type="button" data-bs-toggle="collapse" data-bs-target="#submenuComissoes" aria-expanded="false"><i class="bi bi-cash-coin"></i><span>Comissões</span><i class="bi bi-chevron-down ms-auto small"></i></button>
-                <div class="collapse sidebar-submenu" id="submenuComissoes">
-                    <a href="#/comissoes/dashboard" class="sidebar-link" data-page="comissoes-dashboard">Dashboard</a>
-                    <a href="#/comissoes/historico" class="sidebar-link" data-page="comissoes-historico">Histórico</a>
-                    <a href="#/comissoes/tecnicos" class="sidebar-link" data-page="comissoes-tecnicos">Técnicos</a>
-                    <a href="#/comissoes/solicitacoes" class="sidebar-link" data-page="comissoes-solicitacao">Solicitações</a>
-                </div>
+            <span class="sidebar-label">Comunicação</span>
+            <button
+              class="sidebar-link w-100"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#submenuMensagens"
+              aria-expanded="false"
+            >
+              <i class="bi bi-chat-dots"></i><span>Mensagens</span
+              ><i class="bi bi-chevron-down ms-auto small"></i>
+            </button>
+            <div class="collapse sidebar-submenu" id="submenuMensagens">
+              <a
+                href="#/mensagens/templates"
+                class="sidebar-link"
+                data-page="templates"
+                >Templates</a
+              >
+              <a href="#/mensagens/envio" class="sidebar-link" data-page="envio"
+                >Envio individual</a
+              >
+              <a
+                href="#/mensagens/historico"
+                class="sidebar-link"
+                data-page="historico"
+                >Histórico</a
+              >
+            </div>
 
-                <span class="sidebar-label">Sistema</span>
-                <a href="#/configuracoes" class="sidebar-link" data-page="configuracoes"><i class="bi bi-gear"></i><span>Configurações</span></a>
-            </nav>
-            <div class="sidebar-footer"><i class="bi bi-shield-check text-success"></i><div><strong>Operação local</strong><small>Seus dados ficam neste computador</small></div></div>
+            <span class="sidebar-label">Financeiro</span>
+            <button
+              class="sidebar-link w-100"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#submenuComissoes"
+              aria-expanded="false"
+            >
+              <i class="bi bi-cash-coin"></i><span>Comissões</span
+              ><i class="bi bi-chevron-down ms-auto small"></i>
+            </button>
+            <div class="collapse sidebar-submenu" id="submenuComissoes">
+              <a
+                href="#/comissoes/dashboard"
+                class="sidebar-link"
+                data-page="comissoes-dashboard"
+                >Dashboard</a
+              >
+              <a
+                href="#/comissoes/historico"
+                class="sidebar-link"
+                data-page="comissoes-historico"
+                >Histórico</a
+              >
+              <a
+                href="#/comissoes/tecnicos"
+                class="sidebar-link"
+                data-page="comissoes-tecnicos"
+                >Técnicos</a
+              >
+              <a
+                href="#/comissoes/solicitacoes"
+                class="sidebar-link"
+                data-page="comissoes-solicitacao"
+                >Solicitações</a
+              >
+            </div>
+
+            <span class="sidebar-label">Sistema</span>
+            <a
+              href="#/configuracoes"
+              class="sidebar-link"
+              data-page="configuracoes"
+              ><i class="bi bi-gear"></i><span>Configurações</span></a
+            >
+          </nav>
+          <div class="sidebar-footer">
+            <i class="bi bi-shield-check text-success"></i>
+            <div>
+              <strong>Operação local</strong
+              ><small>Seus dados ficam neste computador</small>
+            </div>
+          </div>
         </aside>
         <main class="col-lg-10 py-4 px-3 px-lg-4 app-content" tabindex="-1">
-            <div id="appLoading" class="app-loading d-none" aria-live="polite"><span class="spinner-border spinner-border-sm"></span><span>Carregando…</span></div>
-            <div id="content" tabindex="-1"></div>
+          <div id="appLoading" class="app-loading d-none" aria-live="polite">
+            <span class="spinner-border spinner-border-sm"></span
+            ><span>Carregando…</span>
+          </div>
+          <div id="content" tabindex="-1"></div>
         </main>
-    </div></div>
+      </div>
+    </div>
 
-    <div id="loginOverlay" class="login-overlay d-none" role="dialog" aria-modal="true" aria-labelledby="loginTitulo">
-        <form id="loginForm" class="login-card">
-            <div class="brand-mark mx-auto mb-3"><i class="bi bi-whatsapp"></i></div>
-            <p class="dashboard-eyebrow mb-1">ACESSO ADMINISTRATIVO</p>
-            <h1 id="loginTitulo" class="h3">Bem-vindo ao BaileyBot</h1>
-            <p class="text-secondary">Entre para acessar a operação.</p>
-            <label for="loginPassword" class="form-label">Senha</label>
-            <input id="loginPassword" class="form-control form-control-lg" type="password" autocomplete="current-password" required>
-            <div id="loginErro" class="text-danger small mt-2" aria-live="assertive"></div>
-            <button class="btn btn-success btn-lg w-100 mt-3" type="submit"><span class="login-button-text">Entrar</span></button>
-        </form>
+    <div
+      id="loginOverlay"
+      class="login-overlay d-none"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="loginTitulo"
+    >
+      <form id="loginForm" class="login-card">
+        <div class="brand-mark mx-auto mb-3">
+          <i class="bi bi-whatsapp"></i>
+        </div>
+        <p class="dashboard-eyebrow mb-1">ACESSO ADMINISTRATIVO</p>
+        <h1 id="loginTitulo" class="h3">Bem-vindo ao BaileyBot</h1>
+        <p class="text-secondary">Entre para acessar a operação.</p>
+        <label for="loginPassword" class="form-label">Senha</label>
+        <input
+          id="loginPassword"
+          class="form-control form-control-lg"
+          type="password"
+          autocomplete="current-password"
+          required
+        />
+        <div
+          id="loginErro"
+          class="text-danger small mt-2"
+          aria-live="assertive"
+        ></div>
+        <button class="btn btn-success btn-lg w-100 mt-3" type="submit">
+          <span class="login-button-text">Entrar</span>
+        </button>
+      </form>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
@@ -84,7 +258,10 @@
     <script src="/js/campanhas/campanhas.js"></script>
     <script src="/js/configuracoes/configuracoes.js"></script>
     <script src="/js/comissoes/comissoes.js"></script>
+    <script src="/js/comissoes/notificacoes.js"></script>
+    <script src="/js/reativacao/reativacao.js"></script>
+    <script src="/js/reativacao/relatorios.js"></script>
     <script src="/js/router.js"></script>
     <script src="/js/app.js"></script>
-</body>
+  </body>
 </html>

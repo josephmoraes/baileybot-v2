@@ -3,6 +3,8 @@ import "./database/database.js";
 import { initDatabase } from "./database/schema.js";
 import { seedMessages } from "./database/seedMessages.js";
 import { startServer } from "./server/server.js";
+import { iniciarBot } from "./services/botManager.js";
+import campaignService from "./services/campaignService.js";
 
 
 dotenv.config();
@@ -13,7 +15,12 @@ export function startApp() {
 
     initDatabase();
     seedMessages();
+    campaignService.ensureWaitingCampaign();
     const server = startServer(port);
+
+    iniciarBot().catch(erro => {
+        console.error("Não foi possível conectar o WhatsApp automaticamente:", erro);
+    });
 
     const encerrar = signal => {
         console.log(`Encerrando BaileyBot (${signal})...`);

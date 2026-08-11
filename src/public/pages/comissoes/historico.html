@@ -1,4 +1,183 @@
-<div class="page-heading"><h1>Histórico de comissões</h1><p class="text-secondary">Importe CSV ou Excel do OG1 e acompanhe os registros</p></div><div id="alertaComissoes" class="alert d-none"></div>
-<div class="card bg-dark border-secondary mb-4"><div class="card-body"><div class="row g-3 align-items-end"><div class="col-lg-8"><label class="form-label">Arquivo do OG1 (.pdf, .csv, .xlsx ou .xls)</label><input id="arquivoComissoes" type="file" accept=".pdf,.csv,.xlsx,.xls,application/pdf" class="form-control"><div class="form-text">Colunas: movimento, código do técnico, data da venda e valor. O PDF precisa conter texto selecionável e uma tabela reconhecível.</div></div><div class="col-lg-4"><button id="importarComissoes" class="btn btn-success w-100"><i class="bi bi-cloud-arrow-up"></i> Importar comissões</button></div></div></div></div>
-<div class="card bg-dark border-secondary mb-4"><div class="card-header">Importações</div><div class="table-responsive"><table class="table table-dark mb-0"><thead><tr><th>Data</th><th>Arquivo</th><th>Importadas</th><th>Erros/duplicadas</th><th>Vendas</th><th>Comissão</th></tr></thead><tbody id="tabelaImportacoes"></tbody></table></div></div>
-<div class="card bg-dark border-secondary"><div class="card-header">Comissões geradas</div><div class="table-responsive"><table class="table table-dark mb-0"><thead><tr><th>Movimento</th><th>Técnico</th><th>Venda</th><th>Valor</th><th>Comissão</th><th>Liberação</th><th>Status</th></tr></thead><tbody id="tabelaComissoes"></tbody></table></div></div>
+<div class="page-heading">
+  <h1>Histórico de comissões</h1>
+  <p class="text-secondary">
+    Importe o relatório sem envio automático e notifique os técnicos quando
+    decidir
+  </p>
+</div>
+<div id="alertaComissoes" class="alert d-none"></div>
+<div class="card bg-dark border-secondary mb-4">
+  <div class="card-body">
+    <div class="row g-3 align-items-end">
+      <div class="col-lg-8">
+        <label class="form-label"
+          >Arquivo do OG1 (.pdf, .csv, .xlsx ou .xls)</label
+        ><input
+          id="arquivoComissoes"
+          type="file"
+          accept=".pdf,.csv,.xlsx,.xls,application/pdf"
+          class="form-control"
+        />
+        <div class="form-text">
+          A importação apenas registra os créditos. Nenhuma mensagem será
+          enviada automaticamente.
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <button id="importarComissoes" class="btn btn-success w-100">
+          <i class="bi bi-cloud-arrow-up"></i> Importar comissões
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<div
+  id="progressoNotificacoes"
+  class="card bg-dark border-secondary mb-4 d-none"
+>
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <strong>Notificando técnicos</strong
+      ><button id="cancelarNotificacoes" class="btn btn-sm btn-outline-danger">
+        Cancelar envio
+      </button>
+    </div>
+    <div class="progress mb-3">
+      <div
+        id="barraNotificacoes"
+        class="progress-bar bg-success"
+        style="width: 0%"
+      >
+        0%
+      </div>
+    </div>
+    <div class="row text-center">
+      <div class="col">
+        <small>Enviados</small
+        ><strong id="progressoEnviados" class="d-block">0</strong>
+      </div>
+      <div class="col">
+        <small>Aguardando</small
+        ><strong id="progressoAguardando" class="d-block">0</strong>
+      </div>
+      <div class="col">
+        <small>Falhas</small
+        ><strong id="progressoFalhas" class="d-block">0</strong>
+      </div>
+      <div class="col">
+        <small>Restante</small
+        ><strong id="progressoRestante" class="d-block">0</strong>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="card bg-dark border-secondary mb-4">
+  <div class="card-header">Importações</div>
+  <div class="table-responsive">
+    <table class="table table-dark mb-0">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Arquivo</th>
+          <th>Importadas</th>
+          <th>Duplicadas</th>
+          <th>Inválidas</th>
+          <th>Créditos</th>
+          <th>Notificação</th>
+          <th>Ação</th>
+        </tr>
+      </thead>
+      <tbody id="tabelaImportacoes"></tbody>
+    </table>
+  </div>
+</div>
+<div class="card bg-dark border-secondary">
+  <div class="card-header">Comissões geradas</div>
+  <div class="table-responsive">
+    <table class="table table-dark mb-0">
+      <thead>
+        <tr>
+          <th>Documento</th>
+          <th>Comissionado</th>
+          <th>Venda</th>
+          <th>Valor</th>
+          <th>Crédito</th>
+          <th>Liberação</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="tabelaComissoes"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal fade" id="modalExcluirImportacao" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header border-secondary">
+        <h2 class="modal-title h5">Excluir relatório</h2>
+        <button
+          type="button"
+          class="btn-close btn-close-white"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-1">
+          Relatório: <strong id="excluirImportacaoArquivo"></strong>
+        </p>
+        <p class="text-secondary">Revise o impacto antes de escolher.</p>
+        <div class="row g-2 text-center mb-3">
+          <div class="col-4">
+            <div class="commission-delete-stat">
+              <strong id="excluirImportacaoComissoes">0</strong
+              ><small>Comissões</small>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="commission-delete-stat">
+              <strong id="excluirImportacaoVendas">R$ 0,00</strong
+              ><small>Vendas</small>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="commission-delete-stat">
+              <strong id="excluirImportacaoCreditos">0,00</strong
+              ><small>Créditos</small>
+            </div>
+          </div>
+        </div>
+        <div
+          id="excluirImportacaoAviso"
+          class="alert alert-warning d-none mb-0"
+        ></div>
+      </div>
+      <div class="modal-footer border-secondary d-grid gap-2">
+        <button
+          class="btn btn-outline-warning"
+          id="excluirSomenteRelatorio"
+          type="button"
+        >
+          <i class="bi bi-file-earmark-x me-1"></i> Excluir somente o relatório</button
+        ><small class="text-secondary text-center"
+          >As comissões permanecerão no BaileyBot.</small
+        ><button
+          class="btn btn-danger"
+          id="excluirRelatorioComissoes"
+          type="button"
+        >
+          <i class="bi bi-trash me-1"></i> Excluir relatório e comissões</button
+        ><small class="text-secondary text-center"
+          >Remove definitivamente as comissões geradas por este
+          relatório.</small
+        ><button
+          class="btn btn-outline-light mt-2"
+          type="button"
+          data-bs-dismiss="modal"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

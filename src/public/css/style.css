@@ -73,9 +73,7 @@ body{
     color: #adb5bd !important;
 }
 
-.app-content {
-    max-width: 1600px;
-}
+.app-content { max-width: none; min-width: 0; }
 
 .page-heading {
     margin-bottom: 1.5rem;
@@ -99,7 +97,22 @@ body{
         top: 65px;
         height: calc(100vh - 65px);
         overflow-y: auto;
+        flex: 0 0 240px;
+        width: 240px;
+        transition: width .22s ease, flex-basis .22s ease;
     }
+    .app-content { flex: 1 1 auto; width: calc(100% - 240px); transition: width .22s ease; }
+    body.sidebar-collapsed .sidebar { flex-basis: 76px; width: 76px; }
+    body.sidebar-collapsed .app-content { width: calc(100% - 76px); }
+    body.sidebar-collapsed .sidebar-label,
+    body.sidebar-collapsed .sidebar-link span,
+    body.sidebar-collapsed .sidebar-link > i.ms-auto,
+    body.sidebar-collapsed .sidebar-submenu,
+    body.sidebar-collapsed .sidebar-footer div { display: none !important; }
+    body.sidebar-collapsed .sidebar-nav { padding-inline: .55rem; }
+    body.sidebar-collapsed .sidebar-link { justify-content: center; gap: 0; padding-inline: .5rem; }
+    body.sidebar-collapsed .sidebar-link > i:first-child { width: auto; }
+    body.sidebar-collapsed .sidebar-footer { justify-content: center; margin: .55rem; padding: .7rem .4rem; }
 }
 
 @media (max-width: 991.98px) {
@@ -190,6 +203,82 @@ body{
     .dashboard-panel { padding: 1rem; }
 }
 
+/* Reativação */
+.reactivation-tabs { display: flex; flex-wrap: wrap; gap: .5rem; }
+.reactivation-search { width: min(420px,100%); }
+.reactivation-table { --bs-table-bg: transparent; width: 100%; min-width: 0; table-layout: fixed; }
+.reactivation-table th { color: #8f969d; border-color: rgba(255,255,255,.08); font-size: .7rem; text-transform: uppercase; white-space: nowrap; }
+.reactivation-sort { display: inline-flex; align-items: center; gap: .25rem; padding: 0; border: 0; color: inherit; background: transparent; font: inherit; line-height: 1.2; text-transform: inherit; white-space: normal; }
+.reactivation-sort:hover,.reactivation-sort.active { color: #75b798; }
+.reactivation-sort i { font-size: .72rem; }
+.reactivation-seller-suggestions { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
+.reactivation-seller-suggestions span { margin-right: .15rem; color: #8f969d; font-size: .68rem; }
+.reactivation-seller-suggestions button { padding: .18rem .45rem; border: 1px solid rgba(255,255,255,.14); border-radius: 2rem; color: #adb5bd; background: rgba(255,255,255,.035); font-size: .68rem; }
+.reactivation-seller-suggestions button:hover,.reactivation-seller-suggestions button.active { border-color: #198754; color: #75b798; background: rgba(25,135,84,.14); }
+.reactivation-table td { border-color: rgba(255,255,255,.06); font-size: .8rem; overflow: hidden; text-overflow: ellipsis; }
+.reactivation-table .col-code { width: 8%; }
+.reactivation-table .col-client { width: 25%; }
+.reactivation-table .col-phone { width: 12%; }
+.reactivation-table .col-seller { width: 11%; }
+.reactivation-table .col-movement { width: 11%; }
+.reactivation-table .col-last-value { width: 10%; }
+.reactivation-table .col-accumulated { width: 11%; }
+.reactivation-table .col-status { width: 13%; }
+.reactivation-table .col-tags { width: 12%; }
+.reactivation-table .col-next-contact { width: 11%; }
+.reactivation-table .col-actions { width: 48px; text-align: right; }
+.reactivation-table .col-client button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.reactivation-table .column-hidden { display: none !important; }
+.reactivation-table.many-columns { min-width: 1150px; table-layout: auto; }
+.reactivation-column-menu { width: 250px; max-height: min(520px,70vh); overflow-y: auto; }
+.reactivation-column-option { display: flex; align-items: center; gap: .65rem; padding: .42rem .25rem; color: #dce1e5; font-size: .82rem; cursor: pointer; }
+.reactivation-column-option:hover { color: #75b798; }
+.reactivation-column-option input { width: 1rem; height: 1rem; accent-color: #198754; }
+.reactivation-bars { display: grid; gap: 1rem; }
+.reactivation-bar span,.reactivation-bar strong { font-size: .82rem; }
+.reactivation-bar .progress { height: 8px; margin-top: .5rem; background: rgba(255,255,255,.07); }
+.reactivation-tag-choice input { position: absolute; opacity: 0; pointer-events: none; }
+.reactivation-tag-choice span { display: inline-block; padding: .4rem .7rem; border: 1px solid var(--tag-color); border-radius: 2rem; color: #ced4da; cursor: pointer; font-size: .78rem; }
+.reactivation-tag-choice input:checked + span { background: var(--tag-color); color: #fff; }
+.reactivation-new-tag { max-width: 460px; }
+.reactivation-history { display: grid; gap: .5rem; max-height: 230px; overflow: auto; }
+.reactivation-history-item { padding: .7rem; border: 1px solid rgba(255,255,255,.08); border-radius: .6rem; background: rgba(255,255,255,.025); }
+.reactivation-history-item div { display: flex; justify-content: space-between; gap: 1rem; }
+.reactivation-history-item small,.reactivation-history-item span { color: #8f969d; font-size: .7rem; }
+.reactivation-history-item p { margin: .35rem 0; font-size: .8rem; }
+.reactivation-preview { padding: .8rem; border: 1px solid rgba(255,255,255,.08); border-radius: .6rem; }
+.reactivation-preview strong,.reactivation-preview small { display: block; }
+.reactivation-preview strong { font-size: 1.3rem; }
+.reactivation-preview small { color: #8f969d; font-size: .7rem; }
+.reactivation-status { width: 150px; min-width: 150px; padding: .48rem 2rem .48rem .75rem; border-width: 1px; border-radius: 2rem; color: #fff; font-weight: 700; }
+.reactivation-status:focus { color: #fff; box-shadow: 0 0 0 .2rem rgba(37,211,102,.14); }
+.reactivation-status option { color: #f8f9fa; background: #202428; font-weight: 500; }
+.reactivation-status.status-contatado { border-color: #20c997; background-color: rgba(32,201,151,.2); }
+.reactivation-status.status-avulso { border-color: #6f42c1; background-color: rgba(111,66,193,.22); }
+.reactivation-status.status-recente { border-color: #0dcaf0; background-color: rgba(13,202,240,.18); }
+.reactivation-status.status-aguardando { border-color: #ffc107; background-color: rgba(255,193,7,.18); color: #ffe69c; }
+.reactivation-status.status-sem-contato { border-color: #6c757d; background-color: rgba(108,117,125,.2); }
+.reactivation-status.status-nao-ligar { border-color: #dc3545; background-color: rgba(220,53,69,.2); color: #f1aeb5; }
+.reactivation-status.status-indefinido { border-color: #495057; background-color: rgba(73,80,87,.2); color: #adb5bd; }
+
+@media (max-width: 1599.98px) {
+    .reactivation-table .col-code { width: 10%; }
+    .reactivation-table .col-client { width: 30%; }
+    .reactivation-table .col-movement { width: 14%; }
+    .reactivation-table .col-accumulated { width: 15%; }
+    .reactivation-table .col-status { width: 18%; }
+    .reactivation-table .col-next-contact { width: 14%; }
+    .reactivation-status { width: 100%; min-width: 125px; }
+}
+
+@media (max-width: 1199.98px) {
+    .reactivation-table .col-code { width: 15%; }
+    .reactivation-table .col-client { width: 40%; }
+    .reactivation-table .col-accumulated { width: 20%; }
+    .reactivation-table .col-status { width: 25%; }
+    .dashboard-panel { padding: 1rem; }
+}
+
 /* Dashboard de comissões */
 .commission-kpi-note { display: block; margin-top: .3rem; color: #7f878e; font-size: .72rem; }
 .commission-dashboard .dashboard-kpi strong { font-size: clamp(1.25rem,2vw,1.7rem); }
@@ -225,6 +314,10 @@ body{
 .commission-dot { display: inline-block; width: 8px; height: 8px; margin-right: .5rem; border-radius: 50%; }
 .commission-dot.success { background: #20c997; }
 .commission-dot.warning { background: #ffc107; }
+.commission-delete-stat { height: 100%; padding: .8rem .4rem; border: 1px solid rgba(255,255,255,.08); border-radius: .65rem; background: rgba(255,255,255,.025); }
+.commission-delete-stat strong,.commission-delete-stat small { display: block; }
+.commission-delete-stat strong { color: #fff; font-size: 1rem; }
+.commission-delete-stat small { margin-top: .2rem; color: #8f969d; font-size: .67rem; }
 
 @media (max-width: 575.98px) {
     .commission-chart { gap: .25rem; }

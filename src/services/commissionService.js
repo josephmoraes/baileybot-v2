@@ -27,7 +27,9 @@ const somarDias = (data, dias) => { const d = new Date(`${data}T12:00:00`); d.se
 class CommissionService {
     listarTecnicos() {
         return db.prepare(`SELECT t.*, COALESCE(SUM(c.commission_value),0) total,
-            COALESCE(SUM(CASE WHEN c.status='liberada' THEN c.commission_value ELSE 0 END),0) liberado,
+            COALESCE(SUM(CASE WHEN c.status='liberada' AND NOT EXISTS (
+                SELECT 1 FROM credit_request_commissions rc WHERE rc.commission_id=c.id
+            ) THEN c.commission_value ELSE 0 END),0) liberado,
             COALESCE(SUM(CASE WHEN c.status='pendente' THEN c.commission_value ELSE 0 END),0) pendente
             FROM technicians t LEFT JOIN commissions c ON c.technician_id=t.id GROUP BY t.id ORDER BY t.name`).all();
     }
@@ -76,7 +78,7 @@ class CommissionService {
         const atividades = db.prepare(`SELECT tipo,titulo,descricao,data FROM (
             SELECT 'importacao' tipo,'Planilha importada' titulo,filename||' · '||imported_rows||' linha(s)' descricao,created_at data FROM commission_imports
             UNION ALL
-            SELECT 'solicitacao','Solicitação '||COALESCE(number,'criada'),t.name||' · R$ '||printf('%.2f',r.amount),r.created_at
+            SELECT 'solicitacao','Solicitação '||COALESCE(number,'criada'),t.name||' · '||replace(printf('%.2f',r.amount),'.',',')||' créditos',r.created_at
             FROM credit_requests r JOIN technicians t ON t.id=r.technician_id
         ) ORDER BY datetime(data) DESC LIMIT 5`).all();
 
@@ -103,40 +105,113 @@ class CommissionService {
     }
     atualizarLiberacoes() { db.prepare(`UPDATE commissions SET status='liberada' WHERE status='pendente' AND release_date<=?`).run(hoje()); }
     listarComissoes() { this.atualizarLiberacoes(); return db.prepare(`SELECT c.*,t.name technician_name,t.og1_code FROM commissions c JOIN technicians t ON t.id=c.technician_id ORDER BY c.sale_date DESC,c.id DESC LIMIT 500`).all(); }
-    listarImportacoes() { return db.prepare(`SELECT * FROM commission_imports ORDER BY id DESC LIMIT 50`).all(); }
+    listarImportacoes() { return db.prepare(`SELECT i.*,
+        CASE
+            WHEN NOT EXISTS (SELECT 1 FROM commission_notification_recipients anyr WHERE anyr.import_id=i.id AND anyr.kind='novos_creditos') THEN 'nao_notificada'
+            WHEN NOT EXISTS (
+                SELECT 1 FROM commissions credit
+                WHERE credit.import_id=i.id AND NOT EXISTS (
+                    SELECT 1 FROM commission_notification_recipients sent
+                    WHERE sent.import_id=i.id AND sent.technician_id=credit.technician_id
+                      AND sent.kind='novos_creditos' AND sent.status='enviado'
+                )
+            ) THEN 'notificada'
+            ELSE 'parcialmente_notificada'
+        END notification_status,
+        SUM(CASE WHEN r.status='enviado' THEN 1 ELSE 0 END) notification_sent,
+        SUM(CASE WHEN r.status='falhou' THEN 1 ELSE 0 END) notification_failed,
+        COUNT(r.id) notification_total
+        FROM commission_imports i LEFT JOIN commission_notification_recipients r
+          ON r.import_id=i.id AND r.kind='novos_creditos'
+        GROUP BY i.id ORDER BY i.id DESC LIMIT 50`).all(); }
+    impactoExclusaoImportacao(id) {
+        const importacao = db.prepare("SELECT * FROM commission_imports WHERE id=?").get(id);
+        if (!importacao) throw new Error("Relatório de importação não encontrado.");
+        const impacto = db.prepare(`SELECT COUNT(*) commissions_count,COALESCE(SUM(sale_value),0) sales_total,
+            COALESCE(SUM(commission_value),0) commission_total FROM commissions WHERE import_id=?`).get(id);
+        const linkedRequests = db.prepare(`SELECT COUNT(DISTINCT rc.request_id) total FROM credit_request_commissions rc
+            JOIN commissions c ON c.id=rc.commission_id WHERE c.import_id=?`).get(id).total;
+        const activeNotifications = db.prepare(`SELECT COUNT(*) total FROM commission_notification_jobs
+            WHERE import_id=? AND status IN ('pendente','processando','cancelando')`).get(id).total;
+        return { import: importacao, ...impacto, linked_requests: linkedRequests, active_notifications: activeNotifications };
+    }
+    excluirImportacao(id, mode) {
+        if (!["report", "report_and_commissions"].includes(mode)) throw new Error("Escolha uma opção de exclusão válida.");
+        const impacto = this.impactoExclusaoImportacao(id);
+        if (impacto.active_notifications) throw new Error("Aguarde a notificação deste relatório terminar antes de excluí-lo.");
+        if (mode === "report_and_commissions" && impacto.linked_requests) {
+            throw new Error("Não é possível excluir as comissões: existem créditos deste relatório vinculados a uma solicitação.");
+        }
+        db.transaction(() => {
+            if (mode === "report_and_commissions") {
+                db.prepare("DELETE FROM commission_notification_jobs WHERE import_id=?").run(id);
+                db.prepare("DELETE FROM commissions WHERE import_id=?").run(id);
+            }
+            const resultado = db.prepare("DELETE FROM commission_imports WHERE id=?").run(id);
+            if (!resultado.changes) throw new Error("Relatório de importação não encontrado.");
+        })();
+        return {
+            success: true,
+            mode,
+            removed_report: true,
+            removed_commissions: mode === "report_and_commissions" ? impacto.commissions_count : 0,
+            preserved_commissions: mode === "report" ? impacto.commissions_count : 0
+        };
+    }
     async importar({ base64, filename }) {
         const linhas = await fileImportService.extrairLinhas({ base64, filename });
-        const imp = db.prepare(`INSERT INTO commission_imports(filename,total_rows) VALUES(?,?)`).run(filename || "importacao.xlsx",linhas.length).lastInsertRowid;
-        let importados=0,erros=0,vendas=0,comissoes=0,tecnicosCriados=0;
-        const inserir=db.prepare(`INSERT INTO commissions(movement,technician_id,sale_date,sale_value,rate,commission_value,release_date,status,import_id) VALUES(?,?,?,?,?,?,?,?,?)`);
-        const transacao=db.transaction(()=>linhas.forEach(linha=>{
-            try {
-                const movimento=String(campo(linha,["movimento","numero","venda","pedido"])).trim();
-                const codigo=String(campo(linha,["codigo tecnico","codigo og1","tecnico codigo","tecnico"])).trim();
-                let tecnico=db.prepare(`SELECT * FROM technicians WHERE og1_code=?`).get(codigo);
-                if (!tecnico && codigo) {
-                    const nomeTecnico=String(campo(linha,["nome tecnico","tecnico nome","tecnico","vendedor","nome vendedor"])).trim();
-                    if (!nomeTecnico) throw new Error();
-                    const telefone=String(campo(linha,["telefone tecnico","celular tecnico","telefone vendedor"])).trim() || null;
-                    const email=String(campo(linha,["email tecnico","email vendedor"])).trim() || null;
-                    const documento=String(campo(linha,["cpf tecnico","cnpj tecnico","documento tecnico"])).trim() || null;
-                    const taxaPlanilha=numero(campo(linha,["percentual","comissao percentual","taxa"])) || 3;
-                    const id=db.prepare(`INSERT INTO technicians(name,og1_code,phone,email,document,commission_rate) VALUES(?,?,?,?,?,?)`).run(nomeTecnico,codigo,telefone,email,documento,taxaPlanilha).lastInsertRowid;
-                    tecnico=db.prepare(`SELECT * FROM technicians WHERE id=?`).get(id);
-                    tecnicosCriados++;
+        return this.processarLinhas(linhas, filename || "importacao.xlsx", false);
+    }
+    async preverImportacao({ base64, filename }) {
+        const linhas = await fileImportService.extrairLinhas({ base64, filename });
+        return this.processarLinhas(linhas, filename || "importacao.xlsx", true);
+    }
+    processarLinhas(linhas, filename, previa) {
+        const documentosExistentes = new Set(db.prepare(`SELECT COALESCE(document_number,movement) documento FROM commissions`).all().map(item => String(item.documento)));
+        const documentosArquivo = new Set();
+        const registros = [];
+        let comComissionado=0,duplicados=0,invalidos=0;
+        for (const linha of linhas) {
+            const codigo=String(campo(linha,["codigo cliente comissionado","codigo do cliente comissionado","codigo comissionado","codigo do comissionado","codigo tecnico","codigo og1"])).trim();
+            const nome=String(campo(linha,["nome cliente comissionado","nome do cliente comissionado","nome comissionado","nome do comissionado","nome tecnico"])).trim();
+            if (!codigo || !nome) { invalidos++; continue; }
+            comComissionado++;
+            const documento=String(campo(linha,["numero documento","numero do documento","documento","movimento","numero","venda","pedido"])).trim();
+            const valor=numero(campo(linha,["valor venda","valor da venda","valor documento","valor","total"]));
+            const data=dataIso(campo(linha,["data venda","data da venda","data documento","data","emissao"]));
+            if (!documento || !data || !Number.isFinite(valor) || valor<=0) { invalidos++; continue; }
+            if (documentosExistentes.has(documento) || documentosArquivo.has(documento)) { duplicados++; continue; }
+            documentosArquivo.add(documento);
+            registros.push({
+                codigo,nome,documento,valor,data,
+                cliente:String(campo(linha,["cliente da venda","nome cliente venda","cliente","razao social"])).trim() || null,
+                vendedor:String(campo(linha,["vendedor do relatorio","vendedor relatorio","vendedor","nome vendedor"])).trim() || null,
+                taxa:numero(campo(linha,["percentual","comissao percentual","taxa"]))
+            });
+        }
+        const resumo={total:linhas.length,comComissionado,importados:registros.length,duplicados,invalidos,erros:invalidos,vendas:0,comissoes:0,tecnicosCriados:0,previa};
+        if (previa) return resumo;
+        db.transaction(()=>{
+            const imp=db.prepare(`INSERT INTO commission_imports(filename,total_rows,commissioned_rows,duplicate_rows) VALUES(?,?,?,?)`).run(filename,linhas.length,comComissionado,duplicados).lastInsertRowid;
+            const buscarTecnico=db.prepare(`SELECT * FROM technicians WHERE og1_code=?`);
+            const criarTecnico=db.prepare(`INSERT INTO technicians(name,og1_code,commission_rate) VALUES(?,?,?)`);
+            const inserir=db.prepare(`INSERT INTO commissions(movement,document_number,commissioned_code,commissioned_name,customer_name,report_seller,source_filename,imported_at,technician_id,sale_date,sale_value,rate,commission_value,release_date,status,import_id) VALUES(?,?,?,?,?,?,?,CURRENT_TIMESTAMP,?,?,?,?,?,?,?,?)`);
+            for (const registro of registros) {
+                let tecnico=buscarTecnico.get(registro.codigo);
+                if (!tecnico) {
+                    criarTecnico.run(registro.nome,registro.codigo,registro.taxa || 3);
+                    tecnico=buscarTecnico.get(registro.codigo);
+                    resumo.tecnicosCriados++;
                 }
-                const valor=numero(campo(linha,["valor venda","valor","total"]));
-                const data=dataIso(campo(linha,["data venda","data","emissao"]));
-                if(!movimento||!tecnico||!data||!Number.isFinite(valor)||valor<=0) throw new Error();
-                const taxa=numero(campo(linha,["percentual","comissao percentual","taxa"])) || tecnico.commission_rate;
-                const comissao=Number((valor*taxa/100).toFixed(2));
-                const liberacao=dataIso(campo(linha,["data liberacao","liberacao"])) || somarDias(data,7);
-                inserir.run(movimento,tecnico.id,data,valor,taxa,comissao,liberacao,liberacao<=hoje()?"liberada":"pendente",imp);
-                importados++; vendas+=valor; comissoes+=comissao;
-            } catch { erros++; }
-        })); transacao();
-        db.prepare(`UPDATE commission_imports SET imported_rows=?,error_rows=?,sales_total=?,commission_total=? WHERE id=?`).run(importados,erros,vendas,comissoes,imp);
-        return { total:linhas.length,importados,erros,vendas,comissoes,tecnicosCriados };
+                const taxa=registro.taxa || tecnico.commission_rate;
+                const comissao=Number((registro.valor*taxa/100).toFixed(2));
+                const liberacao=somarDias(registro.data,7);
+                inserir.run(registro.documento,registro.documento,registro.codigo,registro.nome,registro.cliente,registro.vendedor,filename,tecnico.id,registro.data,registro.valor,taxa,comissao,liberacao,liberacao<=hoje()?"liberada":"pendente",imp);
+                resumo.vendas+=registro.valor; resumo.comissoes+=comissao;
+            }
+            db.prepare(`UPDATE commission_imports SET imported_rows=?,error_rows=?,sales_total=?,commission_total=? WHERE id=?`).run(resumo.importados,resumo.invalidos,resumo.vendas,resumo.comissoes,imp);
+        })();
+        return resumo;
     }
     creditosDisponiveis(tecnicoId) { this.atualizarLiberacoes(); return db.prepare(`SELECT c.* FROM commissions c LEFT JOIN credit_request_commissions rc ON rc.commission_id=c.id WHERE c.technician_id=? AND c.status='liberada' AND rc.commission_id IS NULL ORDER BY c.release_date`).all(tecnicoId); }
     criarSolicitacao(d) {

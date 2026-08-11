@@ -1,0 +1,354 @@
+<section class="reactivation-page">
+  <div
+    class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3"
+  >
+    <div>
+      <p class="dashboard-eyebrow mb-1">REATIVAÇÃO</p>
+      <h1 class="h3 mb-1">Vendedores</h1>
+      <p class="text-secondary mb-0">
+        Clientes separados por vendedor, com status, contatos e etiquetas.
+      </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <button class="btn btn-success" id="btnNovoClienteReativacao">
+        <i class="bi bi-plus-lg me-1"></i> Novo cliente
+      </button>
+    </div>
+  </div>
+  <div class="reactivation-tabs mb-3" id="reativacaoVendedorTabs"></div>
+  <div class="dashboard-panel">
+    <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
+      <input
+        class="form-control reactivation-search"
+        id="reativacaoPesquisa"
+        placeholder="Pesquisar código, cliente ou telefone"
+      />
+      <div class="d-flex flex-wrap gap-2 d-none" id="reativacaoFiltrosGlobais">
+        <select class="form-select" id="reativacaoFiltroVendedor" aria-label="Filtrar por vendedor">
+          <option value="todos">Todos os vendedores</option>
+          <option>Alisson</option><option>Noberto</option><option>Aldener</option><option>Letícia</option><option>Clayton</option>
+          <option value="outros">Outros</option><option value="sem-vendedor">Sem vendedor</option>
+        </select>
+        <select class="form-select" id="reativacaoFiltroStatus" aria-label="Filtrar por status"></select>
+      </div>
+      <div class="dropdown">
+        <button class="btn btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+          <i class="bi bi-tags me-1"></i> Etiquetas <span class="badge bg-success ms-1" id="reativacaoTagsFiltroTotal">0</span>
+        </button>
+        <div class="dropdown-menu dropdown-menu-dark p-3" style="min-width: 260px">
+          <p class="small text-secondary mb-2">Mostrar clientes com qualquer etiqueta selecionada</p>
+          <label class="form-check mb-2"><input class="form-check-input" type="checkbox" id="reativacaoFiltroSemEtiqueta"> <span class="form-check-label">Sem etiqueta</span></label>
+          <div id="reativacaoFiltrosEtiquetas" class="d-grid gap-2"></div>
+          <button class="btn btn-sm btn-outline-secondary w-100 mt-3" type="button" id="reativacaoLimparEtiquetas">Limpar filtro</button>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2 ms-auto">
+        <span class="text-secondary small" id="reativacaoContagem"></span>
+        <div class="dropdown">
+          <button
+            class="btn btn-outline-light btn-sm dropdown-toggle"
+            id="btnColunasReativacao"
+            type="button"
+            data-bs-toggle="dropdown"
+            data-bs-auto-close="outside"
+            aria-expanded="false"
+          >
+            <i class="bi bi-layout-three-columns me-1"></i> Colunas
+          </button>
+          <div
+            class="dropdown-menu dropdown-menu-dark dropdown-menu-end reactivation-column-menu p-3"
+            aria-labelledby="btnColunasReativacao"
+          >
+            <p class="small text-secondary mb-2">Mostrar na tabela</p>
+            <div id="reativacaoColumnOptions"></div>
+            <div class="d-flex gap-2 mt-3">
+              <button
+                class="btn btn-sm btn-outline-light flex-fill"
+                type="button"
+                id="btnColunasPadrao"
+              >
+                Padrão</button
+              ><button
+                class="btn btn-sm btn-outline-success flex-fill"
+                type="button"
+                id="btnTodasColunas"
+              >
+                Todas
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table
+        class="table table-dark table-hover align-middle reactivation-table"
+      >
+        <thead>
+          <tr>
+            <th class="col-code">
+              <button class="reactivation-sort" data-sort="code">
+                Código <i class="bi bi-arrow-down-up"></i>
+              </button>
+            </th>
+            <th class="col-client">
+              <button class="reactivation-sort" data-sort="client">
+                Cliente <i class="bi bi-arrow-down-up"></i>
+              </button>
+            </th>
+            <th class="col-phone">
+              <button class="reactivation-sort" data-sort="phone">
+                Telefone <i class="bi bi-arrow-down-up"></i>
+              </button>
+            </th>
+            <th class="col-seller reactivation-responsavel">
+              <button class="reactivation-sort" data-sort="seller">
+                Responsável <i class="bi bi-arrow-down-up"></i>
+              </button>
+            </th>
+            <th class="col-movement">
+              <button class="reactivation-sort" data-sort="movement">
+                Última movimentação <i class="bi bi-arrow-down-up"></i>
+              </button>
+            </th>
+            <th class="col-last-value">
+              <button class="reactivation-sort" data-sort="lastValue">
+                Valor da última <i class="bi bi-arrow-down-up"></i>
+              </button>
+            </th>
+            <th class="col-accumulated">
+              <button class="reactivation-sort" data-sort="accumulated">
+                Valor acumulado <i class="bi bi-arrow-down-up"></i>
+              </button>
+            </th>
+            <th class="col-status">
+              <button class="reactivation-sort" data-sort="status">
+                Status <i class="bi bi-arrow-down-up"></i>
+              </button>
+            </th>
+            <th class="col-tags">Etiquetas</th>
+            <th class="col-next-contact">
+              <button class="reactivation-sort" data-sort="nextContact">
+                Próximo contato <i class="bi bi-arrow-down-up"></i>
+              </button>
+            </th>
+            <th class="col-actions"></th>
+          </tr>
+        </thead>
+        <tbody id="reativacaoClientes"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<div class="modal fade" id="modalClienteReativacao" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <form class="modal-content bg-dark text-light" id="formClienteReativacao">
+      <div class="modal-header border-secondary">
+        <h2 class="modal-title h5">Cliente</h2>
+        <button
+          type="button"
+          class="btn-close btn-close-white"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="reativacaoClienteId" />
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label">Código</label
+            ><input class="form-control" id="rcCodigo" required />
+          </div>
+          <div class="col-md-5">
+            <label class="form-label">Cliente / empresa</label
+            ><input class="form-control" id="rcEmpresa" required />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Contato</label
+            ><input class="form-control" id="rcNome" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Telefone</label
+            ><input
+              class="form-control"
+              id="rcTelefone"
+              type="tel"
+              inputmode="numeric"
+              maxlength="15"
+              placeholder="(82) 99999-9999"
+            />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Responsável</label
+            ><input
+              class="form-control"
+              id="rcVendedor"
+              list="vendedoresReativacao"
+              autocomplete="off"
+              placeholder="Digite ou escolha um vendedor"
+            />
+            <div
+              class="reactivation-seller-suggestions mt-2"
+              aria-label="Vendedores oficiais"
+            >
+              <span>Oficiais:</span
+              ><button type="button" data-seller-suggestion="Alisson">
+                Alisson</button
+              ><button type="button" data-seller-suggestion="Noberto">
+                Noberto</button
+              ><button type="button" data-seller-suggestion="Aldener">
+                Aldener</button
+              ><button type="button" data-seller-suggestion="Letícia">
+                Letícia</button
+              ><button type="button" data-seller-suggestion="Clayton">
+                Clayton
+              </button>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Status</label
+            ><select class="form-select" id="rcStatus"></select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Última movimentação</label
+            ><input
+              class="form-control reactivation-date-input"
+              id="rcUltimaData"
+              type="text"
+              inputmode="numeric"
+              maxlength="10"
+              placeholder="dd/mm/2026"
+            />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Valor da última</label
+            ><input
+              class="form-control reactivation-money-input"
+              id="rcUltimoValor"
+              type="text"
+              inputmode="decimal"
+              placeholder="R$ 0,00"
+            />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Valor acumulado</label
+            ><input
+              class="form-control reactivation-money-input"
+              id="rcAcumulado"
+              type="text"
+              inputmode="decimal"
+              placeholder="R$ 0,00"
+            />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Próximo contato</label
+            ><input
+              class="form-control reactivation-date-input"
+              id="rcProximoContato"
+              type="text"
+              inputmode="numeric"
+              maxlength="10"
+              placeholder="dd/mm/2026"
+            />
+          </div>
+          <div class="col-md-8">
+            <label class="form-label">Observação</label
+            ><textarea
+              class="form-control"
+              id="rcObservacao"
+              rows="2"
+            ></textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Etiquetas</label>
+            <div id="rcEtiquetas" class="d-flex flex-wrap gap-2"></div>
+            <div class="input-group mt-2 reactivation-new-tag">
+              <input
+                class="form-control"
+                id="rcNovaEtiqueta"
+                placeholder="Nova etiqueta"
+              /><input
+                type="color"
+                class="form-control form-control-color"
+                id="rcNovaEtiquetaCor"
+                value="#198754"
+              /><button
+                class="btn btn-outline-success"
+                type="button"
+                id="btnCriarEtiqueta"
+              >
+                Adicionar etiqueta
+              </button>
+            </div>
+          </div>
+        </div>
+        <hr class="border-secondary" />
+        <div id="rcHistoricoArea" class="d-none">
+          <div class="row g-3">
+            <div class="col-lg-5">
+              <h3 class="h6">Registrar contato</h3>
+              <div class="row g-2">
+                <div class="col-5">
+                  <select class="form-select" id="rcContatoTipo">
+                    <option value="ligacao">Ligação</option>
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="email">E-mail</option>
+                    <option value="outro">Outro</option>
+                  </select>
+                </div>
+                <div class="col-7">
+                  <input
+                    class="form-control reactivation-date-input"
+                    id="rcContatoProximo"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="10"
+                    placeholder="dd/mm/2026"
+                    title="Próximo contato"
+                  />
+                </div>
+                <div class="col-12">
+                  <textarea
+                    class="form-control"
+                    id="rcContatoObs"
+                    placeholder="Resultado ou observação"
+                    rows="2"
+                  ></textarea>
+                </div>
+                <div class="col-12">
+                  <button
+                    class="btn btn-outline-success w-100"
+                    type="button"
+                    id="btnRegistrarContato"
+                  >
+                    Registrar contato
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-7">
+              <h3 class="h6">Histórico de contatos</h3>
+              <div id="rcHistorico" class="reactivation-history"></div>
+            </div>
+          </div>
+        </div>
+        <datalist id="vendedoresReativacao">
+          <option>Alisson</option>
+          <option>Noberto</option>
+          <option>Aldener</option>
+          <option>Letícia</option>
+          <option>Clayton</option>
+        </datalist>
+      </div>
+      <div class="modal-footer border-secondary">
+        <button
+          class="btn btn-outline-light"
+          type="button"
+          data-bs-dismiss="modal"
+        >
+          Cancelar</button
+        ><button class="btn btn-success" type="submit">Salvar cliente</button>
+      </div>
+    </form>
+  </div>
+</div>

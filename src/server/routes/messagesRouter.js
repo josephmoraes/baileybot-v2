@@ -3,6 +3,9 @@ import messagesController from "../../controllers/messagesController.js";
 
 const router = Router();
 
+router.get("/credit-templates", messagesController.listarTemplatesCredito);
+router.put("/credit-templates/:key", messagesController.editarTemplateCredito);
+
 router.get(
     "/templates",
     messagesController.listarTemplates
