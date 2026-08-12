@@ -7,6 +7,7 @@ router.get("/dashboard",(q,s)=>enviar(s,()=>service.dashboard()));
 router.get("/technicians",(q,s)=>enviar(s,()=>service.listarTecnicos()));
 router.post("/technicians",(q,s)=>enviar(s,()=>service.salvarTecnico(q.body),201));
 router.put("/technicians/:id",(q,s)=>enviar(s,()=>service.salvarTecnico(q.body,q.params.id)));
+router.delete("/technicians/:id",(q,s)=>enviar(s,()=>service.excluirTecnico(q.params.id)));
 router.get("/entries",(q,s)=>enviar(s,()=>service.listarComissoes()));
 router.get("/imports",(q,s)=>enviar(s,()=>service.listarImportacoes()));
 router.get("/imports/:id/delete-preview",(q,s)=>enviar(s,()=>service.impactoExclusaoImportacao(Number(q.params.id))));

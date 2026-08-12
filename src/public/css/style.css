@@ -254,6 +254,7 @@ body{
 .reactivation-status:focus { color: #fff; box-shadow: 0 0 0 .2rem rgba(37,211,102,.14); }
 .reactivation-status option { color: #f8f9fa; background: #202428; font-weight: 500; }
 .reactivation-status.status-contatado { border-color: #20c997; background-color: rgba(32,201,151,.2); }
+.reactivation-status.status-entrar-contato { border-color: #fd7e14; background-color: rgba(253,126,20,.2); color: #ffd8a8; }
 .reactivation-status.status-avulso { border-color: #6f42c1; background-color: rgba(111,66,193,.22); }
 .reactivation-status.status-recente { border-color: #0dcaf0; background-color: rgba(13,202,240,.18); }
 .reactivation-status.status-aguardando { border-color: #ffc107; background-color: rgba(255,193,7,.18); color: #ffe69c; }

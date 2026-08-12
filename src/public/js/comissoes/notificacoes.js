@@ -100,11 +100,24 @@ async function carregarHistoricoNotificacoes() {
     body.innerHTML = items.length ? items.map(item => `<tr><td>${seguro(item.technician_name)}</td><td>${seguro(item.phone || "—")}</td><td>${types[item.kind] || seguro(item.kind)}</td><td>${new Date(`${item.started_at}Z`).toLocaleString("pt-BR")}</td><td>${seguro(item.initiated_by)}</td><td><span class="badge ${statuses[item.status]?.[1] || "bg-secondary"}">${statuses[item.status]?.[0] || seguro(item.status)}</span></td><td>${seguro(item.error || "—")}</td></tr>`).join("") : '<tr><td colspan="7" class="text-center text-secondary">Nenhum envio registrado.</td></tr>';
 }
 
+async function excluirTecnicoComissao() {
+    const id = Number(document.getElementById("tecnicoId").value);
+    const tecnico = tecnicosComissao.find(item => item.id === id);
+    if (!tecnico) return;
+    const confirmado = window.confirm(`Excluir permanentemente o técnico ${tecnico.name}?\n\nEsta ação apaga também todos os créditos/comissões, solicitações e registros de histórico vinculados a ele. Não será possível desfazer.`);
+    if (!confirmado) return;
+    const resultado = await apiComissao(`/api/commissions/technicians/${id}`, { method: "DELETE" });
+    modalTecnicoComissao.hide();
+    await Promise.all([carregarTecnicos(), carregarHistoricoNotificacoes()]);
+    alertaComissao(`${resultado.technician.name} e todos os registros vinculados foram excluídos permanentemente.`, "success");
+}
+
 async function inicializarTecnicosComissao() {
     modalTecnicoComissao = new bootstrap.Modal(document.getElementById("modalTecnico"));
     modalConfirmarSaldo = new bootstrap.Modal(document.getElementById("modalConfirmarSaldo"));
     document.getElementById("novoTecnico").addEventListener("click", () => abrirTecnico());
     document.getElementById("salvarTecnico").addEventListener("click", () => salvarTecnicoComissao().catch(error => alertaComissao(error.message, "danger")));
+    document.getElementById("excluirTecnico").addEventListener("click", () => excluirTecnicoComissao().catch(error => alertaComissao(error.message, "danger")));
     document.getElementById("buscaTecnico").addEventListener("input", filtrarTecnicos);
     document.getElementById("statusTecnico").addEventListener("change", filtrarTecnicos);
     document.getElementById("selecionarTecnicos").addEventListener("click", () => document.querySelectorAll(".selecionar-tecnico:not(:disabled)").forEach(item => { item.checked = true; }));

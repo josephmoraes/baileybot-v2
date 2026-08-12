@@ -3,7 +3,7 @@ import fileImportService from "./fileImportService.js";
 import { cleanCustomerName } from "../utils/customerName.js";
 
 export const VENDEDORES_OFICIAIS = ["Alisson", "Noberto", "Aldener", "Letícia", "Clayton"];
-export const STATUS_REATIVACAO = ["Último Contato", "Contatado", "Avulso", "Recente", "Aguardando", "Sem Contato", "Não ligar", "-"];
+export const STATUS_REATIVACAO = ["Último Contato", "Entrar em contato", "Contatado", "Avulso", "Recente", "Aguardando", "Sem Contato", "Não ligar", "-"];
 
 const texto = valor => String(valor ?? "").trim();
 const chave = valor => texto(valor).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");

@@ -193,6 +193,8 @@ test("importa reativação por código e preserva dados manuais ao atualizar", a
     assert.equal(reactivationService.listar({ seller: "todos" }).some(item => item.id === cliente.id), true);
     assert.equal(reactivationService.listar({ seller: "todos", status: "Aguardando" }).some(item => item.id === cliente.id), true);
     assert.equal(reactivationService.listar({ seller: "todos", status: "Contatado" }).some(item => item.id === cliente.id), false);
+    reactivationService.atualizarStatus(cliente.id, "Entrar em contato");
+    assert.equal(reactivationService.listar({ seller: "todos", status: "Entrar em contato" }).some(item => item.id === cliente.id), true);
     assert.equal(reactivationService.listar({ seller: "todos", search: "REAT-001" }).some(item => item.id === cliente.id), true);
     assert.equal(reactivationService.listar({ seller: "todos", search: "21988887777" }).some(item => item.id === cliente.id), true);
 });
@@ -313,6 +315,28 @@ test("gera prévia e histórico para consulta manual de saldo", async () => {
     assert.equal(history.kind, "consulta_saldo");
     assert.equal(history.status, "enviado");
     assert.equal(history.initiated_by, "Teste de saldo");
+});
+
+test("exclui técnico e remove créditos, solicitações e histórico em transação", () => {
+    commissionService.salvarTecnico({ name: "Técnico descartável", og1Code: "TEC-DELETE" });
+    const tecnico = commissionService.listarTecnicos().find(item => item.og1_code === "TEC-DELETE");
+    const importacao = db.prepare("INSERT INTO commission_imports(filename) VALUES(?)").run("delete.xlsx").lastInsertRowid;
+    const comissao = db.prepare(`INSERT INTO commissions(movement,technician_id,sale_date,sale_value,rate,commission_value,release_date,status,import_id)
+        VALUES(?,?,?,?,?,?,?,?,?)`).run("DELETE-001", tecnico.id, "2026-08-01", 100, 3, 3, "2026-08-08", "liberada", importacao).lastInsertRowid;
+    const solicitacao = db.prepare(`INSERT INTO credit_requests(technician_id,amount,request_date,requester,destination,status)
+        VALUES(?,?,?,?,?,?)`).run(tecnico.id, 3, "2026-08-09", "Teste", "Financeiro", "gerada").lastInsertRowid;
+    db.prepare("INSERT INTO credit_request_commissions(request_id,commission_id,amount) VALUES(?,?,?)").run(solicitacao, comissao, 3);
+    const job = db.prepare("INSERT INTO commission_notification_jobs(kind,status,initiated_by,total,processed,sent) VALUES('consulta_saldo','concluido','Teste',1,1,1)").run().lastInsertRowid;
+    db.prepare(`INSERT INTO commission_notification_recipients(job_id,technician_id,technician_name,kind,message,status)
+        VALUES(?,?,?,'consulta_saldo','Teste','enviado')`).run(job, tecnico.id, tecnico.name);
+
+    const resultado = commissionService.excluirTecnico(tecnico.id);
+    assert.deepEqual(resultado.removed, { commissions: 1, requests: 1, notifications: 1 });
+    assert.equal(db.prepare("SELECT COUNT(*) total FROM technicians WHERE id=?").get(tecnico.id).total, 0);
+    assert.equal(db.prepare("SELECT COUNT(*) total FROM commissions WHERE technician_id=?").get(tecnico.id).total, 0);
+    assert.equal(db.prepare("SELECT COUNT(*) total FROM credit_requests WHERE technician_id=?").get(tecnico.id).total, 0);
+    assert.equal(db.prepare("SELECT COUNT(*) total FROM commission_notification_recipients WHERE technician_id=?").get(tecnico.id).total, 0);
+    assert.equal(db.prepare("SELECT COUNT(*) total FROM commission_notification_jobs WHERE id=?").get(job).total, 0);
 });
 
 test("persiste e aplica os templates editáveis de créditos", () => {

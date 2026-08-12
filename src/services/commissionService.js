@@ -44,6 +44,45 @@ class CommissionService {
         } catch (erro) { if (erro.code === "SQLITE_CONSTRAINT_UNIQUE") throw new Error("Código OG1 já cadastrado."); throw erro; }
         return { success: true };
     }
+    excluirTecnico(id) {
+        const tecnicoId = Number(id);
+        if (!Number.isInteger(tecnicoId) || tecnicoId <= 0) throw new Error("Técnico inválido.");
+        const tecnico = db.prepare("SELECT id,name FROM technicians WHERE id=?").get(tecnicoId);
+        if (!tecnico) throw new Error("Técnico não encontrado.");
+        const envioAtivo = db.prepare(`SELECT 1 FROM commission_notification_recipients r
+            JOIN commission_notification_jobs j ON j.id=r.job_id
+            WHERE r.technician_id=? AND j.status IN ('pendente','processando','cancelando') LIMIT 1`).get(tecnicoId);
+        if (envioAtivo) throw new Error("Cancele ou aguarde o envio de créditos deste técnico terminar antes de excluí-lo.");
+
+        const impacto = db.prepare(`SELECT
+            (SELECT COUNT(*) FROM commissions WHERE technician_id=?) commissions,
+            (SELECT COUNT(*) FROM credit_requests WHERE technician_id=?) requests,
+            (SELECT COUNT(*) FROM commission_notification_recipients WHERE technician_id=?) notifications`).get(tecnicoId, tecnicoId, tecnicoId);
+        const excluir = db.transaction(() => {
+            const jobs = db.prepare("SELECT DISTINCT job_id FROM commission_notification_recipients WHERE technician_id=?").all(tecnicoId).map(item => item.job_id);
+            db.prepare(`DELETE FROM credit_request_commissions WHERE request_id IN
+                (SELECT id FROM credit_requests WHERE technician_id=?)`).run(tecnicoId);
+            db.prepare(`DELETE FROM credit_request_commissions WHERE commission_id IN
+                (SELECT id FROM commissions WHERE technician_id=?)`).run(tecnicoId);
+            db.prepare("DELETE FROM credit_requests WHERE technician_id=?").run(tecnicoId);
+            db.prepare("DELETE FROM commission_notification_recipients WHERE technician_id=?").run(tecnicoId);
+            db.prepare("DELETE FROM commissions WHERE technician_id=?").run(tecnicoId);
+            for (const jobId of jobs) {
+                const totais = db.prepare(`SELECT COUNT(*) total,
+                    SUM(CASE WHEN status='enviado' THEN 1 ELSE 0 END) sent,
+                    SUM(CASE WHEN status='falhou' THEN 1 ELSE 0 END) failed,
+                    SUM(CASE WHEN status<>'pendente' THEN 1 ELSE 0 END) processed
+                    FROM commission_notification_recipients WHERE job_id=?`).get(jobId);
+                if (!totais.total) db.prepare("DELETE FROM commission_notification_jobs WHERE id=?").run(jobId);
+                else db.prepare("UPDATE commission_notification_jobs SET total=?,processed=?,sent=?,failed=? WHERE id=?")
+                    .run(totais.total, totais.processed || 0, totais.sent || 0, totais.failed || 0, jobId);
+            }
+            const resultado = db.prepare("DELETE FROM technicians WHERE id=?").run(tecnicoId);
+            if (!resultado.changes) throw new Error("Técnico não encontrado.");
+        });
+        excluir();
+        return { success: true, technician: tecnico, removed: impacto };
+    }
     dashboard() {
         this.atualizarLiberacoes();
         const resumo = db.prepare(`SELECT

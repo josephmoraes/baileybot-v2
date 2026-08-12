@@ -9,6 +9,7 @@ const REATIVACAO_VENDEDORES = [
 ];
 const REATIVACAO_STATUS = [
   "Último Contato",
+  "Entrar em contato",
   "Contatado",
   "Avulso",
   "Recente",
@@ -132,6 +133,7 @@ const rcFormatarReal = (valor) => {
 };
 const rcClasseStatus = (status) =>
   ({
+    "Entrar em contato": "status-entrar-contato",
     Contatado: "status-contatado",
     Avulso: "status-avulso",
     Recente: "status-recente",
