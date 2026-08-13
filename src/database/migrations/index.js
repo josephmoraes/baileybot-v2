@@ -219,6 +219,14 @@ const migrations = [
             CREATE INDEX IF NOT EXISTS idx_reactivation_report_rows_report_status
                 ON reactivation_report_rows(report_id,status);`);
         }
+    },
+    {
+        id: "009_filtro_data_cadastro_campanha_reativacao",
+        up() {
+            adicionarColuna("campaigns", "registration_date_from", "TEXT");
+            adicionarColuna("campaigns", "registration_date_to", "TEXT");
+            db.exec("CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at)");
+        }
     }
 ];
 

@@ -148,6 +148,16 @@ class CampaignController {
         }
     }
 
+    atualizarFiltrosReativacao(req, res) {
+        try {
+            const resultado = campaignService.atualizarFiltrosReativacao(req.params.id, req.body || {});
+            res.json({ ...resultado, total: resultado.recipients.length });
+        } catch (erro) {
+            const status = erro.message === "Campanha não encontrada." ? 404 : 400;
+            res.status(status).json({ error: erro.message });
+        }
+    }
+
     async validarDestinatarios(req, res) {
         try {
             const resultado = await campaignService.validarDestinatarios(

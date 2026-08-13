@@ -154,7 +154,7 @@ test("importa cada documento com comissionado sem propagar dados entre linhas", 
 
 test("registra migrations e consolida indicadores do dashboard", () => {
     const migrations = db.prepare("SELECT id FROM schema_migrations ORDER BY id").all();
-    assert.deepEqual(migrations.map(item => item.id), ["001_compatibilidade_v2", "002_vendas_comissionadas_por_documento", "003_notificacoes_creditos_manuais", "004_modulo_reativacao", "005_clientes_sem_whatsapp", "006_ordenacao_clientes_recentes", "007_campanha_fixa_clientes_aguardando", "008_caixa_entrada_relatorios_reativacao"]);
+    assert.deepEqual(migrations.map(item => item.id), ["001_compatibilidade_v2", "002_vendas_comissionadas_por_documento", "003_notificacoes_creditos_manuais", "004_modulo_reativacao", "005_clientes_sem_whatsapp", "006_ordenacao_clientes_recentes", "007_campanha_fixa_clientes_aguardando", "008_caixa_entrada_relatorios_reativacao", "009_filtro_data_cadastro_campanha_reativacao"]);
     const indicadores = dashboardRepository.obterIndicadores();
     assert.ok(indicadores.totalClientes >= 3);
     assert.ok(indicadores.totalMensagens >= 1);
@@ -212,6 +212,7 @@ test("campanha fixa inclui Aguardando e não repete código já contatado", asyn
     assert.equal(campaign.fixed_key, "reactivation_waiting");
     let recipients = campaignService.listarDestinatarios(campaign.id);
     assert.deepEqual(recipients.map(item => item.customer_code), ["WAIT-001"]);
+    assert.equal(recipients[0].cliente_nome, "Cliente aguardando");
     assert.throws(() => campaignService.salvarDestinatarios(campaign.id, []), /definidos automaticamente/);
     assert.throws(() => campaignService.excluir(campaign.id), /não pode ser excluída/);
 
@@ -226,6 +227,34 @@ test("campanha fixa inclui Aguardando e não repete código já contatado", asyn
     assert.equal(recipients.length, 0);
     assert.equal(db.prepare("SELECT COUNT(*) total FROM campaign_recipients WHERE campaign_id=? AND customer_code=? AND status='enviado'").get(campaign.id, "WAIT-001").total, 1);
     assert.equal(db.prepare("SELECT COUNT(*) total FROM reactivation_contacts WHERE user_id=? AND kind='whatsapp_campanha'").get(client.id).total, 1);
+});
+
+test("campanha de reativação combina status com Data de cadastro local", () => {
+    db.prepare("UPDATE users SET reactivation_status='Sem Contato' WHERE customer_code IS NOT NULL").run();
+    const ontem = new Date();
+    ontem.setDate(ontem.getDate() - 1);
+    const hoje = new Date();
+    const dataLocal = data => `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
+    const clienteOntem = reactivationService.salvar(null, { customer_code: "DATE-OLD", company_name: "Empresa Ontem", name: "Contato Ontem", telefone: "21970000001", reactivation_status: "Aguardando" });
+    const clienteHoje = reactivationService.salvar(null, { customer_code: "DATE-TODAY", company_name: "Empresa Hoje", name: "Contato Hoje", telefone: "21970000002", reactivation_status: "Aguardando" });
+    db.prepare("UPDATE users SET created_at=? WHERE id=?").run(`${dataLocal(ontem)} 12:00:00`, clienteOntem.id);
+    db.prepare("UPDATE users SET created_at=? WHERE id=?").run(`${dataLocal(hoje)} 12:00:00`, clienteHoje.id);
+    const campaign = campaignService.ensureWaitingCampaign();
+    const resultado = campaignService.atualizarFiltrosReativacao(campaign.id, {
+        registrationDateFrom: dataLocal(ontem),
+        registrationDateTo: dataLocal(ontem)
+    });
+    assert.deepEqual(resultado.recipients.map(item => item.customer_code), ["DATE-OLD"]);
+    assert.equal(resultado.recipients[0].cliente_nome, "Empresa Ontem");
+    assert.throws(() => campaignService.atualizarFiltrosReativacao(campaign.id, { registrationDateFrom: dataLocal(hoje), registrationDateTo: dataLocal(ontem) }), /posterior/);
+});
+
+test("formulário de solicitação de crédito associa rótulos a todos os campos", () => {
+    const html = fs.readFileSync(new URL("../src/public/pages/comissoes/solicitacao.html", import.meta.url), "utf8");
+    for (const id of ["solTecnico", "solValor", "solData", "solResponsavel", "solDestino", "solMateriais", "solNotas"]) {
+        assert.match(html, new RegExp(`<label[^>]+for=["']${id}["']`));
+    }
+    assert.match(html, /aria-labelledby="solCreditosLabel"/);
 });
 
 test("importa relatório para conferência e só aprova com Código OG1", async () => {

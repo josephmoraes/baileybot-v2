@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS campaigns (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     fixed_key TEXT,
+    registration_date_from TEXT,
+    registration_date_to TEXT,
 
     FOREIGN KEY (template_id)
         REFERENCES message_templates(id)

@@ -53,7 +53,7 @@ class DashboardRepository {
             SELECT tipo, titulo, descricao, data FROM (
                 SELECT 'mensagem' AS tipo, 'Mensagem enviada' AS titulo, cliente_nome AS descricao, enviado_em AS data FROM messages
                 UNION ALL SELECT 'campanha', 'Campanha atualizada', nome, updated_at FROM campaigns
-                UNION ALL SELECT 'cliente', 'Novo cliente cadastrado', COALESCE(name,company_name,'Cliente'), created_at FROM users
+                UNION ALL SELECT 'cliente', 'Novo cliente cadastrado', COALESCE(NULLIF(company_name,''),NULLIF(name,''),'Cliente'), created_at FROM users
             ) ORDER BY datetime(data) DESC LIMIT ?
         `).all(limite);
     }

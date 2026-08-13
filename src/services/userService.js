@@ -30,7 +30,7 @@ class UserService {
                 jid,
                 created_at
             FROM users
-            ORDER BY name
+            ORDER BY COALESCE(NULLIF(company_name, ''), name)
         `).all();
 
     }

@@ -272,6 +272,15 @@ async function abrirDetalhesCampanha(campanha) {
     const btnContatos = document.getElementById("btnContatosCampanhaDetalhes");
     const btnIniciar = document.getElementById("btnIniciarCampanhaDetalhes");
     const btnCancelar = document.getElementById("btnCancelarCampanhaDetalhes");
+    const filtrosCadastro = document.getElementById("filtrosDataCadastroReativacao");
+    filtrosCadastro?.classList.toggle("d-none", campanha.fixed_key !== "reactivation_waiting");
+    if (campanha.fixed_key === "reactivation_waiting") {
+        document.getElementById("filtroCadastroDe").value = campanha.registration_date_from || "";
+        document.getElementById("filtroCadastroAte").value = campanha.registration_date_to || "";
+        document.getElementById("resumoFiltroCadastro").textContent = campanha.registration_date_from || campanha.registration_date_to
+            ? `Prévia atual: ${campanha.total_destinatarios} cliente(s) Aguardando dentro do período.`
+            : `Prévia atual: ${campanha.total_destinatarios} cliente(s) Aguardando, sem restrição de Data de cadastro.`;
+    }
 
     btnEditar.classList.toggle("d-none", emProcessamento || Boolean(campanha.fixed_key));
     btnContatos.classList.toggle("d-none", emProcessamento || Boolean(campanha.fixed_key));
@@ -337,6 +346,35 @@ async function abrirDetalhesCampanha(campanha) {
         alerta.className = "alert alert-danger";
         alerta.textContent = erro.message;
         carregando.appendChild(alerta);
+    }
+}
+
+async function aplicarFiltroDataCadastro() {
+    if (campanhaDetalhesAtual?.fixed_key !== "reactivation_waiting") return;
+    const botao = document.getElementById("btnAplicarFiltroCadastro");
+    botao.disabled = true;
+    try {
+        const resposta = await fetch(`/api/campaigns/${campanhaDetalhesAtual.id}/reactivation-filters`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                registrationDateFrom: document.getElementById("filtroCadastroDe").value,
+                registrationDateTo: document.getElementById("filtroCadastroAte").value
+            })
+        });
+        const dados = await resposta.json();
+        if (!resposta.ok) throw new Error(dados.error || "Não foi possível aplicar o filtro.");
+        await carregarCampanhas();
+        const atualizada = campanhasCache.find(item => item.id === campanhaDetalhesAtual.id);
+        campanhaDetalhesAtual = atualizada || { ...campanhaDetalhesAtual, ...dados.campaign, total_destinatarios: dados.total };
+        document.getElementById("resumoDetalhesCampanha").textContent = `${campanhaDetalhesAtual.template_nome} · ${dados.total} contato(s)`;
+        document.getElementById("resumoFiltroCadastro").textContent = `Prévia atual: ${dados.total} cliente(s) Aguardando dentro do período.`;
+        document.getElementById("btnIniciarCampanhaDetalhes").disabled = dados.total === 0;
+        mostrarAlertaCampanha(`Filtro aplicado: ${dados.total} destinatário(s) na prévia.`);
+    } catch (erro) {
+        mostrarAlertaCampanha(erro.message, "danger");
+    } finally {
+        botao.disabled = false;
     }
 }
 
@@ -894,7 +932,7 @@ function renderizarClientesCampanha(clientes) {
 
         nome.className = "fw-semibold";
         nome.textContent =
-            cliente.name || "Cliente sem nome";
+            cliente.company_name || cliente.name || "Cliente sem nome";
 
         const detalhes = document.createElement("div");
 
@@ -906,7 +944,7 @@ function renderizarClientesCampanha(clientes) {
             .replace(/^55/, "") || "";
 
         detalhes.textContent = [
-            cliente.company_name,
+            cliente.company_name && cliente.name ? `Contato: ${cliente.name}` : null,
             telefone,
             clientesComMensagemEnviada.has(cliente.id) ? "Mensagem já enviada" : null
         ]
@@ -1206,6 +1244,8 @@ async function inicializarCampanhas() {
     document
         .getElementById("btnCancelarCampanhaDetalhes")
         ?.addEventListener("click", cancelarCampanhaPelosDetalhes);
+
+    document.getElementById("btnAplicarFiltroCadastro")?.addEventListener("click", aplicarFiltroDataCadastro);
 
     document
         .getElementById("btnNovaCampanha")

@@ -18,6 +18,11 @@ router.put(
     campaignController.salvarDestinatarios
 );
 
+router.put(
+    "/:id/reactivation-filters",
+    campaignController.atualizarFiltrosReativacao
+);
+
 router.post(
     "/:id/validate",
     campaignController.validarDestinatarios

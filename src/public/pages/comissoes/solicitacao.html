@@ -1,2 +1,25 @@
-<div class="page-heading"><h1>Solicitação de crédito</h1><p class="text-secondary">Selecione comissões liberadas e gere a solicitação</p></div><div id="alertaComissoes" class="alert d-none"></div>
-<div class="row g-4"><div class="col-xl-7"><div class="card bg-dark border-secondary"><div class="card-body"><div class="row g-3"><div class="col-md-8"><label class="form-label">Técnico</label><select id="solTecnico" class="form-select"><option value="">Selecione</option></select></div><div class="col-md-4"><label class="form-label">Créditos selecionados</label><input id="solValor" class="form-control" readonly value="0,00"></div><div class="col-12"><label class="form-label">Créditos disponíveis</label><div id="solCreditos" class="border border-secondary rounded p-3">Selecione um técnico.</div></div><div class="col-md-6"><label class="form-label">Data</label><input id="solData" type="date" class="form-control"></div><div class="col-md-6"><label class="form-label">Responsável *</label><input id="solResponsavel" class="form-control"></div><div class="col-md-6"><label class="form-label">Destino</label><select id="solDestino" class="form-select"><option>Financeiro</option><option>Compras</option></select></div><div class="col-12"><label class="form-label">Materiais</label><textarea id="solMateriais" class="form-control" rows="3"></textarea></div><div class="col-12"><label class="form-label">Observações</label><textarea id="solNotas" class="form-control" rows="2"></textarea></div></div></div><div class="card-footer text-end"><button id="salvarSolicitacao" class="btn btn-outline-light me-2">Salvar rascunho</button><button id="gerarSolicitacao" class="btn btn-success">Gerar solicitação</button></div></div></div><div class="col-xl-5"><div class="card bg-dark border-secondary"><div class="card-header">Solicitações geradas</div><div class="table-responsive"><table class="table table-dark mb-0"><thead><tr><th>Nº</th><th>Técnico</th><th>Créditos</th><th>Status</th></tr></thead><tbody id="tabelaSolicitacoes"></tbody></table></div></div></div></div>
+<div class="page-heading">
+    <h1>Solicitação de crédito</h1>
+    <p class="text-secondary">Selecione comissões liberadas e gere a solicitação</p>
+</div>
+<div id="alertaComissoes" class="alert d-none"></div>
+<div class="row g-4">
+    <div class="col-xl-7">
+        <div class="card bg-dark border-secondary">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-8"><label class="form-label" for="solTecnico">Técnico</label><select id="solTecnico" class="form-select"><option value="">Selecione</option></select></div>
+                    <div class="col-md-4"><label class="form-label" for="solValor">Créditos selecionados</label><input id="solValor" class="form-control" readonly value="0,00"></div>
+                    <div class="col-12"><span class="form-label d-block" id="solCreditosLabel">Créditos disponíveis</span><div id="solCreditos" class="border border-secondary rounded p-3" role="group" aria-labelledby="solCreditosLabel">Selecione um técnico.</div></div>
+                    <div class="col-md-6"><label class="form-label" for="solData">Data da solicitação</label><input id="solData" type="date" class="form-control"></div>
+                    <div class="col-md-6"><label class="form-label" for="solResponsavel">Responsável *</label><input id="solResponsavel" class="form-control" placeholder="Nome de quem solicita"></div>
+                    <div class="col-md-6"><label class="form-label" for="solDestino">Destino da solicitação</label><select id="solDestino" class="form-select"><option>Financeiro</option><option>Compras</option></select></div>
+                    <div class="col-12"><label class="form-label" for="solMateriais">Materiais</label><textarea id="solMateriais" class="form-control" rows="3" placeholder="Descreva os materiais relacionados"></textarea></div>
+                    <div class="col-12"><label class="form-label" for="solNotas">Observações</label><textarea id="solNotas" class="form-control" rows="2" placeholder="Informações complementares"></textarea></div>
+                </div>
+            </div>
+            <div class="card-footer text-end"><button id="salvarSolicitacao" class="btn btn-outline-light me-2">Salvar rascunho</button><button id="gerarSolicitacao" class="btn btn-success">Gerar solicitação</button></div>
+        </div>
+    </div>
+    <div class="col-xl-5"><div class="card bg-dark border-secondary"><div class="card-header">Solicitações geradas</div><div class="table-responsive"><table class="table table-dark mb-0"><thead><tr><th>Nº</th><th>Técnico</th><th>Créditos</th><th>Status</th></tr></thead><tbody id="tabelaSolicitacoes"></tbody></table></div></div></div>
+</div>

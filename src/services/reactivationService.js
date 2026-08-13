@@ -337,7 +337,7 @@ class ReactivationService {
                 const existente = db.prepare("SELECT id,jid FROM users WHERE customer_code=?").get(item.customer_code);
                 const jid = telefoneJid(item.telefone);
                 if (existente) {
-                    db.prepare(`UPDATE users SET company_name=?,name=COALESCE(NULLIF(?,''),name),jid=COALESCE(?,jid),seller=?,last_movement_at=?,
+                    db.prepare(`UPDATE users SET company_name=COALESCE(NULLIF(?,''),company_name),name=COALESCE(NULLIF(?,''),name),jid=COALESCE(?,jid),seller=?,last_movement_at=?,
                         last_movement_value=?,accumulated_value=? WHERE id=?`).run(item.company_name || null, item.name, jid, item.seller || null,
                         item.last_movement_at, item.last_movement_value, item.accumulated_value, existente.id);
                     atualizados += 1;

@@ -19,6 +19,19 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                <div id="filtrosDataCadastroReativacao" class="card bg-secondary border-0 mb-3 d-none">
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap justify-content-between align-items-end gap-3">
+                            <div><h6 class="mb-1">Filtro pela Data de cadastro</h6><small>Combinado automaticamente com o status atual Aguardando. As datas seguem o fuso local.</small></div>
+                            <div class="row g-2 flex-grow-1" style="max-width: 620px;">
+                                <div class="col-sm-5"><label class="form-label" for="filtroCadastroDe">De</label><input class="form-control" type="date" id="filtroCadastroDe"></div>
+                                <div class="col-sm-5"><label class="form-label" for="filtroCadastroAte">Até</label><input class="form-control" type="date" id="filtroCadastroAte"></div>
+                                <div class="col-sm-2 d-flex align-items-end"><button type="button" class="btn btn-info w-100" id="btnAplicarFiltroCadastro">Aplicar</button></div>
+                            </div>
+                        </div>
+                        <div class="small mt-2" id="resumoFiltroCadastro"></div>
+                    </div>
+                </div>
                 <div id="progressoEnvioCampanha" class="card bg-secondary border-0 mb-3 d-none">
                     <div class="card-body">
                         <div class="d-flex justify-content-between gap-3 mb-2">

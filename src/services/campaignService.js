@@ -6,6 +6,14 @@ import settingsService from "./settingsService.js";
 
 class CampaignService {
 
+    validarDataCadastro(valor, campo) {
+        if (!valor) return null;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(valor) || Number.isNaN(new Date(`${valor}T00:00:00`).getTime())) {
+            throw new Error(`${campo} deve ser uma data válida.`);
+        }
+        return valor;
+    }
+
     ensureWaitingCampaign() {
         const fixedKey = "reactivation_waiting";
         let template = db.prepare("SELECT id FROM message_templates WHERE nome=? ORDER BY id LIMIT 1").get("Reativação - Clientes aguardando");
@@ -30,16 +38,27 @@ class CampaignService {
     syncWaitingRecipients(campaignId) {
         const campaign = db.prepare("SELECT * FROM campaigns WHERE id=?").get(campaignId);
         if (campaign?.fixed_key !== "reactivation_waiting" || ["processando", "cancelando"].includes(campaign.status)) return;
+        const dateFilters = [];
+        const dateParams = [];
+        if (campaign.registration_date_from) {
+            dateFilters.push("datetime(u.created_at,'localtime') >= datetime(? || ' 00:00:00')");
+            dateParams.push(campaign.registration_date_from);
+        }
+        if (campaign.registration_date_to) {
+            dateFilters.push("datetime(u.created_at,'localtime') < datetime(? || ' 00:00:00','+1 day')");
+            dateParams.push(campaign.registration_date_to);
+        }
+        const dateWhere = dateFilters.length ? ` AND ${dateFilters.join(" AND ")}` : "";
         db.transaction(() => {
             db.prepare(`UPDATE campaign_recipients SET active=0 WHERE campaign_id=? AND
                 (status='enviado' OR customer_code IS NULL OR NOT EXISTS (SELECT 1 FROM users u
                     WHERE u.id=campaign_recipients.cliente_id AND u.reactivation_status='Aguardando'
-                    AND u.customer_code=campaign_recipients.customer_code))`).run(campaignId);
+                    AND u.customer_code=campaign_recipients.customer_code${dateWhere}))`).run(campaignId, ...dateParams);
             const clients = db.prepare(`SELECT u.id,u.customer_code,
-                COALESCE(NULLIF(u.name,''),NULLIF(u.company_name,''),'Cliente') name,u.jid FROM users u
+                COALESCE(NULLIF(u.company_name,''),NULLIF(u.name,''),'Cliente') name,u.jid FROM users u
                 WHERE u.reactivation_status='Aguardando' AND u.customer_code IS NOT NULL AND trim(u.customer_code)<>''
                 AND u.jid IS NOT NULL AND trim(u.jid)<>'' AND NOT EXISTS (SELECT 1 FROM campaign_recipients sent
-                    WHERE sent.campaign_id=? AND sent.customer_code=u.customer_code AND sent.status='enviado') ORDER BY name`).all(campaignId);
+                    WHERE sent.campaign_id=? AND sent.customer_code=u.customer_code AND sent.status='enviado')${dateWhere} ORDER BY name`).all(campaignId, ...dateParams);
             const existing = db.prepare("SELECT * FROM campaign_recipients WHERE campaign_id=? AND customer_code=? ORDER BY id DESC LIMIT 1");
             const insert = db.prepare(`INSERT INTO campaign_recipients(campaign_id,cliente_id,cliente_nome,cliente_jid,customer_code)
                 VALUES(?,?,?,?,?)`);
@@ -60,6 +79,21 @@ class CampaignService {
             if (changed) db.prepare(`UPDATE campaigns SET status='rascunho',validation_status='nao_validada',
                 validated_at=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(campaignId);
         })();
+    }
+
+    atualizarFiltrosReativacao(campaignId, { registrationDateFrom, registrationDateTo }) {
+        const campanha = this.buscarPorId(campaignId);
+        if (!campanha) throw new Error("Campanha não encontrada.");
+        if (campanha.fixed_key !== "reactivation_waiting") throw new Error("Este filtro pertence à campanha de reativação.");
+        if (["processando", "cancelando"].includes(campanha.status)) throw new Error("Os filtros não podem ser alterados durante o envio.");
+        const inicio = this.validarDataCadastro(registrationDateFrom, "Data inicial");
+        const fim = this.validarDataCadastro(registrationDateTo, "Data final");
+        if (inicio && fim && inicio > fim) throw new Error("A data inicial não pode ser posterior à data final.");
+        db.prepare(`UPDATE campaigns SET registration_date_from=?,registration_date_to=?,status='rascunho',
+            validation_status='nao_validada',validated_at=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+            .run(inicio, fim, campaignId);
+        this.syncWaitingRecipients(campaignId);
+        return { campaign: this.buscarPorId(campaignId), recipients: this.listarDestinatarios(campaignId) };
     }
 
     listar() {
@@ -240,8 +274,10 @@ class CampaignService {
             cr.validation_status,
             cr.validation_error,
             cr.validated_jid,
-            cr.validated_at
+            cr.validated_at,
+            COALESCE(NULLIF(u.name,''),cr.cliente_nome) AS contato_nome
         FROM campaign_recipients cr
+        LEFT JOIN users u ON u.id=cr.cliente_id
         WHERE cr.campaign_id = ? AND cr.active = 1
         ORDER BY cr.cliente_nome
     `).all(campaignId);
@@ -390,8 +426,8 @@ class CampaignService {
                 inserir.run(
                     campaignId,
                     cliente.id,
-                    cliente.name ||
-                        cliente.company_name ||
+                    cliente.company_name ||
+                        cliente.name ||
                         "Cliente",
                     cliente.jid,
                     cliente.customer_code
@@ -543,12 +579,14 @@ class CampaignService {
             : ["pendente", "erro"];
         const placeholders = statusPermitidos.map(() => "?").join(", ");
         const destinatarios = db.prepare(`
-            SELECT * FROM campaign_recipients
-            WHERE campaign_id = ?
-              AND active = 1
-              AND status IN (${placeholders})
-              AND validation_status = 'valido'
-            ORDER BY id
+            SELECT cr.*,COALESCE(NULLIF(u.name,''),cr.cliente_nome) AS contato_nome
+            FROM campaign_recipients cr
+            LEFT JOIN users u ON u.id=cr.cliente_id
+            WHERE cr.campaign_id = ?
+              AND cr.active = 1
+              AND cr.status IN (${placeholders})
+              AND cr.validation_status = 'valido'
+            ORDER BY cr.id
         `).all(campaignId, ...statusPermitidos);
 
         if (destinatarios.length === 0) {
@@ -597,7 +635,7 @@ class CampaignService {
             }
             const cliente = {
                 id: destinatario.cliente_id,
-                name: destinatario.cliente_nome,
+                name: destinatario.contato_nome,
                 jid: destinatario.validated_jid || destinatario.cliente_jid
             };
             const mensagem = messageService.gerarMensagem(
