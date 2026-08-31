@@ -23,6 +23,7 @@ const dataIso = valor => {
     return "";
 };
 const somarDias = (data, dias) => { const d = new Date(`${data}T12:00:00`); d.setDate(d.getDate() + dias); return d.toISOString().slice(0, 10); };
+const PRAZO_LIBERACAO_DIAS = 15;
 
 class CommissionService {
     listarTecnicos() {
@@ -144,6 +145,39 @@ class CommissionService {
     }
     atualizarLiberacoes() { db.prepare(`UPDATE commissions SET status='liberada' WHERE status='pendente' AND release_date<=?`).run(hoje()); }
     listarComissoes() { this.atualizarLiberacoes(); return db.prepare(`SELECT c.*,t.name technician_name,t.og1_code FROM commissions c JOIN technicians t ON t.id=c.technician_id ORDER BY c.sale_date DESC,c.id DESC LIMIT 500`).all(); }
+    ajustarPercentual(id, dados = {}) {
+        const commissionId = Number(id);
+        const novaTaxa = Number(dados.rate);
+        const motivo = String(dados.reason || "").trim();
+        if (!Number.isInteger(commissionId)) throw new Error("Venda inválida.");
+        if (!Number.isFinite(novaTaxa) || novaTaxa < 0 || novaTaxa > 100) throw new Error("Informe um percentual entre 0 e 100.");
+        if (!motivo) throw new Error("Informe o motivo da alteração.");
+        const venda = db.prepare("SELECT * FROM commissions WHERE id=?").get(commissionId);
+        if (!venda) throw new Error("Venda não encontrada.");
+        if (db.prepare("SELECT 1 FROM credit_request_commissions WHERE commission_id=?").get(commissionId)) {
+            throw new Error("Esta comissão já está vinculada a uma solicitação de crédito e não pode ser alterada.");
+        }
+        const novoValor = Number((Number(venda.sale_value) * novaTaxa / 100).toFixed(2));
+        db.transaction(() => {
+            db.prepare(`INSERT INTO commission_rate_adjustments(commission_id,previous_rate,new_rate,previous_value,new_value,reason,adjusted_by)
+                VALUES(?,?,?,?,?,?,?)`).run(commissionId, venda.rate, novaTaxa, venda.commission_value, novoValor, motivo, "Administrador local");
+            db.prepare(`UPDATE commissions SET original_rate=COALESCE(original_rate,rate),rate=?,commission_value=?,
+                adjustment_reason=?,adjusted_at=CURRENT_TIMESTAMP,adjusted_by='Administrador local' WHERE id=?`)
+                .run(novaTaxa, novoValor, motivo, commissionId);
+            if (venda.import_id) {
+                db.prepare(`UPDATE commission_imports SET commission_total=COALESCE((SELECT SUM(commission_value)
+                    FROM commissions WHERE import_id=?),0) WHERE id=?`).run(venda.import_id, venda.import_id);
+            }
+        })();
+        return this.obterAjuste(commissionId);
+    }
+    obterAjuste(id) {
+        const venda = db.prepare(`SELECT c.*,t.name technician_name,t.og1_code FROM commissions c
+            JOIN technicians t ON t.id=c.technician_id WHERE c.id=?`).get(id);
+        if (!venda) throw new Error("Venda não encontrada.");
+        venda.adjustments = db.prepare("SELECT * FROM commission_rate_adjustments WHERE commission_id=? ORDER BY created_at DESC,id DESC").all(id);
+        return venda;
+    }
     listarImportacoes() { return db.prepare(`SELECT i.*,
         CASE
             WHEN NOT EXISTS (SELECT 1 FROM commission_notification_recipients anyr WHERE anyr.import_id=i.id AND anyr.kind='novos_creditos') THEN 'nao_notificada'
@@ -244,7 +278,7 @@ class CommissionService {
                 }
                 const taxa=registro.taxa || tecnico.commission_rate;
                 const comissao=Number((registro.valor*taxa/100).toFixed(2));
-                const liberacao=somarDias(registro.data,7);
+                const liberacao=somarDias(registro.data,PRAZO_LIBERACAO_DIAS);
                 inserir.run(registro.documento,registro.documento,registro.codigo,registro.nome,registro.cliente,registro.vendedor,filename,tecnico.id,registro.data,registro.valor,taxa,comissao,liberacao,liberacao<=hoje()?"liberada":"pendente",imp);
                 resumo.vendas+=registro.valor; resumo.comissoes+=comissao;
             }

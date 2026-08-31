@@ -320,6 +320,42 @@ body{
 .commission-delete-stat strong { color: #fff; font-size: 1rem; }
 .commission-delete-stat small { margin-top: .2rem; color: #8f969d; font-size: .67rem; }
 
+/* Solicitação de crédito */
+.commission-request-page { width: min(100%,900px); margin-inline: auto; }
+.commission-request-heading { margin-bottom: 1.25rem; }
+.commission-request-heading h1 { margin: .25rem 0 .35rem; color: #f8f9fa; font-size: clamp(1.55rem,3vw,2rem); }
+.commission-request-heading p { max-width: 680px; margin: 0; color: #aeb5bc; }
+.commission-request-eyebrow { color: #75b798; font-size: .72rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.commission-request-card,.commission-request-history { overflow: hidden; border: 1px solid rgba(255,255,255,.12)!important; background: #22272b!important; box-shadow: 0 18px 45px rgba(0,0,0,.16); }
+.commission-request-card .card-body { padding: 0 1.5rem; }
+.commission-request-section { padding: 1.5rem 0; border-bottom: 1px solid rgba(255,255,255,.08); }
+.commission-request-section-last { border-bottom: 0; }
+.commission-request-section-heading { display: flex; align-items: flex-start; gap: .75rem; margin-bottom: 1.25rem; }
+.commission-request-section-heading h2,.commission-request-history h2 { margin: 0; color: #f1f3f5; font-size: 1rem; }
+.commission-request-section-heading p,.commission-request-history p { margin: .2rem 0 0; color: #9da5ac; font-size: .78rem; }
+.commission-request-step { display: grid; place-items: center; width: 28px; height: 28px; flex: 0 0 28px; border-radius: 50%; color: #75b798; background: rgba(37,211,102,.12); font-size: .75rem; font-weight: 700; }
+.commission-request-page .form-label { margin-bottom: .45rem; color: #dce1e5; font-size: .78rem; font-weight: 600; }
+.commission-request-page .form-control,.commission-request-page .form-select { min-height: 46px; border-color: #545b62; background-color: #181c1f; }
+.commission-request-page .form-control::placeholder { color: #858e96; opacity: 1; }
+.commission-request-page textarea.form-control { min-height: 110px; resize: vertical; }
+.commission-request-page .form-control[readonly] { color: #8ce3ad; background: rgba(37,211,102,.055); font-weight: 700; }
+.commission-request-credits { min-height: 58px; padding: .85rem 1rem; border: 1px solid #4f565c; border-radius: .65rem; color: #b8c0c7; background: #181c1f; }
+.commission-request-actions { display: flex; justify-content: flex-end; gap: .75rem; padding: 1rem 1.5rem; border-color: rgba(255,255,255,.08); background: rgba(0,0,0,.12); }
+.commission-request-actions .btn { min-height: 44px; padding-inline: 1.1rem; }
+.commission-request-actions .btn-outline-secondary { border-color: #6c757d; color: #ced4da; }
+.commission-request-actions .btn-outline-secondary:hover { color: #fff; background: #495057; }
+.commission-request-actions .btn-success { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; padding-inline: 1.35rem; box-shadow: 0 8px 20px rgba(25,135,84,.2); }
+.commission-request-history { margin-top: 1.5rem; }
+.commission-request-history .card-header { padding: 1rem 1.25rem; border-color: rgba(255,255,255,.08); }
+
+@media (max-width: 575.98px) {
+    .commission-request-card .card-body { padding-inline: 1rem; }
+    .commission-request-section { padding-block: 1.25rem; }
+    .commission-request-actions { flex-direction: column-reverse; padding: 1rem; }
+    .commission-request-actions .btn { width: 100%; }
+    .commission-request-history .table { min-width: 520px; }
+}
+
 @media (max-width: 575.98px) {
     .commission-chart { gap: .25rem; }
     .commission-chart-values span { font-size: .55rem; }

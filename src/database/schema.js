@@ -43,6 +43,8 @@ CREATE TABLE IF NOT EXISTS campaigns (
     fixed_key TEXT,
     registration_date_from TEXT,
     registration_date_to TEXT,
+    message_mode TEXT NOT NULL DEFAULT 'template',
+    custom_message TEXT,
 
     FOREIGN KEY (template_id)
         REFERENCES message_templates(id)
@@ -54,11 +56,19 @@ CREATE TABLE IF NOT EXISTS campaign_recipients (
     campaign_id INTEGER NOT NULL,
     cliente_id INTEGER,
     cliente_nome TEXT NOT NULL,
-    cliente_jid TEXT NOT NULL,
+    cliente_jid TEXT,
     customer_code TEXT,
     status TEXT NOT NULL DEFAULT 'pendente',
     erro TEXT,
     enviado_em DATETIME,
+    contact_status TEXT NOT NULL DEFAULT 'nao_contatado',
+    contact_result TEXT,
+    contact_notes TEXT,
+    last_contact_at TEXT,
+    next_contact_at TEXT,
+    added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    contact_updated_at DATETIME,
+    contact_updated_by TEXT,
 
     FOREIGN KEY (campaign_id)
         REFERENCES campaigns(id)
@@ -115,12 +125,29 @@ CREATE TABLE IF NOT EXISTS commissions (
     sale_value REAL NOT NULL,
     rate REAL NOT NULL,
     commission_value REAL NOT NULL,
+    original_rate REAL,
+    adjustment_reason TEXT,
+    adjusted_at DATETIME,
+    adjusted_by TEXT,
     release_date TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pendente',
     import_id INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (technician_id) REFERENCES technicians(id) ON DELETE RESTRICT,
     FOREIGN KEY (import_id) REFERENCES commission_imports(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS commission_rate_adjustments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    commission_id INTEGER NOT NULL,
+    previous_rate REAL NOT NULL,
+    new_rate REAL NOT NULL,
+    previous_value REAL NOT NULL,
+    new_value REAL NOT NULL,
+    reason TEXT NOT NULL,
+    adjusted_by TEXT NOT NULL DEFAULT 'Administrador local',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (commission_id) REFERENCES commissions(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS credit_requests (

@@ -9,6 +9,8 @@ router.post("/technicians",(q,s)=>enviar(s,()=>service.salvarTecnico(q.body),201
 router.put("/technicians/:id",(q,s)=>enviar(s,()=>service.salvarTecnico(q.body,q.params.id)));
 router.delete("/technicians/:id",(q,s)=>enviar(s,()=>service.excluirTecnico(q.params.id)));
 router.get("/entries",(q,s)=>enviar(s,()=>service.listarComissoes()));
+router.get("/entries/:id",(q,s)=>enviar(s,()=>service.obterAjuste(q.params.id)));
+router.put("/entries/:id/rate",(q,s)=>enviar(s,()=>service.ajustarPercentual(q.params.id,q.body)));
 router.get("/imports",(q,s)=>enviar(s,()=>service.listarImportacoes()));
 router.get("/imports/:id/delete-preview",(q,s)=>enviar(s,()=>service.impactoExclusaoImportacao(Number(q.params.id))));
 router.delete("/imports/:id",(q,s)=>enviar(s,()=>service.excluirImportacao(Number(q.params.id),q.body.mode)));

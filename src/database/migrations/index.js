@@ -227,6 +227,101 @@ const migrations = [
             adicionarColuna("campaigns", "registration_date_to", "TEXT");
             db.exec("CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at)");
         }
+    },
+    {
+        id: "010_campanhas_e_ajustes_comissao",
+        up() {
+            adicionarColuna("campaigns", "message_mode", "TEXT NOT NULL DEFAULT 'template'");
+            adicionarColuna("campaigns", "custom_message", "TEXT");
+            adicionarColuna("commissions", "original_rate", "REAL");
+            adicionarColuna("commissions", "adjustment_reason", "TEXT");
+            adicionarColuna("commissions", "adjusted_at", "DATETIME");
+            adicionarColuna("commissions", "adjusted_by", "TEXT");
+            db.exec(`CREATE TABLE IF NOT EXISTS commission_rate_adjustments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                commission_id INTEGER NOT NULL,
+                previous_rate REAL NOT NULL,
+                new_rate REAL NOT NULL,
+                previous_value REAL NOT NULL,
+                new_value REAL NOT NULL,
+                reason TEXT NOT NULL,
+                adjusted_by TEXT NOT NULL DEFAULT 'Administrador local',
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (commission_id) REFERENCES commissions(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_commission_adjustments_commission
+                ON commission_rate_adjustments(commission_id,created_at DESC);`);
+        }
+    },
+    {
+        id: "011_acompanhamento_individual_campanhas",
+        up() {
+            adicionarColuna("campaign_recipients", "contact_status", "TEXT NOT NULL DEFAULT 'nao_contatado'");
+            adicionarColuna("campaign_recipients", "contact_result", "TEXT");
+            adicionarColuna("campaign_recipients", "contact_notes", "TEXT");
+            adicionarColuna("campaign_recipients", "last_contact_at", "TEXT");
+            adicionarColuna("campaign_recipients", "next_contact_at", "TEXT");
+            adicionarColuna("campaign_recipients", "contact_updated_at", "DATETIME");
+            adicionarColuna("campaign_recipients", "contact_updated_by", "TEXT");
+            db.exec("CREATE INDEX IF NOT EXISTS idx_campaign_recipients_contact_status ON campaign_recipients(campaign_id,contact_status,active)");
+        }
+    },
+    {
+        id: "012_data_inclusao_participante_campanha",
+        up() {
+            adicionarColuna("campaign_recipients", "added_at", "DATETIME");
+            db.exec(`UPDATE campaign_recipients SET added_at=COALESCE(added_at,CURRENT_TIMESTAMP),
+                last_contact_at=COALESCE(last_contact_at,date('now','localtime'))`);
+        }
+    },
+    {
+        id: "013_participante_campanha_sem_whatsapp",
+        transaction: false,
+        up() {
+            db.pragma("foreign_keys = OFF");
+            db.pragma("legacy_alter_table = ON");
+            db.transaction(() => db.exec(`ALTER TABLE campaign_recipients RENAME TO campaign_recipients_before_optional_jid;
+            CREATE TABLE campaign_recipients (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                campaign_id INTEGER NOT NULL,
+                cliente_id INTEGER,
+                cliente_nome TEXT NOT NULL,
+                cliente_jid TEXT,
+                customer_code TEXT,
+                status TEXT NOT NULL DEFAULT 'pendente',
+                erro TEXT,
+                enviado_em DATETIME,
+                validation_status TEXT NOT NULL DEFAULT 'nao_validado',
+                validation_error TEXT,
+                validated_jid TEXT,
+                validated_at DATETIME,
+                active INTEGER NOT NULL DEFAULT 1,
+                contact_status TEXT NOT NULL DEFAULT 'nao_contatado',
+                contact_result TEXT,
+                contact_notes TEXT,
+                last_contact_at TEXT,
+                next_contact_at TEXT,
+                added_at DATETIME,
+                contact_updated_at DATETIME,
+                contact_updated_by TEXT,
+                FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE,
+                FOREIGN KEY (cliente_id) REFERENCES users(id) ON DELETE SET NULL,
+                UNIQUE (campaign_id,cliente_jid)
+            );
+            INSERT INTO campaign_recipients(id,campaign_id,cliente_id,cliente_nome,cliente_jid,customer_code,status,erro,enviado_em,
+                validation_status,validation_error,validated_jid,validated_at,active,contact_status,contact_result,contact_notes,
+                last_contact_at,next_contact_at,added_at,contact_updated_at,contact_updated_by)
+            SELECT id,campaign_id,cliente_id,cliente_nome,cliente_jid,customer_code,status,erro,enviado_em,
+                validation_status,validation_error,validated_jid,validated_at,active,contact_status,contact_result,contact_notes,
+                last_contact_at,next_contact_at,added_at,contact_updated_at,contact_updated_by
+            FROM campaign_recipients_before_optional_jid;
+            DROP TABLE campaign_recipients_before_optional_jid;
+            CREATE INDEX idx_campaign_recipients_campaign_status ON campaign_recipients(campaign_id,status);
+            CREATE INDEX idx_campaign_recipient_customer_code ON campaign_recipients(campaign_id,customer_code);
+            CREATE INDEX idx_campaign_recipients_contact_status ON campaign_recipients(campaign_id,contact_status,active);`))();
+            db.pragma("legacy_alter_table = OFF");
+            db.pragma("foreign_keys = ON");
+        }
     }
 ];
 

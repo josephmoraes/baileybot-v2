@@ -21,6 +21,9 @@ const REATIVACAO_STATUS = [
 let reativacaoFiltro = "Alisson";
 let reativacaoVendedorGlobal = "todos";
 let reativacaoStatusFiltro = "todos";
+let reativacaoCampanhaFiltro = "todos";
+let reativacaoCampanhas = [];
+let reativacaoClientesSelecionados = new Set();
 let reativacaoTags = [];
 let reativacaoTagsFiltro = new Set();
 let reativacaoSemEtiqueta = false;
@@ -202,7 +205,17 @@ async function inicializarReativacaoResumo() {
 }
 
 async function inicializarReativacaoVendedores() {
-  reativacaoTags = await rcJson("/api/reactivation/tags");
+  [reativacaoTags, reativacaoCampanhas] = await Promise.all([
+    rcJson("/api/reactivation/tags"),
+    rcJson("/api/campaigns"),
+  ]);
+  const opcoesCampanhas = reativacaoCampanhas
+    .filter((campanha) => !["processando", "cancelando"].includes(campanha.status))
+    .map((campanha) => `<option value="${campanha.id}">${rcSeguro(campanha.nome)}</option>`)
+    .join("");
+  document.getElementById("reativacaoFiltroCampanha").innerHTML = '<option value="todos">Todas as campanhas</option>' + opcoesCampanhas;
+  document.getElementById("reativacaoCampanhaDestino").innerHTML = '<option value="">Adicionar selecionados à campanha...</option>' + opcoesCampanhas;
+  document.getElementById("rcCampanhaAdicionar").innerHTML = '<option value="">Adicionar este cliente a uma campanha...</option>' + opcoesCampanhas;
   document.getElementById("rcStatus").innerHTML = REATIVACAO_STATUS.map(
     (status) => `<option>${status}</option>`,
   ).join("");
@@ -238,6 +251,21 @@ async function inicializarReativacaoVendedores() {
     reativacaoStatusFiltro = evento.target.value;
     await carregarClientesReativacao();
   });
+  document.getElementById("reativacaoFiltroCampanha").addEventListener("change", async (evento) => {
+    reativacaoCampanhaFiltro = evento.target.value;
+    await carregarClientesReativacao();
+  });
+  document.getElementById("btnAdicionarSelecionadosCampanha").addEventListener("click", () => adicionarSelecionadosCampanha().catch((erro) => alert(erro.message)));
+  document.getElementById("reativacaoCampanhaDestino").addEventListener("change", atualizarBotaoCampanhaReativacao);
+  document.getElementById("reativacaoSelecionarTodos").addEventListener("change", (evento) => {
+    document.querySelectorAll("[data-selecionar-cliente]").forEach((input) => {
+      input.checked = evento.target.checked;
+      if (input.checked) reativacaoClientesSelecionados.add(Number(input.value));
+      else reativacaoClientesSelecionados.delete(Number(input.value));
+    });
+    atualizarBotaoCampanhaReativacao();
+  });
+  document.getElementById("rcCampanhaAdicionar").addEventListener("change", () => adicionarClienteAtualCampanha().catch((erro) => alert(erro.message)));
   let atraso;
   document
     .getElementById("reativacaoPesquisa")
@@ -343,7 +371,7 @@ async function carregarClientesReativacao() {
       : reativacaoFiltro;
   const tags = reativacaoSemEtiqueta ? "none" : [...reativacaoTagsFiltro].join(",");
   const clientes = await rcJson(
-    `/api/reactivation/clients?seller=${encodeURIComponent(seller)}&status=${encodeURIComponent(visaoGlobal ? reativacaoStatusFiltro : "todos")}&search=${encodeURIComponent(pesquisa)}&sort=${encodeURIComponent(reativacaoOrdenacao.campo)}&direction=${reativacaoOrdenacao.direcao}&tags=${encodeURIComponent(tags)}`,
+    `/api/reactivation/clients?seller=${encodeURIComponent(seller)}&status=${encodeURIComponent(visaoGlobal ? reativacaoStatusFiltro : "todos")}&search=${encodeURIComponent(pesquisa)}&sort=${encodeURIComponent(reativacaoOrdenacao.campo)}&direction=${reativacaoOrdenacao.direcao}&tags=${encodeURIComponent(tags)}&campaign=${encodeURIComponent(reativacaoCampanhaFiltro)}`,
   );
   document
     .querySelectorAll(".reactivation-responsavel")
@@ -356,10 +384,15 @@ async function carregarClientesReativacao() {
     ? clientes
         .map(
           (cliente) =>
-            `<tr data-id="${cliente.id}"><td class="col-code">${rcSeguro(cliente.customer_code)}</td><td class="col-client"><button class="btn btn-link text-light p-0 text-start" data-abrir="${cliente.id}"><strong>${rcSeguro(cliente.company_name || cliente.name)}</strong></button>${cliente.company_name && cliente.name ? `<small class="d-block text-secondary">${rcSeguro(cliente.name)}</small>` : ""}</td><td class="col-phone">${rcSeguro(rcMascaraTelefone(rcTelefone(cliente.jid)))}</td><td class="col-seller reactivation-responsavel ${!visaoGlobal && reativacaoFiltro !== "Outros" ? "d-none" : ""}">${rcSeguro(cliente.seller || "Sem vendedor")}</td><td class="col-movement">${rcData(cliente.last_movement_at)}</td><td class="col-last-value">${rcMoeda(cliente.last_movement_value)}</td><td class="col-accumulated"><strong>${rcMoeda(cliente.accumulated_value)}</strong></td><td class="col-status"><select class="form-select form-select-sm reactivation-status ${rcClasseStatus(cliente.reactivation_status)}" data-status="${cliente.id}" aria-label="Status de ${rcSeguro(cliente.company_name || cliente.name)}">${REATIVACAO_STATUS.map((status) => `<option ${status === cliente.reactivation_status ? "selected" : ""}>${status}</option>`).join("")}</select></td><td class="col-tags"><div class="d-flex flex-wrap gap-1">${cliente.tags.map((tag) => `<span class="badge" style="background:${rcSeguro(tag.color)}">${rcSeguro(tag.name)}</span>`).join("") || "—"}</div></td><td class="col-next-contact">${rcData(cliente.next_contact_at)}</td><td class="col-actions"><button class="btn btn-sm btn-outline-light" data-abrir="${cliente.id}" title="Abrir cliente"><i class="bi bi-pencil"></i></button></td></tr>`,
+            `<tr data-id="${cliente.id}"><td><input class="form-check-input" type="checkbox" data-selecionar-cliente value="${cliente.id}" ${reativacaoClientesSelecionados.has(cliente.id) ? "checked" : ""}></td><td class="col-code">${rcSeguro(cliente.customer_code)}</td><td class="col-client"><button class="btn btn-link text-light p-0 text-start" data-abrir="${cliente.id}"><strong>${rcSeguro(cliente.company_name || cliente.name)}</strong></button>${cliente.company_name && cliente.name ? `<small class="d-block text-secondary">${rcSeguro(cliente.name)}</small>` : ""}${cliente.campaigns?.length ? `<small class="d-block text-info">${cliente.campaigns.map((campanha) => rcSeguro(campanha.nome)).join(" · ")}</small>` : ""}</td><td class="col-phone">${rcSeguro(rcMascaraTelefone(rcTelefone(cliente.jid)))}</td><td class="col-seller reactivation-responsavel ${!visaoGlobal && reativacaoFiltro !== "Outros" ? "d-none" : ""}">${rcSeguro(cliente.seller || "Sem vendedor")}</td><td class="col-movement">${rcData(cliente.last_movement_at)}</td><td class="col-last-value">${rcMoeda(cliente.last_movement_value)}</td><td class="col-accumulated"><strong>${rcMoeda(cliente.accumulated_value)}</strong></td><td class="col-status"><select class="form-select form-select-sm reactivation-status ${rcClasseStatus(cliente.reactivation_status)}" data-status="${cliente.id}" aria-label="Status de ${rcSeguro(cliente.company_name || cliente.name)}">${REATIVACAO_STATUS.map((status) => `<option ${status === cliente.reactivation_status ? "selected" : ""}>${status}</option>`).join("")}</select></td><td class="col-tags"><div class="d-flex flex-wrap gap-1">${cliente.tags.map((tag) => `<span class="badge" style="background:${rcSeguro(tag.color)}">${rcSeguro(tag.name)}</span>`).join("") || "—"}</div></td><td class="col-next-contact">${rcData(cliente.next_contact_at)}</td><td class="col-actions"><button class="btn btn-sm btn-outline-light" data-abrir="${cliente.id}" title="Abrir cliente"><i class="bi bi-pencil"></i></button></td></tr>`,
         )
         .join("")
-    : `<tr><td colspan="11" class="text-center text-secondary py-5">Nenhum cliente encontrado para ${rcSeguro(reativacaoFiltro)}.</td></tr>`;
+    : `<tr><td colspan="12" class="text-center text-secondary py-5">Nenhum cliente encontrado para ${rcSeguro(reativacaoFiltro)}.</td></tr>`;
+  document.querySelectorAll("[data-selecionar-cliente]").forEach((input) => input.addEventListener("change", () => {
+    if (input.checked) reativacaoClientesSelecionados.add(Number(input.value));
+    else reativacaoClientesSelecionados.delete(Number(input.value));
+    atualizarBotaoCampanhaReativacao();
+  }));
   document
     .querySelectorAll("[data-abrir]")
     .forEach((botao) =>
@@ -386,6 +419,45 @@ async function carregarClientesReativacao() {
     }),
   );
   aplicarColunasReativacao();
+}
+
+function atualizarBotaoCampanhaReativacao() {
+  const campanhaId = document.getElementById("reativacaoCampanhaDestino")?.value;
+  const botao = document.getElementById("btnAdicionarSelecionadosCampanha");
+  if (botao) {
+    botao.disabled = !campanhaId || reativacaoClientesSelecionados.size === 0;
+    botao.textContent = reativacaoClientesSelecionados.size ? `Adicionar (${reativacaoClientesSelecionados.size})` : "Adicionar";
+  }
+}
+
+async function adicionarSelecionadosCampanha() {
+  const campaignId = document.getElementById("reativacaoCampanhaDestino").value;
+  if (!campaignId || !reativacaoClientesSelecionados.size) return;
+  const totalSelecionados = reativacaoClientesSelecionados.size;
+  const resultado = await rcJson(`/api/campaigns/${campaignId}/recipients/add`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clienteIds: [...reativacaoClientesSelecionados] }),
+  });
+  alert(`${totalSelecionados} cliente(s) adicionado(s). A campanha agora tem ${resultado.total} participante(s).`);
+  reativacaoClientesSelecionados.clear();
+  document.getElementById("reativacaoSelecionarTodos").checked = false;
+  await carregarClientesReativacao();
+  atualizarBotaoCampanhaReativacao();
+}
+
+async function adicionarClienteAtualCampanha() {
+  const clienteId = Number(document.getElementById("reativacaoClienteId").value);
+  const campaignId = document.getElementById("rcCampanhaAdicionar").value;
+  if (!clienteId || !campaignId) return;
+  await rcJson(`/api/campaigns/${campaignId}/recipients/add`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clienteIds: [clienteId] }),
+  });
+  document.getElementById("rcCampanhaAdicionar").value = "";
+  await abrirClienteReativacao(clienteId);
+  await carregarClientesReativacao();
 }
 
 function atualizarFiltrosGlobaisReativacao() {
@@ -476,6 +548,11 @@ async function abrirClienteReativacao(id = null) {
   document.getElementById("reativacaoClienteId").value = id || "";
   renderizarTagsReativacao([]);
   document.getElementById("rcHistoricoArea").classList.toggle("d-none", !id);
+  document.getElementById("rcCampanhaAdicionar").disabled = !id;
+  document.getElementById("rcCampanhaAdicionar").value = "";
+  document.getElementById("rcCampanhasAtuais").textContent = id
+    ? "Este cliente ainda não participa de campanhas."
+    : "Salve o cliente para adicioná-lo a campanhas.";
   if (id) {
     const cliente = await rcJson(`/api/reactivation/clients/${id}`);
     document.getElementById("rcCodigo").value = cliente.customer_code || "";
@@ -503,6 +580,9 @@ async function abrirClienteReativacao(id = null) {
       cliente.reactivation_notes || "";
     renderizarTagsReativacao(cliente.tags.map((tag) => tag.id));
     renderizarHistoricoReativacao(cliente.contacts);
+    document.getElementById("rcCampanhasAtuais").textContent = cliente.campaigns?.length
+      ? `Participa de: ${cliente.campaigns.map((campanha) => campanha.nome).join(", ")}.`
+      : "Este cliente ainda não participa de campanhas.";
   }
   bootstrap.Modal.getOrCreateInstance(
     document.getElementById("modalClienteReativacao"),

@@ -60,11 +60,12 @@ class CampaignService {
                 AND u.jid IS NOT NULL AND trim(u.jid)<>'' AND NOT EXISTS (SELECT 1 FROM campaign_recipients sent
                     WHERE sent.campaign_id=? AND sent.customer_code=u.customer_code AND sent.status='enviado')${dateWhere} ORDER BY name`).all(campaignId, ...dateParams);
             const existing = db.prepare("SELECT * FROM campaign_recipients WHERE campaign_id=? AND customer_code=? ORDER BY id DESC LIMIT 1");
-            const insert = db.prepare(`INSERT INTO campaign_recipients(campaign_id,cliente_id,cliente_nome,cliente_jid,customer_code)
-                VALUES(?,?,?,?,?)`);
+            const insert = db.prepare(`INSERT INTO campaign_recipients(campaign_id,cliente_id,cliente_nome,cliente_jid,customer_code,last_contact_at,added_at)
+                VALUES(?,?,?,?,?,date('now','localtime'),datetime('now','localtime'))`);
             const update = db.prepare(`UPDATE campaign_recipients SET cliente_id=?,cliente_nome=?,cliente_jid=?,active=1,
                 status='pendente',erro=NULL,enviado_em=NULL,validation_status='nao_validado',validation_error=NULL,
-                validated_jid=NULL,validated_at=NULL WHERE id=?`);
+                validated_jid=NULL,validated_at=NULL,last_contact_at=COALESCE(last_contact_at,date('now','localtime')),
+                added_at=COALESCE(added_at,datetime('now','localtime')) WHERE id=?`);
             let changed = 0;
             for (const client of clients) {
                 const recipient = existing.get(campaignId, client.customer_code);
@@ -112,6 +113,10 @@ class CampaignService {
                 c.next_send_at,
                 c.cooldown_ms,
                 c.fixed_key,
+                c.registration_date_from,
+                c.registration_date_to,
+                c.message_mode,
+                c.custom_message,
                 c.created_at,
                 c.updated_at,
                 t.nome AS template_nome,
@@ -126,7 +131,7 @@ class CampaignService {
                 COALESCE(SUM(CASE WHEN cr.validation_status = 'valido' THEN 1 ELSE 0 END), 0) AS total_validos,
                 COALESCE(SUM(CASE WHEN cr.validation_status NOT IN ('valido', 'nao_validado') THEN 1 ELSE 0 END), 0) AS total_invalidos
             FROM campaigns c
-            INNER JOIN message_templates t
+            LEFT JOIN message_templates t
                 ON t.id = c.template_id
             LEFT JOIN campaign_recipients cr
                 ON cr.campaign_id = c.id AND cr.active = 1
@@ -142,33 +147,39 @@ class CampaignService {
                 t.nome AS template_nome,
                 t.mensagem AS template_mensagem
             FROM campaigns c
-            INNER JOIN message_templates t
+            LEFT JOIN message_templates t
                 ON t.id = c.template_id
             WHERE c.id = ?
         `).get(id);
     }
 
-    criar({ nome, templateId }) {
-        this.validar(nome, templateId);
-        this.validarTemplate(templateId);
+    criar({ nome, templateId, messageMode, customMessage = "" }) {
+        const modo = messageMode || (templateId ? "template" : "none");
+        this.validar(nome, templateId, modo, customMessage);
+        const templateEfetivo = this.resolverTemplate(templateId);
 
         const resultado = db.prepare(`
             INSERT INTO campaigns (
                 nome,
-                template_id
+                template_id,
+                message_mode,
+                custom_message
             )
-            VALUES (?, ?)
+            VALUES (?, ?, ?, ?)
         `).run(
             nome.trim(),
-            templateId
+            templateEfetivo,
+            modo,
+            modo === "manual" ? customMessage.trim() : null
         );
 
         return this.buscarPorId(resultado.lastInsertRowid);
     }
 
-    atualizar(id, { nome, templateId }) {
-        this.validar(nome, templateId);
-        this.validarTemplate(templateId);
+    atualizar(id, { nome, templateId, messageMode, customMessage = "" }) {
+        const modo = messageMode || (templateId ? "template" : "none");
+        this.validar(nome, templateId, modo, customMessage);
+        const templateEfetivo = this.resolverTemplate(templateId);
 
         const campanha = this.buscarPorId(id);
 
@@ -189,6 +200,8 @@ class CampaignService {
             SET
                 nome = ?,
                 template_id = ?,
+                message_mode = ?,
+                custom_message = ?,
                 status = 'rascunho',
                 validation_status = 'nao_validada',
                 validated_at = NULL,
@@ -196,7 +209,9 @@ class CampaignService {
             WHERE id = ?
         `).run(
             nome.trim(),
-            templateId,
+            templateEfetivo,
+            modo,
+            modo === "manual" ? customMessage.trim() : null,
             id
         );
 
@@ -228,14 +243,30 @@ class CampaignService {
         };
     }
 
-    validar(nome, templateId) {
+    validar(nome, templateId, messageMode, customMessage) {
         if (!nome?.trim()) {
             throw new Error("O nome da campanha é obrigatório.");
         }
 
-        if (!templateId) {
+        if (!['none', 'template', 'manual'].includes(messageMode)) {
+            throw new Error("Escolha o tipo da mensagem.");
+        }
+        if (messageMode === "template" && !templateId) {
             throw new Error("Selecione um template.");
         }
+        if (messageMode === "manual" && !customMessage?.trim()) {
+            throw new Error("Digite a mensagem manual da campanha.");
+        }
+    }
+
+    resolverTemplate(templateId) {
+        if (templateId) {
+            this.validarTemplate(templateId);
+            return Number(templateId);
+        }
+        const template = db.prepare("SELECT id FROM message_templates WHERE ativo=1 ORDER BY id LIMIT 1").get();
+        if (!template) throw new Error("Cadastre ao menos um template antes de criar campanhas.");
+        return template.id;
     }
 
     validarTemplate(templateId) {
@@ -275,6 +306,14 @@ class CampaignService {
             cr.validation_error,
             cr.validated_jid,
             cr.validated_at,
+            cr.contact_status,
+            cr.contact_result,
+            cr.contact_notes,
+            cr.last_contact_at,
+            cr.next_contact_at,
+            cr.added_at,
+            cr.contact_updated_at,
+            cr.contact_updated_by,
             COALESCE(NULLIF(u.name,''),cr.cliente_nome) AS contato_nome
         FROM campaign_recipients cr
         LEFT JOIN users u ON u.id=cr.cliente_id
@@ -282,6 +321,34 @@ class CampaignService {
         ORDER BY cr.cliente_nome
     `).all(campaignId);
 }
+
+    atualizarAcompanhamento(campaignId, recipientId, dados = {}) {
+        const campanha = this.buscarPorId(campaignId);
+        if (!campanha) throw new Error("Campanha não encontrada.");
+        const destinatario = db.prepare("SELECT id FROM campaign_recipients WHERE id=? AND campaign_id=? AND active=1")
+            .get(recipientId, campaignId);
+        if (!destinatario) throw new Error("Cliente não encontrado nesta campanha.");
+        const statusPermitidos = ["nao_contatado", "tentativa", "respondeu", "interessado", "nao_interessado", "aguardando_retorno", "venda_realizada"];
+        const status = String(dados.contactStatus || "nao_contatado");
+        if (!statusPermitidos.includes(status)) throw new Error("Situação de contato inválida.");
+        const data = valor => {
+            let texto = String(valor || "").trim();
+            if (!texto) return null;
+            if (/^\d{2}\/\d{2}$/.test(texto)) texto = `${texto}/${new Date().getFullYear()}`;
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(texto)) {
+                const [dia, mes, ano] = texto.split("/");
+                texto = `${ano}-${mes}-${dia}`;
+            }
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(texto)) throw new Error("Informe uma data válida.");
+            return texto;
+        };
+        const resultado = String(dados.contactResult || "").trim().slice(0, 200) || null;
+        const observacao = String(dados.contactNotes || "").trim().slice(0, 1000) || null;
+        db.prepare(`UPDATE campaign_recipients SET contact_status=?,contact_result=?,contact_notes=?,last_contact_at=?,
+            next_contact_at=?,contact_updated_at=CURRENT_TIMESTAMP,contact_updated_by='Administrador local' WHERE id=? AND campaign_id=?`)
+            .run(status, resultado, observacao, data(dados.lastContactAt), data(dados.nextContactAt), recipientId, campaignId);
+        return this.listarDestinatarios(campaignId).find(item => item.id === Number(recipientId));
+    }
 
     salvarDestinatarios(campaignId, clienteIds) {
         const campanha = this.buscarPorId(campaignId);
@@ -417,9 +484,11 @@ class CampaignService {
                     cliente_id,
                     cliente_nome,
                     cliente_jid,
-                    customer_code
+                    customer_code,
+                    last_contact_at,
+                    added_at
                 )
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, date('now','localtime'), datetime('now','localtime'))
             `);
 
             clientes.forEach(cliente => {
@@ -439,6 +508,13 @@ class CampaignService {
         salvar();
 
         return this.listarDestinatarios(campaignId);
+    }
+
+    adicionarDestinatarios(campaignId, clienteIds) {
+        const atuais = this.listarDestinatarios(campaignId)
+            .map(item => Number(item.cliente_id))
+            .filter(Number.isInteger);
+        return this.salvarDestinatarios(campaignId, [...atuais, ...(clienteIds || [])]);
     }
 
     async validarDestinatarios(campaignId) {
@@ -558,6 +634,9 @@ class CampaignService {
         const campanha = this.buscarPorId(campaignId);
 
         if (!campanha) throw new Error("Campanha não encontrada.");
+        if (campanha.message_mode === "none") {
+            throw new Error("Defina um template ou uma mensagem manual antes de iniciar o envio.");
+        }
         if (["processando", "cancelando"].includes(campanha.status)) {
             throw new Error("Esta campanha já está sendo enviada.");
         }
@@ -639,7 +718,7 @@ class CampaignService {
                 jid: destinatario.validated_jid || destinatario.cliente_jid
             };
             const mensagem = messageService.gerarMensagem(
-                { mensagem: campanha.template_mensagem },
+                { mensagem: campanha.message_mode === "manual" ? campanha.custom_message : campanha.template_mensagem },
                 cliente
             );
 
@@ -709,7 +788,6 @@ class CampaignService {
         if (!campanha) {
             throw new Error("Campanha não encontrada.");
         }
-
         if (campanha.status !== "processando") {
             throw new Error("Somente campanhas em processamento podem ser canceladas.");
         }

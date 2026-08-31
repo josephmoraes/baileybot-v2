@@ -65,6 +65,46 @@ test("envia campanha, atualiza destinatário e grava histórico", async () => {
     assert.equal(historico.itens[0].status, "enviado");
 });
 
+test("organiza participantes e envia campanha com mensagem manual", async () => {
+    const cliente = userService.listar()[0];
+    const campanha = campaignService.criar({ nome: "Lista especial", messageMode: "manual", customMessage: "Oferta para {nome}" });
+    campaignService.adicionarDestinatarios(campanha.id, [cliente.id]);
+    const participante = campaignService.listarDestinatarios(campanha.id)[0];
+    assert.match(participante.last_contact_at, /^\d{4}-\d{2}-\d{2}$/);
+    const acompanhamento = campaignService.atualizarAcompanhamento(campanha.id, participante.id, {
+        contactStatus: "interessado",
+        contactResult: "Pediu orçamento",
+        contactNotes: "Retornar pela manhã",
+        lastContactAt: "31/08",
+        nextContactAt: "2026-09-01"
+    });
+    assert.equal(acompanhamento.contact_status, "interessado");
+    assert.equal(acompanhamento.contact_result, "Pediu orçamento");
+    assert.equal(acompanhamento.last_contact_at, `${new Date().getFullYear()}-08-31`);
+    assert.equal(acompanhamento.next_contact_at, "2026-09-01");
+    assert.equal(reactivationService.listar({ campaign: campanha.id }).some(item => item.id === cliente.id), true);
+    whatsappService.getStatus = () => "connected";
+    whatsappService.verificarNumero = async jid => ({ exists: true, jid });
+    let textoEnviado = "";
+    whatsappService.enviarMensagem = async (jid, mensagem) => { textoEnviado = mensagem; };
+    await campaignService.validarDestinatarios(campanha.id);
+    await campaignService.enviar(campanha.id);
+    assert.equal(textoEnviado, "Oferta para Maria");
+});
+
+test("cria campanha sem template e exige mensagem somente no envio", async () => {
+    const campanha = campaignService.criar({ nome: "Participantes sem mensagem" });
+    const clienteSemTelefone = reactivationService.salvar(null, { customer_code: "SEM-FONE-1", company_name: "Cliente sem telefone" });
+    const participantes = campaignService.adicionarDestinatarios(campanha.id, [clienteSemTelefone.id]);
+    assert.equal(participantes.length, 1);
+    assert.equal(participantes[0].cliente_jid, null);
+    assert.equal(campanha.message_mode, "none");
+    await assert.rejects(
+        campaignService.enviar(campanha.id),
+        /Defina um template ou uma mensagem manual/
+    );
+});
+
 test("salva configurações do bot e substitui o vendedor", () => {
     const configuracao = settingsService.salvarBot({
         nomeVendedor: "Kalleb",
@@ -138,6 +178,7 @@ test("importa cada documento com comissionado sem propagar dados entre linhas", 
     assert.equal(vendas[0].report_seller, "Vendedor 1");
     assert.equal(vendas[0].source_filename, "vendas.xlsx");
     assert.ok(vendas[0].imported_at);
+    assert.deepEqual(vendas.map(venda => venda.release_date), ["2026-01-16", "2026-01-18"]);
     const repetido = await commissionService.preverImportacao({ base64, filename: "vendas.xlsx" });
     assert.equal(repetido.importados, 0);
     assert.equal(repetido.duplicados, 3);
@@ -154,13 +195,27 @@ test("importa cada documento com comissionado sem propagar dados entre linhas", 
 
 test("registra migrations e consolida indicadores do dashboard", () => {
     const migrations = db.prepare("SELECT id FROM schema_migrations ORDER BY id").all();
-    assert.deepEqual(migrations.map(item => item.id), ["001_compatibilidade_v2", "002_vendas_comissionadas_por_documento", "003_notificacoes_creditos_manuais", "004_modulo_reativacao", "005_clientes_sem_whatsapp", "006_ordenacao_clientes_recentes", "007_campanha_fixa_clientes_aguardando", "008_caixa_entrada_relatorios_reativacao", "009_filtro_data_cadastro_campanha_reativacao"]);
+    assert.deepEqual(migrations.map(item => item.id), ["001_compatibilidade_v2", "002_vendas_comissionadas_por_documento", "003_notificacoes_creditos_manuais", "004_modulo_reativacao", "005_clientes_sem_whatsapp", "006_ordenacao_clientes_recentes", "007_campanha_fixa_clientes_aguardando", "008_caixa_entrada_relatorios_reativacao", "009_filtro_data_cadastro_campanha_reativacao", "010_campanhas_e_ajustes_comissao", "011_acompanhamento_individual_campanhas", "012_data_inclusao_participante_campanha", "013_participante_campanha_sem_whatsapp"]);
     const indicadores = dashboardRepository.obterIndicadores();
     assert.ok(indicadores.totalClientes >= 3);
     assert.ok(indicadores.totalMensagens >= 1);
     assert.ok(indicadores.totalCampanhas >= 1);
     assert.ok(indicadores.totalTecnicos >= 1);
     assert.equal(typeof indicadores.comissaoLiberada, "number");
+});
+
+test("ajusta percentual de uma venda com motivo e mantém histórico", () => {
+    const venda = db.prepare("SELECT * FROM commissions WHERE document_number='DOC-003'").get();
+    const ajustada = commissionService.ajustarPercentual(venda.id, { rate: 5, reason: "Bônus excepcional autorizado" });
+    assert.equal(ajustada.original_rate, 3);
+    assert.equal(ajustada.rate, 5);
+    assert.equal(ajustada.commission_value, 10);
+    assert.equal(ajustada.adjustments[0].reason, "Bônus excepcional autorizado");
+    assert.throws(() => commissionService.ajustarPercentual(venda.id, { rate: 4, reason: "" }), /motivo/);
+    db.prepare("DELETE FROM commission_rate_adjustments WHERE commission_id=?").run(venda.id);
+    db.prepare("UPDATE commissions SET rate=?,commission_value=?,original_rate=NULL,adjustment_reason=NULL,adjusted_at=NULL,adjusted_by=NULL WHERE id=?")
+        .run(venda.rate, venda.commission_value, venda.id);
+    db.prepare("UPDATE commission_imports SET commission_total=36 WHERE id=?").run(venda.import_id);
 });
 
 test("importa reativação por código e preserva dados manuais ao atualizar", async () => {

@@ -18,6 +18,16 @@ router.put(
     campaignController.salvarDestinatarios
 );
 
+router.post(
+    "/:id/recipients/add",
+    campaignController.adicionarDestinatarios
+);
+
+router.patch(
+    "/:id/recipients/:recipientId/tracking",
+    campaignController.atualizarAcompanhamento
+);
+
 router.put(
     "/:id/reactivation-filters",
     campaignController.atualizarFiltrosReativacao

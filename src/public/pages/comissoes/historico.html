@@ -101,13 +101,43 @@
           <th>Comissionado</th>
           <th>Venda</th>
           <th>Valor</th>
+          <th>%</th>
           <th>Crédito</th>
           <th>Liberação</th>
           <th>Status</th>
+          <th>Ação</th>
         </tr>
       </thead>
       <tbody id="tabelaComissoes"></tbody>
     </table>
+  </div>
+</div>
+
+<div class="modal fade" id="modalAjustarComissao" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header border-secondary">
+        <h2 class="modal-title h5">Alterar percentual da venda</h2>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="ajusteComissaoId" />
+        <p class="text-secondary" id="ajusteComissaoResumo"></p>
+        <div class="mb-3">
+          <label class="form-label" for="ajusteComissaoTaxa">Novo percentual</label>
+          <div class="input-group"><input class="form-control" id="ajusteComissaoTaxa" type="number" min="0" max="100" step="0.01" /><span class="input-group-text">%</span></div>
+        </div>
+        <div>
+          <label class="form-label" for="ajusteComissaoMotivo">Motivo da alteração</label>
+          <textarea class="form-control" id="ajusteComissaoMotivo" rows="3" maxlength="500" required placeholder="Ex.: desconto concedido na venda"></textarea>
+          <div class="form-text">O percentual anterior e o motivo ficarão registrados no histórico.</div>
+        </div>
+      </div>
+      <div class="modal-footer border-secondary">
+        <button class="btn btn-outline-light" type="button" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-success" id="salvarAjusteComissao" type="button">Salvar alteração</button>
+      </div>
+    </div>
   </div>
 </div>
 

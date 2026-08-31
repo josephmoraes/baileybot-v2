@@ -124,7 +124,7 @@ function renderizarCampanhas(campanhas) {
         linha.appendChild(celulaNome);
 
         linha.appendChild(
-            criarCelulaCampanha(campanha.template_nome)
+            criarCelulaCampanha(campanha.message_mode === "none" ? "Mensagem não definida" : campanha.message_mode === "manual" ? "Mensagem manual" : campanha.template_nome)
         );
 
         const celulaStatus = document.createElement("td");
@@ -256,11 +256,114 @@ function situacaoDestinatario(item) {
     return "Pendente";
 }
 
+const SITUACOES_ACOMPANHAMENTO = [
+    ["nao_contatado", "Não contatado"],
+    ["tentativa", "Tentativa de contato"],
+    ["respondeu", "Respondeu"],
+    ["interessado", "Interessado"],
+    ["nao_interessado", "Não interessado"],
+    ["aguardando_retorno", "Aguardando retorno"],
+    ["venda_realizada", "Venda realizada"]
+];
+
+function dataContatoCampanha(valor) {
+    if (!valor) return "";
+    const [ano, mes, dia] = String(valor).slice(0, 10).split("-");
+    return dia && mes && ano ? `${dia}/${mes}/${ano}` : valor;
+}
+
+function completarDataContatoCampanha(valor) {
+    const texto = String(valor || "").trim();
+    if (!texto) return "";
+    const partes = texto.split("/").filter(Boolean);
+    if (partes.length >= 2) {
+        const dia = partes[0].padStart(2, "0");
+        const mes = partes[1].padStart(2, "0");
+        const ano = partes[2] || String(new Date().getFullYear());
+        return `${dia}/${mes}/${ano}`;
+    }
+    const numeros = texto.replace(/\D/g, "");
+    if (numeros.length === 4) return `${numeros.slice(0, 2)}/${numeros.slice(2, 4)}/${new Date().getFullYear()}`;
+    return texto;
+}
+
+function textoSeguroCampanha(valor) {
+    return String(valor ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+}
+
+function renderizarAcompanhamentoCampanha(destinatarios) {
+    const tabela = document.getElementById("tabelaAcompanhamentoCampanha");
+    tabela.innerHTML = destinatarios.length ? destinatarios.map(item => `
+        <tr data-acompanhamento-id="${item.id}">
+            <td><strong>${textoSeguroCampanha(item.cliente_nome)}</strong><small class="d-block text-secondary">${textoSeguroCampanha(item.contact_updated_at ? `Atualizado por ${item.contact_updated_by || "Administrador local"}` : "Sem atualização")}</small></td>
+            <td><select class="form-select form-select-sm" data-campo="contactStatus">${SITUACOES_ACOMPANHAMENTO.map(([valor, nome]) => `<option value="${valor}" ${item.contact_status === valor ? "selected" : ""}>${nome}</option>`).join("")}</select></td>
+            <td><textarea class="form-control form-control-sm" data-campo="contactNotes" rows="2" maxlength="1000" placeholder="Observação">${textoSeguroCampanha(item.contact_notes)}</textarea></td>
+            <td><input class="form-control form-control-sm" data-campo="lastContactAt" type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/${new Date().getFullYear()}" value="${textoSeguroCampanha(dataContatoCampanha(item.last_contact_at))}"></td>
+            <td><button class="btn btn-sm btn-outline-success" type="button" data-salvar-acompanhamento="${item.id}"><i class="bi bi-check-lg"></i> Salvar</button></td>
+        </tr>`).join("") : '<tr><td colspan="5" class="text-center text-secondary py-4">Nenhum participante nesta campanha.</td></tr>';
+    tabela.querySelectorAll('[data-campo="lastContactAt"]').forEach(input => input.addEventListener("blur", () => {
+        input.value = completarDataContatoCampanha(input.value);
+    }));
+}
+
+async function salvarAcompanhamentoCampanha(recipientId) {
+    const linha = document.querySelector(`[data-acompanhamento-id="${recipientId}"]`);
+    const campo = nome => linha.querySelector(`[data-campo="${nome}"]`).value;
+    const botao = linha.querySelector("[data-salvar-acompanhamento]");
+    botao.disabled = true;
+    try {
+        const resposta = await fetch(`/api/campaigns/${campanhaDetalhesAtual.id}/recipients/${recipientId}/tracking`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ contactStatus: campo("contactStatus"), contactNotes: campo("contactNotes"), lastContactAt: campo("lastContactAt") })
+        });
+        const dados = await resposta.json();
+        if (!resposta.ok) throw new Error(dados.error || "Não foi possível salvar o acompanhamento.");
+        mostrarAlertaCampanha(`Acompanhamento de ${dados.cliente_nome} salvo.`);
+        await abrirDetalhesCampanha(campanhaDetalhesAtual);
+    } finally {
+        botao.disabled = false;
+    }
+}
+
+function atualizarCamposMensagemBotDetalhes() {
+    const tipo = document.getElementById("detalheTipoMensagem").value;
+    document.getElementById("detalheCampoTemplate").classList.toggle("d-none", tipo !== "template");
+    document.getElementById("detalheCampoMensagemManual").classList.toggle("d-none", tipo !== "manual");
+}
+
+async function carregarConfiguracaoBotDetalhes(campanha) {
+    const resposta = await fetch("/api/messages/templates");
+    const templates = await resposta.json();
+    const select = document.getElementById("detalheTemplateMensagem");
+    select.innerHTML = templates.filter(item => item.ativo).map(item => `<option value="${item.id}">${textoSeguroCampanha(item.nome)}</option>`).join("");
+    document.getElementById("detalheTipoMensagem").value = campanha.message_mode || "none";
+    select.value = campanha.template_id || "";
+    document.getElementById("detalheMensagemManual").value = campanha.custom_message || "";
+    atualizarCamposMensagemBotDetalhes();
+}
+
+async function salvarMensagemBotDetalhes() {
+    const tipo = document.getElementById("detalheTipoMensagem").value;
+    const resposta = await fetch(`/api/campaigns/${campanhaDetalhesAtual.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nome: campanhaDetalhesAtual.nome, messageMode: tipo, templateId: Number(document.getElementById("detalheTemplateMensagem").value) || null, customMessage: document.getElementById("detalheMensagemManual").value })
+    });
+    const dados = await resposta.json();
+    if (!resposta.ok) throw new Error(dados.error || "Não foi possível salvar a mensagem.");
+    campanhaDetalhesAtual = { ...campanhaDetalhesAtual, ...dados };
+    await carregarCampanhas();
+    mostrarAlertaCampanha("Configuração do envio pelo bot salva.");
+    await abrirDetalhesCampanha(campanhaDetalhesAtual);
+    bootstrap.Tab.getOrCreateInstance(document.getElementById("abaEnvioBotCampanha")).show();
+}
+
 async function abrirDetalhesCampanha(campanha) {
     campanhaDetalhesAtual = campanha;
     document.getElementById("tituloDetalhesCampanha").textContent = campanha.nome;
     document.getElementById("resumoDetalhesCampanha").textContent =
-        `${campanha.template_nome} · ${campanha.total_destinatarios} contato(s)`;
+        `${campanha.message_mode === "none" ? "Mensagem não definida" : campanha.message_mode === "manual" ? "Mensagem manual" : campanha.template_nome} · ${campanha.total_destinatarios} participante(s)`;
     document.getElementById("carregandoDetalhesCampanha").classList.remove("d-none");
     document.getElementById("conteudoDetalhesCampanha").classList.add("d-none");
 
@@ -285,8 +388,10 @@ async function abrirDetalhesCampanha(campanha) {
     btnEditar.classList.toggle("d-none", emProcessamento || Boolean(campanha.fixed_key));
     btnContatos.classList.toggle("d-none", emProcessamento || Boolean(campanha.fixed_key));
     btnIniciar.classList.toggle("d-none", emProcessamento);
-    btnIniciar.disabled = Number(campanha.total_destinatarios) === 0;
-    btnIniciar.title = btnIniciar.disabled ? "Adicione contatos antes de iniciar" : "";
+    btnIniciar.disabled = Number(campanha.total_destinatarios) === 0 || campanha.message_mode === "none";
+    btnIniciar.title = Number(campanha.total_destinatarios) === 0
+        ? "Adicione contatos antes de iniciar"
+        : campanha.message_mode === "none" ? "Defina a mensagem antes de iniciar" : "";
     btnIniciar.innerHTML = campanha.status === "concluida"
         ? '<i class="bi bi-arrow-repeat me-1"></i> Reutilizar campanha'
         : '<i class="bi bi-send me-1"></i> Iniciar campanha';
@@ -295,10 +400,12 @@ async function abrirDetalhesCampanha(campanha) {
     btnCancelar.textContent = campanha.status === "cancelando"
         ? "Cancelamento solicitado..."
         : "Cancelar campanha";
+    document.getElementById("btnSalvarMensagemBot").disabled = emProcessamento || Boolean(campanha.fixed_key);
 
     modalDetalhesCampanha.show();
 
     try {
+        await carregarConfiguracaoBotDetalhes(campanha);
         const resposta = await fetch(`/api/campaigns/${campanha.id}/recipients`);
         const destinatarios = await resposta.json();
 
@@ -336,6 +443,7 @@ async function abrirDetalhesCampanha(campanha) {
         if (destinatarios.length === 0) {
             tabela.innerHTML = '<tr><td colspan="5" class="text-center text-secondary py-4">Nenhum contato nesta campanha.</td></tr>';
         }
+        renderizarAcompanhamentoCampanha(destinatarios);
 
         document.getElementById("carregandoDetalhesCampanha").classList.add("d-none");
         document.getElementById("conteudoDetalhesCampanha").classList.remove("d-none");
@@ -686,6 +794,10 @@ function abrirNovaCampanha() {
         "templateCampanha"
     ).value = "";
 
+    document.getElementById("tipoMensagemCampanha").value = "none";
+    document.getElementById("mensagemManualCampanha").value = "";
+    atualizarTipoMensagemCampanha();
+
     modalCampanha.show();
 }
 
@@ -717,7 +829,17 @@ function editarCampanha(id) {
         "templateCampanha"
     ).value = campanha.template_id;
 
+    document.getElementById("tipoMensagemCampanha").value = campanha.message_mode || "template";
+    document.getElementById("mensagemManualCampanha").value = campanha.custom_message || "";
+    atualizarTipoMensagemCampanha();
+
     modalCampanha.show();
+}
+
+function atualizarTipoMensagemCampanha() {
+    const tipo = document.getElementById("tipoMensagemCampanha")?.value;
+    document.getElementById("campoTemplateCampanha")?.classList.toggle("d-none", tipo !== "template");
+    document.getElementById("campoMensagemManualCampanha")?.classList.toggle("d-none", tipo !== "manual");
 }
 
 async function salvarCampanha() {
@@ -732,6 +854,9 @@ async function salvarCampanha() {
         ).value
     );
 
+    const messageMode = document.getElementById("tipoMensagemCampanha").value;
+    const customMessage = document.getElementById("mensagemManualCampanha").value.trim();
+
     if (!nome) {
         mostrarAlertaCampanha(
             "Informe o nome da campanha.",
@@ -741,12 +866,17 @@ async function salvarCampanha() {
         return;
     }
 
-    if (!templateId) {
+    if (messageMode === "template" && !templateId) {
         mostrarAlertaCampanha(
             "Selecione um template.",
             "warning"
         );
 
+        return;
+    }
+
+    if (messageMode === "manual" && !customMessage) {
+        mostrarAlertaCampanha("Digite a mensagem manual.", "warning");
         return;
     }
 
@@ -774,7 +904,9 @@ async function salvarCampanha() {
 
             body: JSON.stringify({
                 nome,
-                templateId
+                templateId,
+                messageMode,
+                customMessage
             })
         });
 
@@ -1246,6 +1378,12 @@ async function inicializarCampanhas() {
         ?.addEventListener("click", cancelarCampanhaPelosDetalhes);
 
     document.getElementById("btnAplicarFiltroCadastro")?.addEventListener("click", aplicarFiltroDataCadastro);
+    document.getElementById("detalheTipoMensagem")?.addEventListener("change", atualizarCamposMensagemBotDetalhes);
+    document.getElementById("btnSalvarMensagemBot")?.addEventListener("click", () => salvarMensagemBotDetalhes().catch(erro => mostrarAlertaCampanha(erro.message, "danger")));
+    document.getElementById("tabelaAcompanhamentoCampanha")?.addEventListener("click", evento => {
+        const botao = evento.target.closest("[data-salvar-acompanhamento]");
+        if (botao) salvarAcompanhamentoCampanha(Number(botao.dataset.salvarAcompanhamento)).catch(erro => mostrarAlertaCampanha(erro.message, "danger"));
+    });
 
     document
         .getElementById("btnNovaCampanha")
@@ -1260,6 +1398,8 @@ async function inicializarCampanhas() {
             "click",
             salvarCampanha
         );
+
+    document.getElementById("tipoMensagemCampanha")?.addEventListener("change", atualizarTipoMensagemCampanha);
 
     document
         .getElementById("pesquisaDestinatarios")

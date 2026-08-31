@@ -44,11 +44,17 @@ function tagsDoCliente(id) {
         JOIN reactivation_user_tags ut ON ut.tag_id=t.id WHERE ut.user_id=? ORDER BY t.name`).all(id);
 }
 
+function campanhasDoCliente(id) {
+    return db.prepare(`SELECT c.id,c.nome FROM campaigns c JOIN campaign_recipients cr ON cr.campaign_id=c.id
+        WHERE cr.cliente_id=? AND cr.active=1 ORDER BY c.nome`).all(id);
+}
+
 function clienteCompleto(id) {
     const cliente = db.prepare(`SELECT id,customer_code,company_name,name,jid,seller,last_movement_at,last_movement_value,
         accumulated_value,reactivation_status,reactivation_notes,next_contact_at,created_at FROM users WHERE id=?`).get(id);
     if (!cliente) return null;
     cliente.tags = tagsDoCliente(id);
+    cliente.campaigns = campanhasDoCliente(id);
     cliente.contacts = db.prepare("SELECT * FROM reactivation_contacts WHERE user_id=? ORDER BY contacted_at DESC,id DESC").all(id);
     return cliente;
 }
@@ -87,7 +93,7 @@ class ReactivationService {
         });
     }
 
-    listar({ seller = "todos", status = "todos", search = "", sort = "recent", direction = "desc", tags = "" } = {}) {
+    listar({ seller = "todos", status = "todos", search = "", sort = "recent", direction = "desc", tags = "", campaign = "todos" } = {}) {
         const filtros = [];
         const params = [];
         if (seller && seller !== "todos") {
@@ -108,6 +114,10 @@ class ReactivationService {
                 params.push(...tagIds);
             }
         }
+        if (campaign && campaign !== "todos") {
+            filtros.push("EXISTS (SELECT 1 FROM campaign_recipients filter_campaign WHERE filter_campaign.cliente_id=users.id AND filter_campaign.campaign_id=? AND filter_campaign.active=1)");
+            params.push(Number(campaign));
+        }
         const where = filtros.length ? `WHERE ${filtros.join(" AND ")}` : "";
         const ordenacoes = {
             recent: "COALESCE(reactivation_sequence,0)", code: "customer_code", client: "COALESCE(NULLIF(company_name,''),name)",
@@ -119,7 +129,7 @@ class ReactivationService {
         return db.prepare(`SELECT id,customer_code,company_name,name,jid,seller,last_movement_at,last_movement_value,
             accumulated_value,reactivation_status,reactivation_notes,next_contact_at,created_at FROM users ${where}
             ORDER BY ${coluna} ${sentido},created_at DESC,id DESC`).all(...params)
-            .map(cliente => ({ ...cliente, tags: tagsDoCliente(cliente.id) }));
+            .map(cliente => ({ ...cliente, tags: tagsDoCliente(cliente.id), campaigns: campanhasDoCliente(cliente.id) }));
     }
 
     obter(id) { return clienteCompleto(id); }

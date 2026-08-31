@@ -58,7 +58,7 @@ class ExcelService {
             Código: cliente.customer_code || "",
             Empresa: cliente.company_name || "",
             Nome: cliente.name || "",
-            Telefone: cliente.jid.replace("@s.whatsapp.net", "")
+            Telefone: cliente.jid ? cliente.jid.replace("@s.whatsapp.net", "") : ""
         }));
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(linhas), "Clientes");

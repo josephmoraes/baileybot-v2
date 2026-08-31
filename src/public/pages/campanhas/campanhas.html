@@ -1,7 +1,7 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 page-heading">
     <div>
         <h1>Campanhas</h1>
-        <p class="text-secondary mb-0">Crie campanhas, escolha o template e organize os destinatários</p>
+        <p class="text-secondary mb-0">Organize os clientes participantes e envie mensagens somente quando decidir</p>
     </div>
     <button type="button" class="btn btn-success" id="btnNovaCampanha">
         <i class="bi bi-plus-circle me-1"></i> Nova campanha
@@ -19,51 +19,36 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div id="filtrosDataCadastroReativacao" class="card bg-secondary border-0 mb-3 d-none">
-                    <div class="card-body">
-                        <div class="d-flex flex-wrap justify-content-between align-items-end gap-3">
-                            <div><h6 class="mb-1">Filtro pela Data de cadastro</h6><small>Combinado automaticamente com o status atual Aguardando. As datas seguem o fuso local.</small></div>
-                            <div class="row g-2 flex-grow-1" style="max-width: 620px;">
-                                <div class="col-sm-5"><label class="form-label" for="filtroCadastroDe">De</label><input class="form-control" type="date" id="filtroCadastroDe"></div>
-                                <div class="col-sm-5"><label class="form-label" for="filtroCadastroAte">Até</label><input class="form-control" type="date" id="filtroCadastroAte"></div>
-                                <div class="col-sm-2 d-flex align-items-end"><button type="button" class="btn btn-info w-100" id="btnAplicarFiltroCadastro">Aplicar</button></div>
-                            </div>
-                        </div>
-                        <div class="small mt-2" id="resumoFiltroCadastro"></div>
-                    </div>
-                </div>
-                <div id="progressoEnvioCampanha" class="card bg-secondary border-0 mb-3 d-none">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between gap-3 mb-2">
-                            <strong id="textoProgressoEnvio">Preparando envio...</strong>
-                            <span id="percentualProgressoEnvio">0%</span>
-                        </div>
-                        <div class="progress mb-2" style="height: 12px;">
-                            <div id="barraProgressoEnvio" class="progress-bar progress-bar-striped progress-bar-animated bg-success" style="width: 0%"></div>
-                        </div>
-                        <div class="d-flex flex-wrap justify-content-between small">
-                            <span id="proximoContatoEnvio"></span>
-                            <span id="temporizadorProximoEnvio" class="fw-semibold text-warning"></span>
-                        </div>
-                    </div>
-                </div>
+                <ul class="nav nav-tabs mb-3" id="abasDetalhesCampanha" role="tablist">
+                    <li class="nav-item"><button class="nav-link active" id="abaAcompanhamentoCampanha" data-bs-toggle="tab" data-bs-target="#painelAcompanhamentoCampanha" type="button">Campanha</button></li>
+                    <li class="nav-item"><button class="nav-link" id="abaEnvioBotCampanha" data-bs-toggle="tab" data-bs-target="#painelEnvioBotCampanha" type="button">Envio pelo bot</button></li>
+                </ul>
                 <div id="carregandoDetalhesCampanha" class="text-center text-secondary py-5">
                     <div class="spinner-border mb-3" role="status"></div>
                     <div>Carregando contatos...</div>
                 </div>
-                <div class="table-responsive d-none" id="conteudoDetalhesCampanha">
-                    <table class="table table-dark table-hover align-middle">
-                        <thead>
-                            <tr>
-                                <th>Cliente</th>
-                                <th>Telefone</th>
-                                <th>Situação</th>
-                                <th>Erro ou observação</th>
-                                <th>Data do envio</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabelaDetalhesCampanha"></tbody>
-                    </table>
+                <div class="tab-content d-none" id="conteudoDetalhesCampanha">
+                    <div class="tab-pane fade show active" id="painelAcompanhamentoCampanha">
+                        <div class="alert alert-secondary py-2">Acompanhamento específico desta campanha. O histórico geral do cliente em Reativação permanece separado.</div>
+                        <div class="table-responsive"><table class="table table-dark table-hover align-middle campaign-tracking-table">
+                            <thead><tr><th>Cliente</th><th>Situação</th><th>Observação</th><th>Último contato</th><th></th></tr></thead>
+                            <tbody id="tabelaAcompanhamentoCampanha"></tbody>
+                        </table></div>
+                    </div>
+                    <div class="tab-pane fade" id="painelEnvioBotCampanha">
+                        <div class="card bg-secondary border-0 mb-3"><div class="card-body">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-3"><label class="form-label" for="detalheTipoMensagem">Tipo de mensagem</label><select class="form-select" id="detalheTipoMensagem"><option value="none">Não configurar agora</option><option value="template">Usar template</option><option value="manual">Mensagem manual</option></select></div>
+                                <div class="col-md-5" id="detalheCampoTemplate"><label class="form-label" for="detalheTemplateMensagem">Template</label><select class="form-select" id="detalheTemplateMensagem"></select></div>
+                                <div class="col-md-2"><button class="btn btn-success w-100" type="button" id="btnSalvarMensagemBot">Salvar mensagem</button></div>
+                                <div class="col-12 d-none" id="detalheCampoMensagemManual"><label class="form-label" for="detalheMensagemManual">Mensagem manual</label><textarea class="form-control" id="detalheMensagemManual" rows="4" maxlength="4000"></textarea></div>
+                            </div>
+                            <div class="form-text mt-2">Salvar a configuração não inicia o envio.</div>
+                        </div></div>
+                        <div id="filtrosDataCadastroReativacao" class="card bg-secondary border-0 mb-3 d-none"><div class="card-body"><div class="d-flex flex-wrap justify-content-between align-items-end gap-3"><div><h6 class="mb-1">Filtro pela Data de cadastro</h6><small>Combinado automaticamente com o status atual Aguardando.</small></div><div class="row g-2 flex-grow-1" style="max-width:620px"><div class="col-sm-5"><label class="form-label" for="filtroCadastroDe">De</label><input class="form-control" type="date" id="filtroCadastroDe"></div><div class="col-sm-5"><label class="form-label" for="filtroCadastroAte">Até</label><input class="form-control" type="date" id="filtroCadastroAte"></div><div class="col-sm-2 d-flex align-items-end"><button type="button" class="btn btn-info w-100" id="btnAplicarFiltroCadastro">Aplicar</button></div></div></div><div class="small mt-2" id="resumoFiltroCadastro"></div></div></div>
+                        <div id="progressoEnvioCampanha" class="card bg-secondary border-0 mb-3 d-none"><div class="card-body"><div class="d-flex justify-content-between gap-3 mb-2"><strong id="textoProgressoEnvio">Preparando envio...</strong><span id="percentualProgressoEnvio">0%</span></div><div class="progress mb-2" style="height:12px"><div id="barraProgressoEnvio" class="progress-bar progress-bar-striped progress-bar-animated bg-success" style="width:0%"></div></div><div class="d-flex flex-wrap justify-content-between small"><span id="proximoContatoEnvio"></span><span id="temporizadorProximoEnvio" class="fw-semibold text-warning"></span></div></div></div>
+                        <div class="table-responsive"><table class="table table-dark table-hover align-middle"><thead><tr><th>Cliente</th><th>Telefone</th><th>Situação do bot</th><th>Erro ou observação</th><th>Data do envio</th></tr></thead><tbody id="tabelaDetalhesCampanha"></tbody></table></div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -232,6 +217,16 @@
             <div class="modal-body">
 
                 <div class="mb-3">
+                    <label for="tipoMensagemCampanha" class="form-label">Mensagem para envio automático</label>
+                    <select class="form-select" id="tipoMensagemCampanha">
+                        <option value="none">Definir depois</option>
+                        <option value="template">Usar template</option>
+                        <option value="manual">Escrever mensagem manualmente</option>
+                    </select>
+                    <div class="form-text">Criar ou editar a campanha não envia mensagens.</div>
+                </div>
+
+                <div class="mb-3">
 
                     <label
                         for="nomeCampanha"
@@ -249,7 +244,13 @@
 
                 </div>
 
-                <div class="mb-3">
+                <div class="mb-3 d-none" id="campoMensagemManualCampanha">
+                    <label for="mensagemManualCampanha" class="form-label">Mensagem manual</label>
+                    <textarea class="form-control" id="mensagemManualCampanha" rows="5" maxlength="4000" placeholder="Digite a mensagem que será enviada aos participantes"></textarea>
+                    <div class="form-text">Você pode usar as mesmas variáveis disponíveis nos templates.</div>
+                </div>
+
+                <div class="mb-3" id="campoTemplateCampanha">
 
                     <label
                         for="templateCampanha"
