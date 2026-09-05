@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS technicians (
     email TEXT,
     document TEXT,
     commission_rate REAL NOT NULL DEFAULT 3,
+    is_test INTEGER NOT NULL DEFAULT 0,
     active INTEGER NOT NULL DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -242,5 +243,7 @@ inserirConfig.run("sending_start_time", "08:00");
 inserirConfig.run("sending_end_time", "18:00");
 inserirConfig.run("daily_message_limit", "200");
 inserirConfig.run("notify_campaign_complete", "1");
+inserirConfig.run("commission_release_rule", "month_end");
+inserirConfig.run("commission_release_days", "15");
 console.log("Banco de dados iniciado.");
 }

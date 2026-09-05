@@ -1,5 +1,6 @@
 import { Router } from "express";
 import settingsService from "../../services/settingsService.js";
+import commissionService from "../../services/commissionService.js";
 
 const router = Router();
 
@@ -13,6 +14,26 @@ router.put("/bot", (req, res) => {
     } catch (erro) {
         res.status(400).json({ error: erro.message });
     }
+});
+
+router.post("/commission-rate/preview", (req, res) => {
+    try { res.json(commissionService.preverAlteracaoTaxaPadrao(req.body.rate)); }
+    catch (erro) { res.status(400).json({ error: erro.message }); }
+});
+
+router.put("/commission-rate", (req, res) => {
+    try { res.json(commissionService.alterarTaxaPadrao(req.body.rate)); }
+    catch (erro) { res.status(400).json({ error: erro.message }); }
+});
+
+router.post("/commission-closing-period/preview", (req, res) => {
+    try { res.json(commissionService.preverAlteracaoPeriodoFechamento(req.body)); }
+    catch (erro) { res.status(400).json({ error: erro.message }); }
+});
+
+router.put("/commission-closing-period", (req, res) => {
+    try { res.json(commissionService.alterarPeriodoFechamento(req.body)); }
+    catch (erro) { res.status(400).json({ error: erro.message }); }
 });
 
 router.get("/blocked", (req, res) => res.json(settingsService.listarBloqueados()));

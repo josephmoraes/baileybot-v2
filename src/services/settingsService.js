@@ -19,7 +19,12 @@ class SettingsService {
             horarioInicio: this.obterValor("sending_start_time", "08:00"),
             horarioFim: this.obterValor("sending_end_time", "18:00"),
             limiteDiario: Number(this.obterValor("daily_message_limit", "200")),
-            notificarConclusao: this.obterValor("notify_campaign_complete", "1") === "1"
+            notificarConclusao: this.obterValor("notify_campaign_complete", "1") === "1",
+            taxaComissaoPadrao: Number(this.obterValor("default_commission_rate", "3")),
+            periodoFechamentoComissoes: {
+                tipo: this.obterValor("commission_release_rule", "month_end"),
+                dias: Number(this.obterValor("commission_release_days", "15"))
+            }
         };
     }
 

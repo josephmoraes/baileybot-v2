@@ -7,7 +7,7 @@ const REATIVACAO_VENDEDORES = [
   "Clayton",
   "Outros",
 ];
-const REATIVACAO_STATUS = [
+let REATIVACAO_STATUS = [
   "Último Contato",
   "Entrar em contato",
   "Contatado",
@@ -205,10 +205,14 @@ async function inicializarReativacaoResumo() {
 }
 
 async function inicializarReativacaoVendedores() {
-  [reativacaoTags, reativacaoCampanhas] = await Promise.all([
+  const [tags, campanhas, statusOptions] = await Promise.all([
     rcJson("/api/reactivation/tags"),
     rcJson("/api/campaigns"),
+    rcJson("/api/customer-metrics/status-options/reactivation"),
   ]);
+  reativacaoTags = tags;
+  reativacaoCampanhas = campanhas;
+  REATIVACAO_STATUS = statusOptions.map((item) => item.name);
   const opcoesCampanhas = reativacaoCampanhas
     .filter((campanha) => !["processando", "cancelando"].includes(campanha.status))
     .map((campanha) => `<option value="${campanha.id}">${rcSeguro(campanha.nome)}</option>`)

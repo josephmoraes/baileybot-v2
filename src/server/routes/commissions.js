@@ -1,10 +1,14 @@
 import { Router } from "express";
 import service from "../../services/commissionService.js";
 import notificationService from "../../services/commissionNotificationService.js";
+import pdfService from "../../services/commissionPdfService.js";
 const router=Router();
 const enviar=async(res,fn,status=200)=>{try{res.status(status).json(await fn());}catch(e){console.error(e);res.status(400).json({error:e.message});}};
 router.get("/dashboard",(q,s)=>enviar(s,()=>service.dashboard()));
 router.get("/technicians",(q,s)=>enviar(s,()=>service.listarTecnicos()));
+router.get("/technician-inquiries",(q,s)=>enviar(s,()=>service.listarConsultasTecnicos()));
+router.post("/technician-inquiries",(q,s)=>enviar(s,()=>service.registrarConsultaTecnico(q.body),201));
+router.delete("/technician-inquiries/:id",(q,s)=>enviar(s,()=>service.excluirConsultaTecnico(q.params.id)));
 router.post("/technicians",(q,s)=>enviar(s,()=>service.salvarTecnico(q.body),201));
 router.put("/technicians/:id",(q,s)=>enviar(s,()=>service.salvarTecnico(q.body,q.params.id)));
 router.delete("/technicians/:id",(q,s)=>enviar(s,()=>service.excluirTecnico(q.params.id)));
@@ -26,5 +30,6 @@ router.post("/technicians/balance-preview",(q,s)=>enviar(s,()=>notificationServi
 router.post("/technicians/send-balance",(q,s)=>enviar(s,()=>notificationService.createBalanceJob(q.body.technicianIds,"Administrador local"),202));
 router.get("/credits/:technicianId",(q,s)=>enviar(s,()=>service.creditosDisponiveis(q.params.technicianId)));
 router.get("/requests",(q,s)=>enviar(s,()=>service.listarSolicitacoes()));
+router.get("/requests/:id/pdf",async(q,s)=>{try{const solicitacao=service.obterSolicitacao(q.params.id);const pdf=await pdfService.gerar(solicitacao);s.setHeader("Content-Type","application/pdf");s.setHeader("Content-Disposition",`attachment; filename="${solicitacao.number}.pdf"`);s.send(pdf);}catch(e){console.error(e);s.status(400).json({error:e.message});}});
 router.post("/requests",(q,s)=>enviar(s,()=>service.criarSolicitacao(q.body),201));
 export default router;

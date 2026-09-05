@@ -56,6 +56,18 @@ class UserService {
         return db.prepare("SELECT id FROM users WHERE customer_code = ?").get(codigo.trim());
     }
 
+    listarPaginado({ page = 1, perPage = 50, search = "" } = {}) {
+        const pagina = Math.max(1, Number(page) || 1);
+        const limite = Math.min(100, Math.max(10, Number(perPage) || 50));
+        const termo = String(search || "").trim();
+        const where = termo ? "WHERE customer_code LIKE ? OR company_name LIKE ? OR name LIKE ? OR jid LIKE ?" : "";
+        const params = termo ? Array(4).fill(`%${termo}%`) : [];
+        const total = db.prepare(`SELECT COUNT(*) total FROM users ${where}`).get(...params).total;
+        const items = db.prepare(`SELECT id,customer_code,company_name,name,jid,created_at FROM users ${where}
+            ORDER BY COALESCE(NULLIF(company_name,''),name),id LIMIT ? OFFSET ?`).all(...params, limite, (pagina - 1) * limite);
+        return { items, page: pagina, perPage: limite, total, pages: Math.max(1, Math.ceil(total / limite)) };
+    }
+
     criar(dados) {
 
         const {
@@ -65,15 +77,11 @@ class UserService {
             telefone
         } = dados;
 
-        if (!telefone) {
-            throw new Error("Telefone é obrigatório.");
+        if (!customer_code?.trim() && !name?.trim() && !company_name?.trim()) {
+            throw new Error("Informe o código, o nome ou a empresa do cliente.");
         }
 
-        if (!name?.trim() && !company_name?.trim()) {
-            throw new Error("Informe o nome ou a empresa do cliente.");
-        }
-
-        const jid = formatarJid(telefone);
+        const jid = telefone?.trim() ? formatarJid(telefone) : null;
         try {
 
             db.prepare(`
@@ -119,14 +127,11 @@ class UserService {
             telefone
         } = dados;
 
-        if (!telefone) {
-            throw new Error("Telefone é obrigatório.");
-        }
-        if (!name?.trim() && !company_name?.trim()) {
-            throw new Error("Informe o nome ou a empresa do cliente.");
+        if (!customer_code?.trim() && !name?.trim() && !company_name?.trim()) {
+            throw new Error("Informe o código, o nome ou a empresa do cliente.");
         }
 
-        const jid = formatarJid(telefone);
+        const jid = telefone?.trim() ? formatarJid(telefone) : null;
 
         const cliente = db.prepare(`
             SELECT id
@@ -138,12 +143,12 @@ class UserService {
             throw new Error("Cliente não encontrado.");
         }
 
-        const existente = db.prepare(`
+        const existente = jid ? db.prepare(`
             SELECT id
             FROM users
             WHERE jid = ?
             AND id != ?
-        `).get(jid, id);
+        `).get(jid, id) : null;
 
         if (existente) {
             throw new Error("Telefone já cadastrado.");

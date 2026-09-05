@@ -322,6 +322,111 @@ const migrations = [
             db.pragma("legacy_alter_table = OFF");
             db.pragma("foreign_keys = ON");
         }
+    },
+    {
+        id: "014_perfil_tecnico_testes",
+        up() {
+            adicionarColuna("technicians", "is_test", "INTEGER NOT NULL DEFAULT 0");
+            const taxa = Number(db.prepare("SELECT value FROM app_settings WHERE key='default_commission_rate'").get()?.value ?? 3);
+            db.prepare(`INSERT INTO technicians(name,og1_code,commission_rate,is_test,active)
+                VALUES('Testes','TESTES',?,1,1)
+                ON CONFLICT(og1_code) DO UPDATE SET name='Testes',is_test=1,active=1`).run(taxa);
+        }
+    },
+    {
+        id: "015_metricas_clientes_og1",
+        up() {
+            adicionarColuna("users", "main_products", "TEXT");
+            adicionarColuna("users", "latest_products", "TEXT");
+            db.exec(`CREATE TABLE IF NOT EXISTS customer_metric_imports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                filename TEXT NOT NULL,
+                reference_year INTEGER NOT NULL,
+                reference_month INTEGER NOT NULL CHECK(reference_month BETWEEN 1 AND 12),
+                total_rows INTEGER NOT NULL DEFAULT 0,
+                inserted_customers INTEGER NOT NULL DEFAULT 0,
+                updated_customers INTEGER NOT NULL DEFAULT 0,
+                total_value REAL NOT NULL DEFAULT 0,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(reference_year,reference_month)
+            );
+            CREATE TABLE IF NOT EXISTS customer_monthly_metrics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                import_id INTEGER NOT NULL,
+                reference_year INTEGER NOT NULL,
+                reference_month INTEGER NOT NULL CHECK(reference_month BETWEEN 1 AND 12),
+                seller TEXT NOT NULL DEFAULT 'Outros',
+                report_seller TEXT,
+                purchased_value REAL NOT NULL DEFAULT 0,
+                order_count REAL NOT NULL DEFAULT 0,
+                average_order_value REAL NOT NULL DEFAULT 0,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (import_id) REFERENCES customer_metric_imports(id) ON DELETE CASCADE,
+                UNIQUE(user_id,reference_year,reference_month)
+            );
+            CREATE INDEX IF NOT EXISTS idx_customer_metrics_period ON customer_monthly_metrics(reference_year,reference_month);
+            CREATE INDEX IF NOT EXISTS idx_customer_metrics_seller ON customer_monthly_metrics(seller,reference_year,reference_month);
+            CREATE INDEX IF NOT EXISTS idx_customer_metrics_user ON customer_monthly_metrics(user_id,reference_year,reference_month);`);
+        }
+    },
+    {
+        id: "016_metricas_periodos_status_notas",
+        up() {
+            adicionarColuna("customer_metric_imports", "period_start", "TEXT");
+            adicionarColuna("customer_metric_imports", "period_end", "TEXT");
+            adicionarColuna("customer_monthly_metrics", "period_start", "TEXT");
+            adicionarColuna("customer_monthly_metrics", "period_end", "TEXT");
+            adicionarColuna("users", "metric_status", "TEXT NOT NULL DEFAULT 'Pendente de contato'");
+            adicionarColuna("users", "metric_notes", "TEXT");
+            db.exec(`UPDATE customer_metric_imports SET
+                period_start=printf('%04d-%02d-01',reference_year,reference_month),
+                period_end=date(printf('%04d-%02d-01',reference_year,reference_month),'+1 month','-1 day')
+                WHERE period_start IS NULL OR period_end IS NULL;
+            UPDATE customer_monthly_metrics SET
+                period_start=printf('%04d-%02d-01',reference_year,reference_month),
+                period_end=date(printf('%04d-%02d-01',reference_year,reference_month),'+1 month','-1 day')
+                WHERE period_start IS NULL OR period_end IS NULL;
+            CREATE TABLE IF NOT EXISTS customer_status_options (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                scope TEXT NOT NULL CHECK(scope IN ('metrics','reactivation')),
+                name TEXT NOT NULL,
+                color TEXT NOT NULL DEFAULT '#6c757d',
+                active INTEGER NOT NULL DEFAULT 1,
+                position INTEGER NOT NULL DEFAULT 0,
+                UNIQUE(scope,name)
+            );
+            CREATE INDEX IF NOT EXISTS idx_metric_import_range ON customer_metric_imports(period_start,period_end);
+            CREATE INDEX IF NOT EXISTS idx_metric_range ON customer_monthly_metrics(period_start,period_end);
+            CREATE INDEX IF NOT EXISTS idx_users_metric_status ON users(metric_status);
+            CREATE INDEX IF NOT EXISTS idx_users_customer_search ON users(customer_code,company_name,name);`);
+            const inserir = db.prepare("INSERT OR IGNORE INTO customer_status_options(scope,name,color,position) VALUES(?,?,?,?)");
+            [
+                ["metrics", "Pendente de contato", "#dc3545"], ["metrics", "Contato realizado", "#0d6efd"],
+                ["metrics", "Em negociação", "#ffc107"], ["metrics", "Trabalho realizado", "#198754"],
+                ["metrics", "Empresa ativa", "#20c997"], ["metrics", "Não abordar", "#6c757d"],
+                ["metrics", "Acompanhar depois", "#6f42c1"], ["metrics", "Sem oportunidade", "#343a40"],
+                ...["Último Contato", "Entrar em contato", "Contatado", "Avulso", "Recente", "Aguardando", "Sem Contato", "Não ligar", "-"]
+                    .map(name => ["reactivation", name, "#6c757d"])
+            ].forEach(([scope, name, color], position) => inserir.run(scope, name, color, position));
+        }
+    },
+    {
+        id: "017_consultas_comissao_tecnicos",
+        up() {
+            db.exec(`CREATE TABLE IF NOT EXISTS commission_technician_inquiries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                technician_id INTEGER NOT NULL,
+                inquiry_date TEXT NOT NULL,
+                notes TEXT,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (technician_id) REFERENCES technicians(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_commission_inquiries_date ON commission_technician_inquiries(inquiry_date DESC,id DESC);
+            CREATE INDEX IF NOT EXISTS idx_commission_inquiries_technician ON commission_technician_inquiries(technician_id);`);
+        }
     }
 ];
 

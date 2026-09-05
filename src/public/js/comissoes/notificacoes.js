@@ -23,10 +23,10 @@ function filtrarTecnicos() {
         <td><input class="form-check-input selecionar-tecnico" type="checkbox" value="${item.id}" ${selected.has(item.id) ? "checked" : ""} ${item.active ? "" : "disabled"}></td>
         <td>${seguro(item.name)}</td><td>${seguro(item.og1_code)}</td>
         <td>${seguro(item.phone || "—")}<br><small>${seguro(item.email || "")}</small></td>
-        <td>${credito(item.total)}</td><td class="text-success">${credito(item.liberado)}</td><td class="text-warning">${credito(item.pendente)}</td>
+        <td>${credito(item.total)}</td><td class="text-success">${credito(item.liberado)}</td><td class="text-warning">${credito(item.pendente)}</td><td class="text-info">${credito(item.resgatado)}</td>
         <td><span class="badge ${item.active ? "bg-success" : "bg-secondary"}">${item.active ? "Ativo" : "Inativo"}</span></td>
         <td class="text-nowrap"><button class="btn btn-sm btn-success" data-enviar-saldo="${item.id}" ${item.active ? "" : "disabled"}><i class="bi bi-whatsapp"></i> Enviar saldo</button> <button class="btn btn-sm btn-outline-light" data-editar-tecnico="${item.id}"><i class="bi bi-pencil"></i></button></td>
-    </tr>`).join("") : '<tr><td colspan="9" class="text-center text-secondary">Nenhum técnico cadastrado.</td></tr>';
+    </tr>`).join("") : '<tr><td colspan="10" class="text-center text-secondary">Nenhum técnico cadastrado.</td></tr>';
     body.querySelectorAll("[data-editar-tecnico]").forEach(button => button.addEventListener("click", () => abrirTecnico(Number(button.dataset.editarTecnico))));
     body.querySelectorAll("[data-enviar-saldo]").forEach(button => button.addEventListener("click", () => confirmarSaldoIndividual(Number(button.dataset.enviarSaldo)).catch(error => alertaComissao(error.message, "danger"))));
 }

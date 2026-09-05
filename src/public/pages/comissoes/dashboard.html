@@ -20,6 +20,17 @@
         <div class="col-sm-6 col-xl-3"><article class="dashboard-kpi h-100"><div class="dashboard-icon text-success"><i class="bi bi-check2-circle"></i></div><div><span class="text-secondary small">Créditos liberados</span><strong id="comLiberado">0,00</strong><small id="comLiberadasQtd" class="commission-kpi-note"></small></div></article></div>
     </div>
 
+    <article class="dashboard-panel mb-4" aria-labelledby="comConsultasTitulo">
+        <div class="dashboard-panel-header"><div><h2 id="comConsultasTitulo">Técnicos que perguntaram sobre comissões</h2><p>Registro de consultas e pedidos de informação, sem alterar créditos ou solicitações.</p></div><i class="bi bi-chat-left-text text-info fs-4"></i></div>
+        <div class="row g-3 align-items-end mb-3">
+            <div class="col-md-4"><label for="comConsultaTecnico" class="form-label">Técnico</label><select id="comConsultaTecnico" class="form-select"><option value="">Selecione</option></select></div>
+            <div class="col-md-2"><label for="comConsultaData" class="form-label">Data</label><input id="comConsultaData" type="date" class="form-control"></div>
+            <div class="col-md-4"><label for="comConsultaNota" class="form-label">Observação</label><input id="comConsultaNota" class="form-control" maxlength="300" placeholder="Ex.: perguntou quando o crédito será liberado"></div>
+            <div class="col-md-2"><button id="comAdicionarConsulta" class="btn btn-success w-100" type="button"><i class="bi bi-plus-circle me-1"></i>Adicionar</button></div>
+        </div>
+        <div id="comConsultasLista" class="commission-inquiry-list"></div>
+    </article>
+
     <div class="row g-4 mb-4">
         <div class="col-xl-8">
             <article class="dashboard-panel h-100">

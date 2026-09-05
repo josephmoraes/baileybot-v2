@@ -27,7 +27,9 @@ router.get("/", (req, res) => {
 
     try {
 
-        const users = userService.listar();
+        const users = req.query.page || req.query.search || req.query.perPage
+            ? userService.listarPaginado(req.query)
+            : userService.listar();
 
         res.json(users);
 

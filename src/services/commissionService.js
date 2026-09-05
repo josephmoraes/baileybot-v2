@@ -23,7 +23,11 @@ const dataIso = valor => {
     return "";
 };
 const somarDias = (data, dias) => { const d = new Date(`${data}T12:00:00`); d.setDate(d.getDate() + dias); return d.toISOString().slice(0, 10); };
-const PRAZO_LIBERACAO_DIAS = 15;
+const fimDoMes = data => {
+    const [ano, mes] = data.split("-").map(Number);
+    return new Date(Date.UTC(ano, mes, 0)).toISOString().slice(0, 10);
+};
+const TAXA_COMISSAO_PADRAO = 3;
 
 class CommissionService {
     listarTecnicos() {
@@ -31,19 +35,163 @@ class CommissionService {
             COALESCE(SUM(CASE WHEN c.status='liberada' AND NOT EXISTS (
                 SELECT 1 FROM credit_request_commissions rc WHERE rc.commission_id=c.id
             ) THEN c.commission_value ELSE 0 END),0) liberado,
-            COALESCE(SUM(CASE WHEN c.status='pendente' THEN c.commission_value ELSE 0 END),0) pendente
+            COALESCE(SUM(CASE WHEN c.status='pendente' THEN c.commission_value ELSE 0 END),0) pendente,
+            COALESCE(SUM((SELECT SUM(rc.amount) FROM credit_request_commissions rc WHERE rc.commission_id=c.id)),0) resgatado
             FROM technicians t LEFT JOIN commissions c ON c.technician_id=t.id GROUP BY t.id ORDER BY t.name`).all();
+    }
+    obterTaxaPadrao() {
+        return Number(db.prepare("SELECT value FROM app_settings WHERE key='default_commission_rate'").get()?.value ?? TAXA_COMISSAO_PADRAO);
+    }
+    obterPeriodoFechamento() {
+        const tipo = db.prepare("SELECT value FROM app_settings WHERE key='commission_release_rule'").get()?.value ?? "month_end";
+        const dias = Number(db.prepare("SELECT value FROM app_settings WHERE key='commission_release_days'").get()?.value ?? 15);
+        return { tipo: tipo === "days_after_sale" ? tipo : "month_end", dias };
+    }
+    validarPeriodoFechamento(dados = {}) {
+        const tipo = String(dados.tipo || "");
+        const dias = Number(dados.dias);
+        if (!["month_end", "days_after_sale"].includes(tipo)) throw new Error("Selecione um período de fechamento válido.");
+        if (tipo === "days_after_sale" && (!Number.isInteger(dias) || dias < 0 || dias > 365)) {
+            throw new Error("Informe um prazo entre 0 e 365 dias.");
+        }
+        return { tipo, dias: tipo === "days_after_sale" ? dias : this.obterPeriodoFechamento().dias };
+    }
+    calcularDataLiberacao(dataVenda, periodo = this.obterPeriodoFechamento()) {
+        return periodo.tipo === "days_after_sale" ? somarDias(dataVenda, periodo.dias) : fimDoMes(dataVenda);
+    }
+    preverAlteracaoPeriodoFechamento(dados) {
+        const periodoAtual = this.obterPeriodoFechamento();
+        const novoPeriodo = this.validarPeriodoFechamento(dados);
+        const comissoes = db.prepare(`SELECT c.id,c.sale_date,c.release_date,c.status FROM commissions c
+            JOIN technicians t ON t.id=c.technician_id WHERE t.is_test=0 AND NOT EXISTS (
+                SELECT 1 FROM credit_request_commissions rc WHERE rc.commission_id=c.id
+            )`).all();
+        let alteradas = 0, passamParaLiberada = 0, voltamParaPendente = 0;
+        for (const comissao of comissoes) {
+            const novaData = this.calcularDataLiberacao(comissao.sale_date, novoPeriodo);
+            const novoStatus = novaData <= hoje() ? "liberada" : "pendente";
+            if (novaData !== comissao.release_date) alteradas++;
+            if (comissao.status !== novoStatus && novoStatus === "liberada") passamParaLiberada++;
+            if (comissao.status !== novoStatus && novoStatus === "pendente") voltamParaPendente++;
+        }
+        const preservadas = db.prepare(`SELECT COUNT(*) quantidade FROM commissions c JOIN technicians t ON t.id=c.technician_id
+            WHERE t.is_test=0 AND EXISTS (SELECT 1 FROM credit_request_commissions rc WHERE rc.commission_id=c.id)`).get().quantidade;
+        return { periodoAtual, novoPeriodo, analisadas: comissoes.length, alteradas, passamParaLiberada, voltamParaPendente, preservadasResgatadas: preservadas };
+    }
+    alterarPeriodoFechamento(dados) {
+        const impacto = this.preverAlteracaoPeriodoFechamento(dados);
+        const comissoes = db.prepare(`SELECT c.id,c.sale_date FROM commissions c JOIN technicians t ON t.id=c.technician_id
+            WHERE t.is_test=0 AND NOT EXISTS (SELECT 1 FROM credit_request_commissions rc WHERE rc.commission_id=c.id)`).all();
+        const salvar = db.prepare(`INSERT INTO app_settings(key,value,updated_at) VALUES(?,?,CURRENT_TIMESTAMP)
+            ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP`);
+        const atualizar = db.prepare("UPDATE commissions SET release_date=?,status=? WHERE id=?");
+        db.transaction(() => {
+            salvar.run("commission_release_rule", impacto.novoPeriodo.tipo);
+            salvar.run("commission_release_days", String(impacto.novoPeriodo.dias));
+            for (const comissao of comissoes) {
+                const liberacao = this.calcularDataLiberacao(comissao.sale_date, impacto.novoPeriodo);
+                atualizar.run(liberacao, liberacao <= hoje() ? "liberada" : "pendente", comissao.id);
+            }
+        })();
+        return impacto;
     }
     salvarTecnico(dados, id) {
         if (!dados.name?.trim() || !dados.og1Code?.trim()) throw new Error("Nome e código OG1 são obrigatórios.");
-        const params = [dados.name.trim(), dados.og1Code.trim(), dados.phone?.trim() || null, dados.email?.trim() || null, dados.document?.trim() || null, Number(dados.commissionRate) || 3, dados.active === false ? 0 : 1];
+        const existente = id ? db.prepare("SELECT * FROM technicians WHERE id=?").get(id) : null;
+        if (id && !existente) throw new Error("Técnico não encontrado.");
+        const perfilTeste = Boolean(existente?.is_test);
+        const creditoTeste = Number(dados.testAvailableCredit);
+        if (perfilTeste && dados.testAvailableCredit !== undefined && (!Number.isFinite(creditoTeste) || creditoTeste < 0 || creditoTeste > 100000000)) {
+            throw new Error("Informe um crédito de teste válido.");
+        }
+        const taxaInformada = String(dados.commissionRate ?? "").trim();
+        const taxa = perfilTeste && taxaInformada !== "" && Number.isFinite(Number(taxaInformada)) && Number(taxaInformada) >= 0
+            ? Number(taxaInformada)
+            : existente?.commission_rate ?? this.obterTaxaPadrao();
+        const params = [perfilTeste ? existente.name : dados.name.trim(), perfilTeste ? existente.og1_code : dados.og1Code.trim(), dados.phone?.trim() || null, dados.email?.trim() || null, dados.document?.trim() || null, taxa, perfilTeste ? 1 : dados.active === false ? 0 : 1];
         try {
             if (id) {
                 const r = db.prepare(`UPDATE technicians SET name=?,og1_code=?,phone=?,email=?,document=?,commission_rate=?,active=? WHERE id=?`).run(...params, id);
                 if (!r.changes) throw new Error("Técnico não encontrado.");
             } else db.prepare(`INSERT INTO technicians(name,og1_code,phone,email,document,commission_rate,active) VALUES(?,?,?,?,?,?,?)`).run(...params);
         } catch (erro) { if (erro.code === "SQLITE_CONSTRAINT_UNIQUE") throw new Error("Código OG1 já cadastrado."); throw erro; }
+        if (perfilTeste && dados.testAvailableCredit !== undefined) this.definirCreditoTeste(id, dados.testAvailableCredit);
         return { success: true };
+    }
+    definirCreditoTeste(id, valor) {
+        const tecnicoId = Number(id);
+        const credito = Number(valor);
+        if (!Number.isFinite(credito) || credito < 0 || credito > 100000000) throw new Error("Informe um crédito de teste válido.");
+        const tecnico = db.prepare("SELECT * FROM technicians WHERE id=? AND is_test=1").get(tecnicoId);
+        if (!tecnico) throw new Error("A edição manual de créditos é permitida somente no perfil Testes.");
+        const livres = db.prepare(`SELECT c.id FROM commissions c WHERE c.technician_id=? AND c.source_filename='TESTE_MANUAL'
+            AND NOT EXISTS (SELECT 1 FROM credit_request_commissions rc WHERE rc.commission_id=c.id)`).all(tecnicoId);
+        db.transaction(() => {
+            for (const item of livres) db.prepare("DELETE FROM commissions WHERE id=?").run(item.id);
+            if (credito > 0) {
+                const taxa = Number(tecnico.commission_rate);
+                const valorVenda = taxa > 0 ? Number((credito * 100 / taxa).toFixed(2)) : credito;
+                const movimento = `TESTE-MANUAL-${tecnicoId}-${Date.now()}`;
+                db.prepare(`INSERT INTO commissions(movement,document_number,commissioned_code,commissioned_name,source_filename,
+                    technician_id,sale_date,sale_value,rate,commission_value,release_date,status)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,'liberada')`).run(movimento,movimento,tecnico.og1_code,tecnico.name,"TESTE_MANUAL",tecnicoId,hoje(),valorVenda,taxa,credito,hoje());
+            }
+        })();
+        return this.listarTecnicos().find(item => item.id === tecnicoId);
+    }
+    preverAlteracaoTaxaPadrao(rate) {
+        const novaTaxa = Number(rate);
+        if (!Number.isFinite(novaTaxa) || novaTaxa < 0 || novaTaxa > 100) throw new Error("Informe um percentual entre 0 e 100.");
+        const elegiveis = db.prepare(`SELECT COUNT(*) quantidade,
+            COALESCE(SUM(commission_value),0) valor_anterior,
+            COALESCE(SUM(ROUND(sale_value * ? / 100,2)),0) valor_novo
+            FROM commissions c JOIN technicians t ON t.id=c.technician_id WHERE t.is_test=0 AND NOT EXISTS (
+                SELECT 1 FROM credit_request_commissions rc WHERE rc.commission_id=c.id
+            )`).get(novaTaxa);
+        const resgatadas = db.prepare(`SELECT COUNT(*) quantidade,COALESCE(SUM(c.commission_value),0) valor
+            FROM commissions c JOIN technicians t ON t.id=c.technician_id WHERE t.is_test=0 AND EXISTS (
+                SELECT 1 FROM credit_request_commissions rc WHERE rc.commission_id=c.id
+            )`).get();
+        return {
+            taxaAtual: this.obterTaxaPadrao(),
+            novaTaxa,
+            recalculadas: elegiveis.quantidade,
+            valorAnterior: elegiveis.valor_anterior,
+            valorNovo: elegiveis.valor_novo,
+            ignoradasResgatadas: resgatadas.quantidade,
+            valorResgatadoPreservado: resgatadas.valor
+        };
+    }
+    alterarTaxaPadrao(rate) {
+        const impacto = this.preverAlteracaoTaxaPadrao(rate);
+        const vendas = db.prepare(`SELECT c.* FROM commissions c JOIN technicians t ON t.id=c.technician_id
+            WHERE t.is_test=0 AND NOT EXISTS (
+            SELECT 1 FROM credit_request_commissions rc WHERE rc.commission_id=c.id
+        )`).all();
+        const salvarConfiguracao = db.prepare(`INSERT INTO app_settings(key,value,updated_at)
+            VALUES('default_commission_rate',?,CURRENT_TIMESTAMP)
+            ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP`);
+        const registrar = db.prepare(`INSERT INTO commission_rate_adjustments
+            (commission_id,previous_rate,new_rate,previous_value,new_value,reason,adjusted_by)
+            VALUES(?,?,?,?,?,'Alteração da comissão padrão nas configurações','Administrador local')`);
+        const atualizar = db.prepare(`UPDATE commissions SET original_rate=COALESCE(original_rate,rate),
+            rate=?,commission_value=?,adjustment_reason='Alteração da comissão padrão nas configurações',
+            adjusted_at=CURRENT_TIMESTAMP,adjusted_by='Administrador local' WHERE id=?`);
+        db.transaction(() => {
+            salvarConfiguracao.run(String(impacto.novaTaxa));
+            db.prepare("UPDATE technicians SET commission_rate=? WHERE is_test=0").run(impacto.novaTaxa);
+            for (const venda of vendas) {
+                const novoValor = Number((Number(venda.sale_value) * impacto.novaTaxa / 100).toFixed(2));
+                if (Number(venda.rate) !== impacto.novaTaxa || Number(venda.commission_value) !== novoValor) {
+                    registrar.run(venda.id, venda.rate, impacto.novaTaxa, venda.commission_value, novoValor);
+                    atualizar.run(impacto.novaTaxa, novoValor, venda.id);
+                }
+            }
+            db.prepare(`UPDATE commission_imports SET commission_total=COALESCE((
+                SELECT SUM(c.commission_value) FROM commissions c WHERE c.import_id=commission_imports.id
+            ),0)`).run();
+        })();
+        return impacto;
     }
     excluirTecnico(id) {
         const tecnicoId = Number(id);
@@ -142,6 +290,25 @@ class CommissionService {
             solicitacoesRascunho,
             atualizadoEm: new Date().toISOString()
         };
+    }
+    listarConsultasTecnicos() {
+        return db.prepare(`SELECT i.id,i.technician_id,i.inquiry_date,i.notes,i.created_at,t.name technician_name,t.og1_code
+            FROM commission_technician_inquiries i JOIN technicians t ON t.id=i.technician_id
+            ORDER BY i.inquiry_date DESC,i.id DESC LIMIT 100`).all();
+    }
+    registrarConsultaTecnico(dados = {}) {
+        const technicianId = Number(dados.technicianId);
+        const tecnico = db.prepare("SELECT id FROM technicians WHERE id=?").get(technicianId);
+        if (!tecnico) throw new Error("Selecione um técnico válido.");
+        const inquiryDate = String(dados.inquiryDate || hoje()).slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(inquiryDate)) throw new Error("Informe uma data válida.");
+        const result = db.prepare("INSERT INTO commission_technician_inquiries(technician_id,inquiry_date,notes) VALUES(?,?,?)")
+            .run(technicianId, inquiryDate, String(dados.notes || "").trim() || null);
+        return this.listarConsultasTecnicos().find(item => item.id === Number(result.lastInsertRowid));
+    }
+    excluirConsultaTecnico(id) {
+        if (!db.prepare("DELETE FROM commission_technician_inquiries WHERE id=?").run(Number(id)).changes) throw new Error("Registro não encontrado.");
+        return { success: true };
     }
     atualizarLiberacoes() { db.prepare(`UPDATE commissions SET status='liberada' WHERE status='pendente' AND release_date<=?`).run(hoje()); }
     listarComissoes() { this.atualizarLiberacoes(); return db.prepare(`SELECT c.*,t.name technician_name,t.og1_code FROM commissions c JOIN technicians t ON t.id=c.technician_id ORDER BY c.sale_date DESC,c.id DESC LIMIT 500`).all(); }
@@ -272,13 +439,13 @@ class CommissionService {
             for (const registro of registros) {
                 let tecnico=buscarTecnico.get(registro.codigo);
                 if (!tecnico) {
-                    criarTecnico.run(registro.nome,registro.codigo,registro.taxa || 3);
+                    criarTecnico.run(registro.nome,registro.codigo,registro.taxa || this.obterTaxaPadrao());
                     tecnico=buscarTecnico.get(registro.codigo);
                     resumo.tecnicosCriados++;
                 }
                 const taxa=registro.taxa || tecnico.commission_rate;
                 const comissao=Number((registro.valor*taxa/100).toFixed(2));
-                const liberacao=somarDias(registro.data,PRAZO_LIBERACAO_DIAS);
+                const liberacao=this.calcularDataLiberacao(registro.data);
                 inserir.run(registro.documento,registro.documento,registro.codigo,registro.nome,registro.cliente,registro.vendedor,filename,tecnico.id,registro.data,registro.valor,taxa,comissao,liberacao,liberacao<=hoje()?"liberada":"pendente",imp);
                 resumo.vendas+=registro.valor; resumo.comissoes+=comissao;
             }
@@ -295,6 +462,15 @@ class CommissionService {
         const total=creditos.reduce((s,c)=>s+c.commission_value,0);
         const criar=db.transaction(()=>{ const r=db.prepare(`INSERT INTO credit_requests(technician_id,amount,request_date,requester,destination,materials,notes,status) VALUES(?,?,?,?,?,?,?,?)`).run(d.technicianId,total,d.requestDate||hoje(),d.requester.trim(),d.destination||"Financeiro",d.materials||null,d.notes||null,d.draft?"rascunho":"gerada"); const numeroReq=`SC-${new Date().getFullYear()}-${String(r.lastInsertRowid).padStart(4,"0")}`; db.prepare(`UPDATE credit_requests SET number=? WHERE id=?`).run(numeroReq,r.lastInsertRowid); const link=db.prepare(`INSERT INTO credit_request_commissions(request_id,commission_id,amount) VALUES(?,?,?)`); creditos.forEach(c=>link.run(r.lastInsertRowid,c.id,c.commission_value)); return {id:r.lastInsertRowid,number:numeroReq,amount:total}; });
         return criar();
+    }
+    obterSolicitacao(id) {
+        const solicitacao = db.prepare(`SELECT r.*,t.name technician_name,t.og1_code
+            FROM credit_requests r JOIN technicians t ON t.id=r.technician_id WHERE r.id=?`).get(id);
+        if (!solicitacao) throw new Error("Solicitação não encontrada.");
+        solicitacao.comissoes = db.prepare(`SELECT c.movement,c.document_number,c.sale_date,c.sale_value,c.rate,rc.amount rescued_amount
+            FROM credit_request_commissions rc JOIN commissions c ON c.id=rc.commission_id
+            WHERE rc.request_id=? ORDER BY c.sale_date,c.id`).all(id);
+        return solicitacao;
     }
     listarSolicitacoes(){ return db.prepare(`SELECT r.*,t.name technician_name,t.og1_code FROM credit_requests r JOIN technicians t ON t.id=r.technician_id ORDER BY r.id DESC`).all(); }
 }

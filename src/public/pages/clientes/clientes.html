@@ -10,6 +10,16 @@
     >
 </div>
 
+<!-- Ficha consolidada -->
+<div class="modal fade" id="modalFichaCliente" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header"><div><p class="dashboard-eyebrow mb-1">CADASTRO + REATIVAÇÃO + MÉTRICAS</p><h5 id="fichaClienteTitulo" class="modal-title">Cliente</h5></div><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body" id="fichaClienteConteudo"><div class="text-center py-5"><span class="spinner-border"></span></div></div>
+    </div>
+  </div>
+</div>
+
 <!-- Tabela -->
 <div class="card bg-secondary text-light border-0 shadow">
 
@@ -93,6 +103,8 @@
 
     </div>
 
+    <div class="card-footer d-flex justify-content-between align-items-center"><small id="clientesPaginacaoResumo" class="text-secondary">—</small><div class="btn-group"><button id="clientesPaginaAnterior" class="btn btn-sm btn-outline-light">Anterior</button><button id="clientesPaginaProxima" class="btn btn-sm btn-outline-light">Próxima</button></div></div>
+
 </div>
 
 <!-- Modal Cliente -->
@@ -163,7 +175,7 @@
                         maxlength="15">
 
                     <div class="form-text text-light-emphasis">
-                        Aceita telefone residencial ou celular, sempre com DDD.
+                        Opcional. Quando informado, use telefone residencial ou celular com DDD.
                     </div>
 
                 </div>

@@ -6,6 +6,15 @@
 <div id="alertaConfiguracoes" class="alert d-none" role="alert"></div>
 
 <div class="card bg-dark text-light border-secondary shadow mb-4">
+    <div class="card-header"><h5 class="mb-1"><i class="bi bi-tags me-2"></i>Status dos clientes</h5><small class="text-secondary">Crie opções com cores para o trabalho de Reativação e Métricas.</small></div>
+    <div class="card-body">
+        <div class="row g-2 align-items-end mb-3"><div class="col-md-3"><label for="statusConfigEscopo" class="form-label">Usar em</label><select id="statusConfigEscopo" class="form-select"><option value="metrics">Métricas</option><option value="reactivation">Reativação</option></select></div><div class="col-md-5"><label for="statusConfigNome" class="form-label">Nome do status</label><input id="statusConfigNome" class="form-control" placeholder="Ex.: Visita realizada"></div><div class="col-md-2"><label for="statusConfigCor" class="form-label">Cor</label><input id="statusConfigCor" type="color" class="form-control form-control-color w-100" value="#198754"></div><div class="col-md-2"><button id="btnAdicionarStatusConfig" class="btn btn-success w-100">Adicionar</button></div></div>
+        <div id="statusConfigLista" class="d-flex flex-wrap gap-2"></div>
+        <small class="text-secondary d-block mt-3">Um status que já está sendo usado por algum cliente não pode ser removido.</small>
+    </div>
+</div>
+
+<div class="card bg-dark text-light border-secondary shadow mb-4">
     <div class="card-header">
         <h5 class="mb-1"><i class="bi bi-robot me-2"></i>Envios do bot</h5>
         <small class="text-secondary">Defina como e quando as mensagens podem ser enviadas.</small>
@@ -36,6 +45,40 @@
             <div class="col-md-5 d-flex align-items-end"><div class="form-check form-switch mb-2"><input id="configNotificarConclusao" class="form-check-input" type="checkbox"><label class="form-check-label" for="configNotificarConclusao">Avisar ao concluir uma campanha</label><div class="form-text">Exibe uma notificação no navegador quando o envio terminar.</div></div></div>
             <div class="col-md-4 d-flex align-items-end"><button id="btnSalvarConfiguracoesBot" class="btn btn-success w-100" type="button">Salvar configurações do bot</button></div>
             <div class="col-12"><div class="form-text"><i class="bi bi-info-circle me-1"></i>A pausa de cada destinatário é sorteada entre os valores mínimo e máximo.</div></div>
+        </div>
+    </div>
+</div>
+
+<div class="card bg-dark text-light border-warning shadow mb-4">
+    <div class="card-header">
+        <h5 class="mb-1"><i class="bi bi-percent me-2"></i>Comissões</h5>
+        <small class="text-secondary">Defina o percentual padrão e quando os créditos ficam disponíveis.</small>
+    </div>
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="configTaxaComissaoPadrao" class="form-label fw-semibold">% Comissão Padrão</label>
+                <div class="input-group"><input id="configTaxaComissaoPadrao" type="number" class="form-control" min="0" max="100" step="0.01"><span class="input-group-text">%</span></div>
+            </div>
+            <div class="col-md-5"><div class="form-text text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Ao confirmar, todas as comissões ainda não resgatadas serão recalculadas. Valores já resgatados serão preservados.</div></div>
+            <div class="col-md-3"><button id="btnSalvarTaxaComissao" class="btn btn-warning w-100" type="button">Atualizar comissão padrão</button></div>
+        </div>
+        <hr class="border-secondary my-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="configPeriodoFechamento" class="form-label fw-semibold">Período de fechamento</label>
+                <select id="configPeriodoFechamento" class="form-select">
+                    <option value="month_end">Final de todo mês</option>
+                    <option value="days_after_sale">Dias após a data da compra</option>
+                </select>
+                <div class="form-text">Define quando as comissões são liberadas.</div>
+            </div>
+            <div id="grupoDiasFechamento" class="col-md-3 d-none">
+                <label for="configDiasFechamento" class="form-label fw-semibold">Prazo</label>
+                <div class="input-group"><input id="configDiasFechamento" type="number" class="form-control" min="0" max="365" step="1"><span class="input-group-text">dias</span></div>
+            </div>
+            <div class="col-md-5"><button id="btnSalvarPeriodoFechamento" class="btn btn-warning w-100" type="button">Atualizar período de fechamento</button></div>
+            <div class="col-12"><div class="form-text text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Ao confirmar, as datas das comissões ainda não resgatadas serão recalculadas. Comissões já resgatadas serão preservadas.</div></div>
         </div>
     </div>
 </div>

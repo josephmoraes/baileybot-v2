@@ -1,6 +1,7 @@
 const paginas = {
   dashboard: { arquivo: "dashboard/dashboard.html", hash: "dashboard" },
   clientes: { arquivo: "clientes/clientes.html", hash: "clientes" },
+  metricas: { arquivo: "metricas/metricas.html", hash: "metricas" },
   campanhas: { arquivo: "campanhas/campanhas.html", hash: "campanhas" },
   mensagens: { arquivo: "mensagens/mensagens.html", hash: "mensagens" },
   templates: {
@@ -98,6 +99,7 @@ const Router = {
         await carregarClientes?.();
         inicializarClientes?.();
       },
+      metricas: () => window.inicializarMetricasClientes?.(),
       templates: async () => {
         await carregarTemplates?.();
         inicializarTemplates?.();

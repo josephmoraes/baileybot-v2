@@ -20,11 +20,13 @@ const { default: excelService } = await import("../src/services/excel.js");
 const { default: XLSX } = await import("xlsx");
 const { default: commissionService } = await import("../src/services/commissionService.js");
 const { default: commissionNotificationService } = await import("../src/services/commissionNotificationService.js");
+const { default: commissionPdfService } = await import("../src/services/commissionPdfService.js");
 const { default: creditMessageTemplateService } = await import("../src/services/creditMessageTemplateService.js");
 const { default: settingsService } = await import("../src/services/settingsService.js");
 const { default: dashboardRepository } = await import("../src/repositories/dashboardRepository.js");
-const { tabelaParaObjetos, relatorioComissionadosParaObjetos } = await import("../src/services/fileImportService.js");
+const { tabelaParaObjetos, relatorioComissionadosParaObjetos, relatorioClientesParaObjetos } = await import("../src/services/fileImportService.js");
 const { default: reactivationService } = await import("../src/services/reactivationService.js");
+const { default: customerMetricsService } = await import("../src/services/customerMetricsService.js");
 
 initDatabase();
 
@@ -133,6 +135,42 @@ test("salva configurações do bot e substitui o vendedor", () => {
     assert.equal(settingsService.listarBloqueados().length, 0);
 });
 
+test("mantém um perfil Testes isolado com crédito e percentual editáveis", () => {
+    const testes = commissionService.listarTecnicos().find(item => item.is_test);
+    assert.equal(testes.name, "Testes");
+    commissionService.salvarTecnico({ name: "Testes", og1Code: "TESTES", commissionRate: 7.5, testAvailableCredit: 250, active: true }, testes.id);
+    const atualizado = commissionService.listarTecnicos().find(item => item.id === testes.id);
+    assert.equal(atualizado.commission_rate, 7.5);
+    assert.equal(atualizado.liberado, 250);
+    assert.equal(commissionService.salvarTecnico({ name: "Perfil protegido", og1Code: "PROTEGIDO", commissionRate: 99 }).success, true);
+    const protegido = commissionService.listarTecnicos().find(item => item.og1_code === "PROTEGIDO");
+    assert.equal(protegido.commission_rate, commissionService.obterTaxaPadrao());
+    assert.throws(() => commissionService.definirCreditoTeste(protegido.id, 100), /somente no perfil Testes/);
+});
+
+test("altera a comissão padrão, recalcula somente créditos não resgatados e soma resgates por técnico", () => {
+    commissionService.salvarTecnico({ name: "Técnico da taxa global", og1Code: "TEC-RATE" });
+    const tecnico = commissionService.listarTecnicos().find(item => item.og1_code === "TEC-RATE");
+    const importacao = db.prepare("INSERT INTO commission_imports(filename) VALUES(?)").run("taxa-global.xlsx").lastInsertRowid;
+    const inserir = db.prepare(`INSERT INTO commissions(movement,technician_id,sale_date,sale_value,rate,commission_value,release_date,status,import_id)
+        VALUES(?,?,?,?,?,?,?,?,?)`);
+    const disponivel = inserir.run("RATE-OPEN", tecnico.id, "2026-08-01", 100, 3, 3, "2026-08-16", "liberada", importacao).lastInsertRowid;
+    const resgatada = inserir.run("RATE-CLAIMED", tecnico.id, "2026-08-01", 200, 3, 6, "2026-08-16", "liberada", importacao).lastInsertRowid;
+    const solicitacao = db.prepare(`INSERT INTO credit_requests(technician_id,amount,request_date,requester,destination,status)
+        VALUES(?,?,?,?,?,?)`).run(tecnico.id, 6, "2026-08-20", "Teste", "Financeiro", "gerada").lastInsertRowid;
+    db.prepare("INSERT INTO credit_request_commissions(request_id,commission_id,amount) VALUES(?,?,?)").run(solicitacao, resgatada, 6);
+
+    const previa = commissionService.preverAlteracaoTaxaPadrao(5);
+    assert.equal(previa.ignoradasResgatadas >= 1, true);
+    const resultado = commissionService.alterarTaxaPadrao(5);
+    assert.equal(resultado.novaTaxa, 5);
+    assert.deepEqual(db.prepare("SELECT rate,commission_value FROM commissions WHERE id=?").get(disponivel), { rate: 5, commission_value: 5 });
+    assert.deepEqual(db.prepare("SELECT rate,commission_value FROM commissions WHERE id=?").get(resgatada), { rate: 3, commission_value: 6 });
+    assert.equal(db.prepare("SELECT commission_rate FROM technicians WHERE id=?").get(tecnico.id).commission_rate, 5);
+    assert.equal(commissionService.listarTecnicos().find(item => item.id === tecnico.id).resgatado, 6);
+    assert.equal(settingsService.obterBot().taxaComissaoPadrao, 5);
+});
+
 test("importa e exporta clientes em Excel", async () => {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet([
@@ -178,7 +216,7 @@ test("importa cada documento com comissionado sem propagar dados entre linhas", 
     assert.equal(vendas[0].report_seller, "Vendedor 1");
     assert.equal(vendas[0].source_filename, "vendas.xlsx");
     assert.ok(vendas[0].imported_at);
-    assert.deepEqual(vendas.map(venda => venda.release_date), ["2026-01-16", "2026-01-18"]);
+    assert.deepEqual(vendas.map(venda => venda.release_date), ["2026-01-31", "2026-01-31"]);
     const repetido = await commissionService.preverImportacao({ base64, filename: "vendas.xlsx" });
     assert.equal(repetido.importados, 0);
     assert.equal(repetido.duplicados, 3);
@@ -193,15 +231,47 @@ test("importa cada documento com comissionado sem propagar dados entre linhas", 
     assert.match(solicitacao.number, /^SC-/);
 });
 
+test("configura o período de fechamento e recalcula apenas comissões não resgatadas", () => {
+    const vendas = db.prepare("SELECT * FROM commissions WHERE commissioned_code='TEC-TESTE' ORDER BY document_number").all();
+    const preservada = vendas[0];
+    const ajustavel = vendas[1];
+    const solicitacao = db.prepare("SELECT id FROM credit_requests WHERE technician_id=? ORDER BY id DESC").get(preservada.technician_id);
+    assert.ok(solicitacao);
+    assert.equal(settingsService.obterBot().periodoFechamentoComissoes.tipo, "month_end");
+
+    const previa = commissionService.preverAlteracaoPeriodoFechamento({ tipo: "days_after_sale", dias: 10 });
+    assert.equal(previa.preservadasResgatadas >= 1, true);
+    const resultado = commissionService.alterarPeriodoFechamento({ tipo: "days_after_sale", dias: 10 });
+    assert.equal(resultado.novoPeriodo.dias, 10);
+    assert.equal(db.prepare("SELECT release_date FROM commissions WHERE id=?").get(preservada.id).release_date, preservada.release_date);
+    assert.equal(db.prepare("SELECT release_date FROM commissions WHERE id=?").get(ajustavel.id).release_date, "2026-01-13");
+    assert.deepEqual(settingsService.obterBot().periodoFechamentoComissoes, { tipo: "days_after_sale", dias: 10 });
+
+    commissionService.alterarPeriodoFechamento({ tipo: "month_end", dias: 10 });
+    assert.equal(db.prepare("SELECT release_date FROM commissions WHERE id=?").get(ajustavel.id).release_date, "2026-01-31");
+    assert.throws(() => commissionService.alterarPeriodoFechamento({ tipo: "days_after_sale", dias: 366 }), /entre 0 e 365 dias/);
+});
+
 test("registra migrations e consolida indicadores do dashboard", () => {
     const migrations = db.prepare("SELECT id FROM schema_migrations ORDER BY id").all();
-    assert.deepEqual(migrations.map(item => item.id), ["001_compatibilidade_v2", "002_vendas_comissionadas_por_documento", "003_notificacoes_creditos_manuais", "004_modulo_reativacao", "005_clientes_sem_whatsapp", "006_ordenacao_clientes_recentes", "007_campanha_fixa_clientes_aguardando", "008_caixa_entrada_relatorios_reativacao", "009_filtro_data_cadastro_campanha_reativacao", "010_campanhas_e_ajustes_comissao", "011_acompanhamento_individual_campanhas", "012_data_inclusao_participante_campanha", "013_participante_campanha_sem_whatsapp"]);
+    assert.deepEqual(migrations.map(item => item.id), ["001_compatibilidade_v2", "002_vendas_comissionadas_por_documento", "003_notificacoes_creditos_manuais", "004_modulo_reativacao", "005_clientes_sem_whatsapp", "006_ordenacao_clientes_recentes", "007_campanha_fixa_clientes_aguardando", "008_caixa_entrada_relatorios_reativacao", "009_filtro_data_cadastro_campanha_reativacao", "010_campanhas_e_ajustes_comissao", "011_acompanhamento_individual_campanhas", "012_data_inclusao_participante_campanha", "013_participante_campanha_sem_whatsapp", "014_perfil_tecnico_testes", "015_metricas_clientes_og1", "016_metricas_periodos_status_notas", "017_consultas_comissao_tecnicos"]);
     const indicadores = dashboardRepository.obterIndicadores();
     assert.ok(indicadores.totalClientes >= 3);
     assert.ok(indicadores.totalMensagens >= 1);
     assert.ok(indicadores.totalCampanhas >= 1);
     assert.ok(indicadores.totalTecnicos >= 1);
     assert.equal(typeof indicadores.comissaoLiberada, "number");
+});
+
+test("registra técnico que perguntou sobre comissão sem alterar créditos", () => {
+    const tecnico = commissionService.listarTecnicos().find(item => !item.is_test);
+    const antes = db.prepare("SELECT COALESCE(SUM(commission_value),0) total FROM commissions").get().total;
+    const registro = commissionService.registrarConsultaTecnico({ technicianId: tecnico.id, inquiryDate: "2026-09-04", notes: "Perguntou sobre a liberação" });
+    assert.equal(registro.technician_id, tecnico.id);
+    assert.equal(registro.notes, "Perguntou sobre a liberação");
+    assert.equal(db.prepare("SELECT COALESCE(SUM(commission_value),0) total FROM commissions").get().total, antes);
+    assert.ok(commissionService.listarConsultasTecnicos().some(item => item.id === registro.id));
+    assert.equal(commissionService.excluirConsultaTecnico(registro.id).success, true);
 });
 
 test("ajusta percentual de uma venda com motivo e mantém histórico", () => {
@@ -310,6 +380,14 @@ test("formulário de solicitação de crédito associa rótulos a todos os campo
         assert.match(html, new RegExp(`<label[^>]+for=["']${id}["']`));
     }
     assert.match(html, /aria-labelledby="solCreditosLabel"/);
+});
+
+test("gera PDF válido com os dados da solicitação de crédito", async () => {
+    const solicitacao = commissionService.listarSolicitacoes()[0];
+    const completa = commissionService.obterSolicitacao(solicitacao.id);
+    const pdf = await commissionPdfService.gerar(completa);
+    assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
+    assert.equal(pdf.length > 1000, true);
 });
 
 test("importa relatório para conferência e só aprova com Código OG1", async () => {
@@ -439,6 +517,43 @@ test("converte tabelas extraídas de PDF em registros", () => {
         ["PDF-001", "Ana PDF", "11988887777"]
     ]);
     assert.deepEqual(linhas, [{ "Código": "PDF-001", Nome: "Ana PDF", WhatsApp: "11988887777" }]);
+});
+
+test("interpreta ranking de clientes e preserva linha sem nome", () => {
+    const rows = relatorioClientesParaObjetos(`CÓDIGO NOME VALOR QUANTIDADE PREÇO MÉDIO
+ALISSON
+1 1.06728 CLIENTE COM NOME 1.250,50 2,00 625,25
+2 9.99999 300,00 3,00 100,00`);
+    assert.equal(rows.length, 2);
+    assert.equal(rows[0].Vendedor, "ALISSON");
+    assert.equal(rows[1].Nome, "");
+    assert.equal(rows[1].Código, "9.99999");
+});
+
+test("importa métricas mensais pelo código OG1 e aceita cliente sem nome", async () => {
+    const workbook = XLSX.utils.book_new();
+    const sheet = XLSX.utils.json_to_sheet([
+        { Código: "1.06728", Nome: "CLIENTE COM NOME", Valor: "1.250,50", Quantidade: "2", "Preço Médio": "625,25", Vendedor: "Alisson" },
+        { Código: "9.99999", Nome: "", Valor: "300,00", Quantidade: "3", "Preço Médio": "100,00", Vendedor: "Vendedor Externo" }
+    ]);
+    XLSX.utils.sheet_add_aoa(sheet, [["PERÍODO: 01/01/2025 A 31/01/2025"]], { origin: "H1" });
+    XLSX.utils.book_append_sheet(workbook, sheet, "Janeiro");
+    const arquivo = { filename: "clientes-janeiro-2025.xlsx", base64: XLSX.write(workbook, { bookType: "xlsx", type: "base64" }) };
+    const preview = await customerMetricsService.preview(arquivo);
+    assert.deepEqual(preview.period, { start: "2025-01-01", end: "2025-01-31", type: "Mensal" });
+    assert.equal(preview.total, 2);
+    const imported = await customerMetricsService.import(arquivo);
+    assert.equal(imported.total, 2);
+    const noName = db.prepare("SELECT * FROM users WHERE customer_code='9.99999'").get();
+    assert.equal(noName.company_name, null);
+    const metric = db.prepare("SELECT * FROM customer_monthly_metrics WHERE user_id=?").get(noName.id);
+    assert.equal(metric.seller, "Outros");
+    assert.equal(metric.report_seller, "Vendedor Externo");
+    assert.equal(metric.average_order_value, 100);
+    await assert.rejects(customerMetricsService.import(arquivo), /sobrepõe/);
+    const updated = customerMetricsService.updateProducts(noName.id, { main_products: "Capacitor", latest_products: "Filtro secador" });
+    assert.equal(updated.main_products, "Capacitor");
+    assert.equal(updated.latest_products, "Filtro secador");
 });
 
 test("não grava telefone da coluna Contato como nome do cliente", async () => {

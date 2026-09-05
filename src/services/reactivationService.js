@@ -4,6 +4,7 @@ import { cleanCustomerName } from "../utils/customerName.js";
 
 export const VENDEDORES_OFICIAIS = ["Alisson", "Noberto", "Aldener", "Letícia", "Clayton"];
 export const STATUS_REATIVACAO = ["Último Contato", "Entrar em contato", "Contatado", "Avulso", "Recente", "Aguardando", "Sem Contato", "Não ligar", "-"];
+const statusReativacao = () => db.prepare("SELECT name FROM customer_status_options WHERE scope='reactivation' AND active=1").all().map(item => item.name);
 
 const texto = valor => String(valor ?? "").trim();
 const chave = valor => texto(valor).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -140,7 +141,7 @@ class ReactivationService {
         const empresa = texto(dados.company_name);
         if (!codigo) throw new Error("Código do cliente é obrigatório.");
         if (!nome && !empresa) throw new Error("Informe o cliente.");
-        if (dados.reactivation_status && !STATUS_REATIVACAO.includes(dados.reactivation_status)) throw new Error("Status inválido.");
+        if (dados.reactivation_status && !statusReativacao().includes(dados.reactivation_status)) throw new Error("Status inválido.");
         const jid = telefoneJid(dados.telefone || dados.jid);
         const executar = db.transaction(() => {
             let clienteId = Number(id) || null;
@@ -175,7 +176,7 @@ class ReactivationService {
     }
 
     atualizarStatus(id, status) {
-        if (!STATUS_REATIVACAO.includes(status)) throw new Error("Status inválido.");
+        if (!statusReativacao().includes(status)) throw new Error("Status inválido.");
         if (!db.prepare("UPDATE users SET reactivation_status=?,reactivation_updated_at=CURRENT_TIMESTAMP,reactivation_sequence=COALESCE((SELECT MAX(reactivation_sequence)+1 FROM users),1) WHERE id=?").run(status, id).changes) throw new Error("Cliente não encontrado.");
         return clienteCompleto(id);
     }
