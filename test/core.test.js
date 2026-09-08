@@ -254,7 +254,7 @@ test("configura o período de fechamento e recalcula apenas comissões não resg
 
 test("registra migrations e consolida indicadores do dashboard", () => {
     const migrations = db.prepare("SELECT id FROM schema_migrations ORDER BY id").all();
-    assert.deepEqual(migrations.map(item => item.id), ["001_compatibilidade_v2", "002_vendas_comissionadas_por_documento", "003_notificacoes_creditos_manuais", "004_modulo_reativacao", "005_clientes_sem_whatsapp", "006_ordenacao_clientes_recentes", "007_campanha_fixa_clientes_aguardando", "008_caixa_entrada_relatorios_reativacao", "009_filtro_data_cadastro_campanha_reativacao", "010_campanhas_e_ajustes_comissao", "011_acompanhamento_individual_campanhas", "012_data_inclusao_participante_campanha", "013_participante_campanha_sem_whatsapp", "014_perfil_tecnico_testes", "015_metricas_clientes_og1", "016_metricas_periodos_status_notas", "017_consultas_comissao_tecnicos"]);
+    assert.deepEqual(migrations.map(item => item.id), ["001_compatibilidade_v2", "002_vendas_comissionadas_por_documento", "003_notificacoes_creditos_manuais", "004_modulo_reativacao", "005_clientes_sem_whatsapp", "006_ordenacao_clientes_recentes", "007_campanha_fixa_clientes_aguardando", "008_caixa_entrada_relatorios_reativacao", "009_filtro_data_cadastro_campanha_reativacao", "010_campanhas_e_ajustes_comissao", "011_acompanhamento_individual_campanhas", "012_data_inclusao_participante_campanha", "013_participante_campanha_sem_whatsapp", "014_perfil_tecnico_testes", "015_metricas_clientes_og1", "016_metricas_periodos_status_notas", "017_consultas_comissao_tecnicos", "018_pdf_solicitacoes_credito"]);
     const indicadores = dashboardRepository.obterIndicadores();
     assert.ok(indicadores.totalClientes >= 3);
     assert.ok(indicadores.totalMensagens >= 1);
@@ -382,12 +382,19 @@ test("formulário de solicitação de crédito associa rótulos a todos os campo
     assert.match(html, /aria-labelledby="solCreditosLabel"/);
 });
 
-test("gera PDF válido com os dados da solicitação de crédito", async () => {
+test("gera e persiste PDF válido com os dados da solicitação de crédito", async () => {
     const solicitacao = commissionService.listarSolicitacoes()[0];
     const completa = commissionService.obterSolicitacao(solicitacao.id);
     const pdf = await commissionPdfService.gerar(completa);
     assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
     assert.equal(pdf.length > 1000, true);
+    assert.equal(commissionService.obterPdfSolicitacao(solicitacao.id), null);
+    const metadados = commissionService.salvarPdfSolicitacao(solicitacao.id, pdf);
+    assert.equal(metadados.filename, `${solicitacao.number}.pdf`);
+    const persistido = commissionService.obterPdfSolicitacao(solicitacao.id);
+    assert.equal(persistido.data.subarray(0, 5).toString(), "%PDF-");
+    assert.deepEqual(persistido.data, pdf);
+    assert.equal(commissionService.listarSolicitacoes()[0].pdf_available, 1);
 });
 
 test("importa relatório para conferência e só aprova com Código OG1", async () => {

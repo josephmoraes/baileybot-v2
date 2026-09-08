@@ -472,6 +472,35 @@ class CommissionService {
             WHERE rc.request_id=? ORDER BY c.sale_date,c.id`).all(id);
         return solicitacao;
     }
-    listarSolicitacoes(){ return db.prepare(`SELECT r.*,t.name technician_name,t.og1_code FROM credit_requests r JOIN technicians t ON t.id=r.technician_id ORDER BY r.id DESC`).all(); }
+    salvarPdfSolicitacao(id, pdf) {
+        if (!Buffer.isBuffer(pdf) || pdf.subarray(0, 5).toString() !== "%PDF-") throw new Error("O PDF gerado é inválido.");
+        const solicitacao = db.prepare("SELECT number,status FROM credit_requests WHERE id=?").get(id);
+        if (!solicitacao) throw new Error("Solicitação não encontrada.");
+        if (solicitacao.status !== "gerada") throw new Error("Rascunhos não possuem PDF.");
+        const filename = `${solicitacao.number}.pdf`;
+        db.prepare(`UPDATE credit_requests SET pdf_data=?,pdf_filename=?,pdf_mime_type='application/pdf',
+            pdf_generated_at=CURRENT_TIMESTAMP WHERE id=?`).run(pdf, filename, id);
+        return { filename, mimeType: "application/pdf", size: pdf.length };
+    }
+    obterPdfSolicitacao(id) {
+        const registro = db.prepare(`SELECT number,status,pdf_data,pdf_filename,pdf_mime_type,pdf_generated_at
+            FROM credit_requests WHERE id=?`).get(id);
+        if (!registro) throw new Error("Solicitação não encontrada.");
+        if (registro.status !== "gerada") throw new Error("Rascunhos não possuem PDF.");
+        if (!registro.pdf_data) return null;
+        return {
+            data: Buffer.from(registro.pdf_data),
+            filename: registro.pdf_filename || `${registro.number}.pdf`,
+            mimeType: registro.pdf_mime_type || "application/pdf",
+            generatedAt: registro.pdf_generated_at
+        };
+    }
+    excluirSolicitacaoIncompleta(id) {
+        db.prepare("DELETE FROM credit_requests WHERE id=? AND pdf_data IS NULL").run(id);
+    }
+    listarSolicitacoes(){ return db.prepare(`SELECT r.id,r.number,r.technician_id,r.amount,r.request_date,r.requester,
+        r.destination,r.materials,r.notes,r.status,r.created_at,r.pdf_filename,r.pdf_generated_at,
+        CASE WHEN r.pdf_data IS NULL THEN 0 ELSE 1 END pdf_available,t.name technician_name,t.og1_code
+        FROM credit_requests r JOIN technicians t ON t.id=r.technician_id ORDER BY r.id DESC`).all(); }
 }
 export default new CommissionService();

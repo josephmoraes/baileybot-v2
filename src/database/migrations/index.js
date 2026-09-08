@@ -427,6 +427,15 @@ const migrations = [
             CREATE INDEX IF NOT EXISTS idx_commission_inquiries_date ON commission_technician_inquiries(inquiry_date DESC,id DESC);
             CREATE INDEX IF NOT EXISTS idx_commission_inquiries_technician ON commission_technician_inquiries(technician_id);`);
         }
+    },
+    {
+        id: "018_pdf_solicitacoes_credito",
+        up() {
+            adicionarColuna("credit_requests", "pdf_data", "BLOB");
+            adicionarColuna("credit_requests", "pdf_filename", "TEXT");
+            adicionarColuna("credit_requests", "pdf_mime_type", "TEXT");
+            adicionarColuna("credit_requests", "pdf_generated_at", "DATETIME");
+        }
     }
 ];
 

@@ -162,6 +162,10 @@ CREATE TABLE IF NOT EXISTS credit_requests (
     materials TEXT,
     notes TEXT,
     status TEXT NOT NULL DEFAULT 'rascunho',
+    pdf_data BLOB,
+    pdf_filename TEXT,
+    pdf_mime_type TEXT,
+    pdf_generated_at DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (technician_id) REFERENCES technicians(id) ON DELETE RESTRICT
 );
