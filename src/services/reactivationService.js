@@ -1,10 +1,13 @@
 import db from "../database/database.js";
 import fileImportService from "./fileImportService.js";
 import { cleanCustomerName } from "../utils/customerName.js";
+import customerService, { normalizarCodigoOg1 } from "./customerService.js";
+import importHistoryService from "./importHistoryService.js";
+import { calcularScoreReativacao, resumoCliente } from "./customerAnalyticsService.js";
+import settingsService from "./settingsService.js";
 
-export const VENDEDORES_OFICIAIS = ["Alisson", "Noberto", "Aldener", "Letícia", "Clayton"];
-export const STATUS_REATIVACAO = ["Último Contato", "Entrar em contato", "Contatado", "Avulso", "Recente", "Aguardando", "Sem Contato", "Não ligar", "-"];
-const statusReativacao = () => db.prepare("SELECT name FROM customer_status_options WHERE scope='reactivation' AND active=1").all().map(item => item.name);
+export const STATUS_REATIVACAO = ["Não contatado", "Entrar em contato", "Contatado", "Aguardando retorno", "Negociação", "Reativado", "Sem interesse"];
+const statusReativacao = () => STATUS_REATIVACAO;
 
 const texto = valor => String(valor ?? "").trim();
 const chave = valor => texto(valor).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -38,7 +41,8 @@ const telefoneJid = valor => {
     if (!numero.startsWith("55")) numero = `55${numero}`;
     return /^55\d{10,11}$/.test(numero) ? `${numero}@s.whatsapp.net` : null;
 };
-const vendedorOficial = valor => VENDEDORES_OFICIAIS.find(nome => chave(nome) === chave(valor));
+const vendedoresOficiais = () => settingsService.listarVendedores().filter(nome => nome !== "Outros");
+const vendedorOficial = valor => settingsService.normalizarVendedor(valor);
 
 function tagsDoCliente(id) {
     return db.prepare(`SELECT t.id,t.name,t.color FROM reactivation_tags t
@@ -52,11 +56,21 @@ function campanhasDoCliente(id) {
 
 function clienteCompleto(id) {
     const cliente = db.prepare(`SELECT id,customer_code,company_name,name,jid,seller,last_movement_at,last_movement_value,
-        accumulated_value,reactivation_status,reactivation_notes,next_contact_at,created_at FROM users WHERE id=?`).get(id);
+        accumulated_value,reactivation_status,reactivation_notes,next_contact_at,inactivity_reason,reactivated_at,created_at FROM users WHERE id=?`).get(id);
     if (!cliente) return null;
+    const ultimaCompra = db.prepare(`SELECT movement_date,value FROM customer_movements
+        WHERE user_id=? ORDER BY movement_date DESC,id DESC LIMIT 1`).get(id);
+    if (ultimaCompra) {
+        cliente.last_movement_at = ultimaCompra.movement_date;
+        cliente.last_movement_value = ultimaCompra.value;
+        cliente.last_purchase_from_history = true;
+    }
     cliente.tags = tagsDoCliente(id);
     cliente.campaigns = campanhasDoCliente(id);
     cliente.contacts = db.prepare("SELECT * FROM reactivation_contacts WHERE user_id=? ORDER BY contacted_at DESC,id DESC").all(id);
+    const metricas = db.prepare("SELECT * FROM customer_monthly_metrics WHERE user_id=? ORDER BY period_start,id").all(id);
+    cliente.analytics = resumoCliente(cliente, metricas);
+    cliente.reactivation_score = calcularScoreReativacao(cliente, metricas, cliente.contacts);
     return cliente;
 }
 
@@ -94,18 +108,23 @@ class ReactivationService {
         });
     }
 
-    listar({ seller = "todos", status = "todos", search = "", sort = "recent", direction = "desc", tags = "", campaign = "todos" } = {}) {
+    listar({ seller = "todos", status = "todos", priority = "todos", returnFilter = "", reactivatedRecently = "", search = "", sort = "recent", direction = "desc", tags = "", campaign = "todos" } = {}) {
         const filtros = [];
         const params = [];
         if (seller && seller !== "todos") {
             if (seller === "outros") {
-                filtros.push(`COALESCE(seller,'') <> '' AND lower(seller) NOT IN (${VENDEDORES_OFICIAIS.map(() => "lower(?)").join(",")})`);
-                params.push(...VENDEDORES_OFICIAIS);
+                const oficiais = vendedoresOficiais();
+                filtros.push(`COALESCE(seller,'') <> '' AND lower(seller) NOT IN (${oficiais.map(() => "lower(?)").join(",")})`);
+                params.push(...oficiais);
             } else if (seller === "sem-vendedor") {
                 filtros.push("COALESCE(TRIM(seller),'') = ''");
             } else { filtros.push("lower(seller)=lower(?)"); params.push(seller); }
         }
         if (status && status !== "todos") { filtros.push("reactivation_status=?"); params.push(status); }
+        if (returnFilter === "today") filtros.push("date(next_contact_at)=date('now','localtime')");
+        if (returnFilter === "overdue") filtros.push("date(next_contact_at)<date('now','localtime')");
+        if (returnFilter === "pending") filtros.push("date(next_contact_at)<=date('now','localtime')");
+        if (reactivatedRecently === "true") filtros.push("date(reactivated_at)>=date('now','localtime','-30 days')");
         if (search) { filtros.push("(customer_code LIKE ? OR company_name LIKE ? OR name LIKE ? OR jid LIKE ?)"); params.push(...Array(4).fill(`%${search}%`)); }
         if (tags === "none") filtros.push("NOT EXISTS (SELECT 1 FROM reactivation_user_tags filter_tags WHERE filter_tags.user_id=users.id)");
         else if (tags) {
@@ -127,16 +146,24 @@ class ReactivationService {
         };
         const coluna = ordenacoes[sort] || ordenacoes.recent;
         const sentido = String(direction).toLowerCase() === "asc" ? "ASC" : "DESC";
-        return db.prepare(`SELECT id,customer_code,company_name,name,jid,seller,last_movement_at,last_movement_value,
-            accumulated_value,reactivation_status,reactivation_notes,next_contact_at,created_at FROM users ${where}
+        return db.prepare(`SELECT id,customer_code,company_name,name,jid,seller,
+            COALESCE((SELECT movement_date FROM customer_movements WHERE user_id=users.id ORDER BY movement_date DESC,id DESC LIMIT 1),last_movement_at) last_movement_at,
+            COALESCE((SELECT value FROM customer_movements WHERE user_id=users.id ORDER BY movement_date DESC,id DESC LIMIT 1),last_movement_value) last_movement_value,
+            priority_override,priority_notes,
+            accumulated_value,reactivation_status,reactivation_notes,next_contact_at,inactivity_reason,reactivated_at,created_at FROM users ${where}
             ORDER BY ${coluna} ${sentido},created_at DESC,id DESC`).all(...params)
-            .map(cliente => ({ ...cliente, tags: tagsDoCliente(cliente.id), campaigns: campanhasDoCliente(cliente.id) }));
+            .map(cliente => {
+                const metrics = db.prepare("SELECT * FROM customer_monthly_metrics WHERE user_id=? ORDER BY period_start,id").all(cliente.id);
+                const contacts = db.prepare("SELECT * FROM reactivation_contacts WHERE user_id=? ORDER BY contacted_at DESC,id DESC").all(cliente.id);
+                const analytics = resumoCliente(cliente, metrics);
+                return { ...cliente, priority: analytics.prioridade, reactivation_score: calcularScoreReativacao(cliente, metrics, contacts), tags: tagsDoCliente(cliente.id), campaigns: campanhasDoCliente(cliente.id) };
+            }).filter(cliente => priority === "todos" || cliente.priority.level === priority);
     }
 
     obter(id) { return clienteCompleto(id); }
 
     salvar(id, dados) {
-        const codigo = texto(dados.customer_code);
+        const codigo = normalizarCodigoOg1(dados.customer_code);
         const nome = texto(dados.name);
         const empresa = texto(dados.company_name);
         if (!codigo) throw new Error("Código do cliente é obrigatório.");
@@ -144,7 +171,7 @@ class ReactivationService {
         if (dados.reactivation_status && !statusReativacao().includes(dados.reactivation_status)) throw new Error("Status inválido.");
         const jid = telefoneJid(dados.telefone || dados.jid);
         const executar = db.transaction(() => {
-            let clienteId = Number(id) || null;
+            let clienteId = Number(id) || customerService.buscarPorCodigo(codigo)?.id || null;
             if (clienteId) {
                 const existe = db.prepare("SELECT id FROM users WHERE id=?").get(clienteId);
                 if (!existe) throw new Error("Cliente não encontrado.");
@@ -152,14 +179,14 @@ class ReactivationService {
                     accumulated_value=?,reactivation_status=?,reactivation_notes=?,next_contact_at=?,reactivation_updated_at=CURRENT_TIMESTAMP,
                     reactivation_sequence=COALESCE((SELECT MAX(reactivation_sequence)+1 FROM users),1) WHERE id=?`).run(
                     codigo, empresa || null, nome || null, jid, texto(dados.seller) || null, dataIso(dados.last_movement_at),
-                    dinheiro(dados.last_movement_value), dinheiro(dados.accumulated_value), dados.reactivation_status || "Sem Contato",
+                    dinheiro(dados.last_movement_value), dinheiro(dados.accumulated_value), dados.reactivation_status || "Não contatado",
                     texto(dados.reactivation_notes) || null, dataIso(dados.next_contact_at), clienteId);
             } else {
                 const resultado = db.prepare(`INSERT INTO users(customer_code,company_name,name,jid,seller,last_movement_at,last_movement_value,
                     accumulated_value,reactivation_status,reactivation_notes,next_contact_at,reactivation_updated_at,reactivation_sequence)
                     VALUES(?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,COALESCE((SELECT MAX(reactivation_sequence)+1 FROM users),1))`).run(
                     codigo, empresa || null, nome || null, jid, texto(dados.seller) || null, dataIso(dados.last_movement_at),
-                    dinheiro(dados.last_movement_value), dinheiro(dados.accumulated_value), dados.reactivation_status || "Sem Contato",
+                    dinheiro(dados.last_movement_value), dinheiro(dados.accumulated_value), dados.reactivation_status || "Não contatado",
                     texto(dados.reactivation_notes) || null, dataIso(dados.next_contact_at));
                 clienteId = Number(resultado.lastInsertRowid);
             }
@@ -177,17 +204,110 @@ class ReactivationService {
 
     atualizarStatus(id, status) {
         if (!statusReativacao().includes(status)) throw new Error("Status inválido.");
-        if (!db.prepare("UPDATE users SET reactivation_status=?,reactivation_updated_at=CURRENT_TIMESTAMP,reactivation_sequence=COALESCE((SELECT MAX(reactivation_sequence)+1 FROM users),1) WHERE id=?").run(status, id).changes) throw new Error("Cliente não encontrado.");
+        const atual = db.prepare("SELECT reactivation_status,seller FROM users WHERE id=?").get(id);
+        if (!atual) throw new Error("Cliente não encontrado.");
+        if (!db.prepare(`UPDATE users SET reactivation_status=?,
+            reactivated_at=CASE WHEN ?='Reativado' THEN COALESCE(reactivated_at,date('now','localtime')) ELSE reactivated_at END,
+            reactivation_updated_at=CURRENT_TIMESTAMP,reactivation_sequence=COALESCE((SELECT MAX(reactivation_sequence)+1 FROM users),1)
+            WHERE id=?`).run(status, status, id).changes) throw new Error("Cliente não encontrado.");
+        if (atual.reactivation_status !== status) db.prepare(`INSERT INTO customer_activity_logs
+            (user_id,activity_type,field_name,previous_value,current_value,seller) VALUES(?,?,?,?,?,?)`)
+            .run(id, "alteracao", "status de reativação", atual.reactivation_status || null, status, atual.seller || null);
+        return clienteCompleto(id);
+    }
+
+    atualizarOperacao(id, dados = {}) {
+        const atual = clienteCompleto(id);
+        if (!atual) throw new Error("Cliente não encontrado.");
+        const status = texto(dados.reactivation_status) || atual.reactivation_status;
+        if (!statusReativacao().includes(status)) throw new Error("Status inválido.");
+        const proximo = dados.next_contact_at === undefined ? atual.next_contact_at : dataIso(dados.next_contact_at);
+        const motivo = dados.inactivity_reason === undefined ? atual.inactivity_reason : texto(dados.inactivity_reason) || null;
+        const notas = dados.reactivation_notes === undefined ? atual.reactivation_notes : texto(dados.reactivation_notes) || null;
+        db.prepare(`UPDATE users SET reactivation_status=?,next_contact_at=?,inactivity_reason=?,reactivation_notes=?,
+            reactivated_at=CASE WHEN ?='Reativado' THEN COALESCE(reactivated_at,date('now','localtime')) ELSE reactivated_at END,
+            reactivation_updated_at=CURRENT_TIMESTAMP,reactivation_sequence=COALESCE((SELECT MAX(reactivation_sequence)+1 FROM users),1)
+            WHERE id=?`).run(status, proximo, motivo, notas, status, id);
+        if (atual.reactivation_status !== status) db.prepare(`INSERT INTO customer_activity_logs
+            (user_id,activity_type,field_name,previous_value,current_value,seller) VALUES(?,?,?,?,?,?)`)
+            .run(id, "alteracao", "status de reativação", atual.reactivation_status || null, status, atual.seller || null);
         return clienteCompleto(id);
     }
 
     registrarContato(id, dados) {
         if (!db.prepare("SELECT id FROM users WHERE id=?").get(id)) throw new Error("Cliente não encontrado.");
-        const proximo = dataIso(dados.next_contact_at);
-        const resultado = db.prepare(`INSERT INTO reactivation_contacts(user_id,kind,notes,contacted_at,next_contact_at)
-            VALUES(?,?,?,?,?)`).run(id, texto(dados.kind) || "ligacao", texto(dados.notes) || null, dados.contacted_at || new Date().toISOString(), proximo);
-        db.prepare("UPDATE users SET next_contact_at=COALESCE(?,next_contact_at),reactivation_updated_at=CURRENT_TIMESTAMP,reactivation_sequence=COALESCE((SELECT MAX(reactivation_sequence)+1 FROM users),1) WHERE id=?").run(proximo, id);
-        return db.prepare("SELECT * FROM reactivation_contacts WHERE id=?").get(resultado.lastInsertRowid);
+        const responsible = texto(dados.responsible);
+        const kind = texto(dados.kind);
+        const notes = texto(dados.notes);
+        const resultingStatus = texto(dados.resulting_status);
+        const agendarRetorno = dados.schedule_return === undefined
+            ? true
+            : dados.schedule_return === true || dados.schedule_return === 1 || dados.schedule_return === "true";
+        const nextAction = texto(dados.next_action);
+        const proximo = agendarRetorno ? dataIso(dados.next_contact_at) : null;
+        if (!responsible || !kind || !notes || !resultingStatus || (agendarRetorno && (!nextAction || !proximo))) {
+            throw new Error(agendarRetorno
+                ? "Preencha responsável, canal, observação, status resultante, próxima ação e data prevista de retorno."
+                : "Preencha responsável, canal, observação e status resultante.");
+        }
+        if (!statusReativacao().includes(resultingStatus)) throw new Error("Status resultante inválido.");
+        const contactedAt = dados.contacted_at ? new Date(dados.contacted_at) : new Date();
+        if (Number.isNaN(contactedAt.getTime())) throw new Error("Data do contato inválida.");
+        const executar = db.transaction(() => {
+            const resultado = db.prepare(`INSERT INTO reactivation_contacts(user_id,kind,notes,contacted_at,next_contact_at,result,responsible,resulting_status,next_action)
+                VALUES(?,?,?,?,?,?,?,?,?)`).run(id, kind, notes, contactedAt.toISOString(), proximo, texto(dados.result) || resultingStatus, responsible, resultingStatus, nextAction);
+            db.prepare(`UPDATE users SET reactivation_status=?,next_contact_at=?,reactivated_at=CASE WHEN ?='Reativado' THEN COALESCE(reactivated_at,date('now','localtime')) ELSE reactivated_at END,
+                reactivation_updated_at=CURRENT_TIMESTAMP,reactivation_sequence=COALESCE((SELECT MAX(reactivation_sequence)+1 FROM users),1) WHERE id=?`).run(resultingStatus, proximo, resultingStatus, id);
+            return db.prepare("SELECT * FROM reactivation_contacts WHERE id=?").get(resultado.lastInsertRowid);
+        });
+        return executar();
+    }
+
+    clientesParaDistribuir(search = "", seller = "todos") {
+        const termo = `%${texto(search)}%`;
+        const params = [termo, termo]; const filtroVendedor = seller && seller !== "todos" ? " AND COALESCE(u.seller,'Outros')=?" : "";
+        if (filtroVendedor) params.push(seller);
+        const clientes = db.prepare(`SELECT u.id,u.customer_code,COALESCE(NULLIF(u.company_name,''),u.name) customer,u.seller,u.reactivation_status,u.next_contact_at,u.priority_override,u.priority_notes,u.last_movement_at
+            FROM users u WHERE u.customer_code IS NOT NULL AND TRIM(u.customer_code)<>''
+            AND NOT EXISTS(SELECT 1 FROM reactivation_assignments a WHERE a.user_id=u.id AND a.status='pendente' AND a.removed_at IS NULL)
+            AND (u.customer_code LIKE ? OR COALESCE(u.company_name,u.name,'') LIKE ?)${filtroVendedor}`).all(...params);
+        const metricas = db.prepare("SELECT * FROM customer_monthly_metrics ORDER BY user_id,period_start,id").all();
+        return clientes.map(cliente => ({ ...cliente, priority: resumoCliente(cliente, metricas.filter(item => item.user_id === cliente.id)).prioridade }))
+            .sort((a, b) => b.priority.score - a.priority.score || String(a.customer || a.customer_code).localeCompare(String(b.customer || b.customer_code))).slice(0, texto(search) ? 100 : 10);
+    }
+
+    distribuicoes({ seller = "todos", status = "pendente" } = {}) {
+        const filtros = []; const params = [];
+        if (seller !== "todos") { filtros.push("a.seller=?"); params.push(seller); }
+        filtros.push("a.removed_at IS NULL");
+        if (status !== "todos") { filtros.push("a.status=?"); params.push(status); }
+        const where = filtros.length ? `WHERE ${filtros.join(" AND ")}` : "";
+        return db.prepare(`SELECT a.*,u.customer_code,COALESCE(NULLIF(u.company_name,''),u.name) customer,u.reactivation_status,u.last_movement_at
+            FROM reactivation_assignments a JOIN users u ON u.id=a.user_id ${where} ORDER BY a.status,a.assigned_at DESC`).all(...params);
+    }
+
+    distribuirClientes(dados = {}) {
+        const seller = settingsService.normalizarVendedor(dados.seller);
+        const ids = [...new Set((dados.client_ids || []).map(Number).filter(Number.isInteger))];
+        if (seller === "Outros") throw new Error("Escolha um vendedor cadastrado para a distribuição.");
+        if (!ids.length) throw new Error("Selecione pelo menos um cliente.");
+        return db.transaction(() => {
+            const existe = db.prepare("SELECT id FROM users WHERE id=? AND customer_code IS NOT NULL");
+            const pendente = db.prepare("SELECT id FROM reactivation_assignments WHERE user_id=? AND status='pendente' AND removed_at IS NULL");
+            const inserir = db.prepare("INSERT INTO reactivation_assignments(user_id,seller) VALUES(?,?)");
+            let added = 0; ids.forEach(id => { if (existe.get(id) && !pendente.get(id)) { inserir.run(id, seller); added += 1; } });
+            return { added, seller };
+        })();
+    }
+
+    concluirDistribuicao(id) {
+        if (!db.prepare("UPDATE reactivation_assignments SET status='contatado',completed_at=CURRENT_TIMESTAMP WHERE id=? AND status='pendente' AND removed_at IS NULL").run(id).changes) throw new Error("Distribuição pendente não encontrada.");
+        return { success: true };
+    }
+
+    removerDistribuicao(id) {
+        if (!db.prepare("UPDATE reactivation_assignments SET removed_at=CURRENT_TIMESTAMP WHERE id=? AND status='pendente' AND removed_at IS NULL").run(id).changes) throw new Error("Distribuição pendente não encontrada.");
+        return { success: true };
     }
 
     listarTags() { return db.prepare("SELECT id,name,color FROM reactivation_tags ORDER BY name").all(); }
@@ -327,11 +447,11 @@ class ReactivationService {
             company_name: texto(cabecalho(linha, ["Cliente", "Empresa", "Razão Social", "Razao Social", "Nome Fantasia"])),
             name: cleanCustomerName(cabecalho(linha, ["Nome", "Contato"])),
             telefone: texto(cabecalho(linha, ["Telefone", "WhatsApp", "Celular", "Fone"])),
-            seller: vendedorOficial(seller) || seller,
+            seller: vendedorOficial(seller),
             last_movement_at: dataIso(cabecalho(linha, ["Última Movimentação", "Ultima Movimentacao", "Última Compra", "Data Última Compra", "Data Ultima Compra"])),
             last_movement_value: dinheiro(cabecalho(linha, ["Valor Última Movimentação", "Valor Ultima Movimentacao", "Valor Última Compra", "Valor Ultima Compra"])),
             accumulated_value: dinheiro(cabecalho(linha, ["Valor Acumulado", "Total Comprado", "Valor Total", "Acumulado", "Valor"]))
-            ,reactivation_status: STATUS_REATIVACAO.find(status => chave(status) === chave(cabecalho(linha, ["Status"]))) || "Sem Contato"
+            ,reactivation_status: STATUS_REATIVACAO.find(status => chave(status) === chave(cabecalho(linha, ["Status"]))) || "Não contatado"
         };
     }
 
@@ -339,13 +459,20 @@ class ReactivationService {
         const linhas = await this.extrairLinhasImportacao(arquivo);
         const vistos = new Set();
         let novos = 0, atualizados = 0, invalidos = 0, duplicadosArquivo = 0;
+        const historyId = importHistoryService.iniciar({ module: "reativacao", filename: arquivo.filename,
+            importedBy: arquivo.importedBy || arquivo.user, totalRows: linhas.length });
         const executar = db.transaction(registros => {
-            for (const linha of registros) {
+            for (const [indice, linha] of registros.entries()) {
                 const item = this.mapearLinha(linha);
-                if (!item.customer_code) { invalidos += 1; continue; }
+                if (!item.customer_code || (!item.company_name && !item.name) || !item.seller || !item.last_movement_at || item.accumulated_value < 0) {
+                    invalidos += 1;
+                    importHistoryService.erro(historyId, { rowNumber: indice + 2, customerCode: item.customer_code,
+                        error: "Preencha código OG1, cliente, vendedor, data e valor válidos.", rawData: linha });
+                    continue;
+                }
                 if (vistos.has(item.customer_code)) { duplicadosArquivo += 1; continue; }
                 vistos.add(item.customer_code);
-                const existente = db.prepare("SELECT id,jid FROM users WHERE customer_code=?").get(item.customer_code);
+                const existente = customerService.buscarPorCodigo(item.customer_code);
                 const jid = telefoneJid(item.telefone);
                 if (existente) {
                     db.prepare(`UPDATE users SET company_name=COALESCE(NULLIF(?,''),company_name),name=COALESCE(NULLIF(?,''),name),jid=COALESCE(?,jid),seller=?,last_movement_at=?,
@@ -353,15 +480,18 @@ class ReactivationService {
                         item.last_movement_at, item.last_movement_value, item.accumulated_value, existente.id);
                     atualizados += 1;
                 } else {
-                    db.prepare(`INSERT INTO users(customer_code,company_name,name,jid,seller,last_movement_at,last_movement_value,accumulated_value,reactivation_status)
-                        VALUES(?,?,?,?,?,?,?,?,?)`).run(item.customer_code, item.company_name || null, item.name || null, jid, item.seller || null,
-                        item.last_movement_at, item.last_movement_value, item.accumulated_value, item.reactivation_status);
+                    const criado = customerService.upsertPorCodigo({ ...item, jid }).customer;
+                    db.prepare(`UPDATE users SET last_movement_at=?,last_movement_value=?,accumulated_value=?,reactivation_status=? WHERE id=?`)
+                        .run(item.last_movement_at, item.last_movement_value, item.accumulated_value, item.reactivation_status, criado.id);
                     novos += 1;
                 }
             }
         });
         executar(linhas);
-        return { total: linhas.length, novos, atualizados, invalidos, duplicadosArquivo };
+        const history = importHistoryService.concluir(historyId, { totalRows: linhas.length,
+            importedRows: novos + atualizados, ignoredRows: invalidos + duplicadosArquivo,
+            duplicateRows: duplicadosArquivo, createdCustomers: novos, updatedCustomers: atualizados, errorRows: invalidos });
+        return { total: linhas.length, novos, atualizados, invalidos, duplicadosArquivo, historyId, history };
     }
 }
 

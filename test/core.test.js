@@ -27,6 +27,7 @@ const { default: dashboardRepository } = await import("../src/repositories/dashb
 const { tabelaParaObjetos, relatorioComissionadosParaObjetos, relatorioClientesParaObjetos } = await import("../src/services/fileImportService.js");
 const { default: reactivationService } = await import("../src/services/reactivationService.js");
 const { default: customerMetricsService } = await import("../src/services/customerMetricsService.js");
+const { default: reportsService } = await import("../src/services/reportsService.js");
 
 initDatabase();
 
@@ -41,6 +42,16 @@ test("valida telefone e impede duplicidade", () => {
         () => userService.criar({ name: "Outra", telefone: "11987654321" }),
         /já está cadastrado/
     );
+});
+
+test("pesquisa cliente por telefone com ou sem máscara", () => {
+    const comMascara = userService.listarPaginado({ search: "(11) 98765-4321" });
+    const comPais = userService.listarPaginado({ search: "+55 11 98765-4321" });
+    const semMascara = userService.listarPaginado({ search: "11987654321" });
+
+    assert.equal(comMascara.items.some(cliente => cliente.name === "Maria"), true);
+    assert.equal(comPais.items.some(cliente => cliente.name === "Maria"), true);
+    assert.equal(semMascara.items.some(cliente => cliente.name === "Maria"), true);
 });
 
 test("envia campanha, atualiza destinatário e grava histórico", async () => {
@@ -133,6 +144,10 @@ test("salva configurações do bot e substitui o vendedor", () => {
     assert.equal(settingsService.estaBloqueado("5511911112222@s.whatsapp.net"), true);
     settingsService.desbloquear(bloqueados[0].id);
     assert.equal(settingsService.listarBloqueados().length, 0);
+    assert.equal(settingsService.listarVendedores().includes("Joseph"), true);
+    settingsService.adicionarVendedor("Vendedora nova");
+    assert.equal(settingsService.normalizarVendedor("vendedora NOVA"), "Vendedora nova");
+    assert.equal(settingsService.normalizarVendedor("Nome fora da lista"), "Outros");
 });
 
 test("mantém um perfil Testes isolado com crédito e percentual editáveis", () => {
@@ -182,7 +197,11 @@ test("importa e exporta clientes em Excel", async () => {
     assert.equal(resultado.importados, 2);
     assert.ok(userService.buscarPorCodigo("CLI-001"));
     const repetido = await excelService.importar(base64, "clientes.xlsx");
-    assert.equal(repetido.duplicados, 2);
+    assert.equal(repetido.atualizados, 2);
+    assert.equal(db.prepare("SELECT COUNT(*) total FROM users WHERE UPPER(TRIM(customer_code))='CLI-001'").get().total, 1);
+    const historico = db.prepare("SELECT * FROM import_history WHERE module='clientes' ORDER BY id DESC LIMIT 1").get();
+    assert.equal(historico.updated_customers, 2);
+    assert.equal(historico.imported_rows, 2);
     const exportado = excelService.exportar();
     assert.ok(Buffer.isBuffer(exportado));
     assert.ok(exportado.length > 100);
@@ -254,13 +273,30 @@ test("configura o período de fechamento e recalcula apenas comissões não resg
 
 test("registra migrations e consolida indicadores do dashboard", () => {
     const migrations = db.prepare("SELECT id FROM schema_migrations ORDER BY id").all();
-    assert.deepEqual(migrations.map(item => item.id), ["001_compatibilidade_v2", "002_vendas_comissionadas_por_documento", "003_notificacoes_creditos_manuais", "004_modulo_reativacao", "005_clientes_sem_whatsapp", "006_ordenacao_clientes_recentes", "007_campanha_fixa_clientes_aguardando", "008_caixa_entrada_relatorios_reativacao", "009_filtro_data_cadastro_campanha_reativacao", "010_campanhas_e_ajustes_comissao", "011_acompanhamento_individual_campanhas", "012_data_inclusao_participante_campanha", "013_participante_campanha_sem_whatsapp", "014_perfil_tecnico_testes", "015_metricas_clientes_og1", "016_metricas_periodos_status_notas", "017_consultas_comissao_tecnicos", "018_pdf_solicitacoes_credito"]);
+    assert.deepEqual(migrations.map(item => item.id), ["001_compatibilidade_v2", "002_vendas_comissionadas_por_documento", "003_notificacoes_creditos_manuais", "004_modulo_reativacao", "005_clientes_sem_whatsapp", "006_ordenacao_clientes_recentes", "007_campanha_fixa_clientes_aguardando", "008_caixa_entrada_relatorios_reativacao", "009_filtro_data_cadastro_campanha_reativacao", "010_campanhas_e_ajustes_comissao", "011_acompanhamento_individual_campanhas", "012_data_inclusao_participante_campanha", "013_participante_campanha_sem_whatsapp", "014_perfil_tecnico_testes", "015_metricas_clientes_og1", "016_metricas_periodos_status_notas", "017_consultas_comissao_tecnicos", "018_pdf_solicitacoes_credito", "019_clientes_unificados_reativacao", "020_metricas_periodos_sobrepostos", "021_clientes_campos_editaveis", "022_base_unica_historico_importacoes", "023_cliente_360_ativo", "024_fluxo_comercial_reativacao", "025_compras_manuais_clientes", "026_logs_operacao", "027_historico_relatorios_clientes", "028_distribuicao_reativacao", "029_remocao_distribuicao_reativacao"]);
     const indicadores = dashboardRepository.obterIndicadores();
     assert.ok(indicadores.totalClientes >= 3);
     assert.ok(indicadores.totalMensagens >= 1);
     assert.ok(indicadores.totalCampanhas >= 1);
     assert.ok(indicadores.totalTecnicos >= 1);
     assert.equal(typeof indicadores.comissaoLiberada, "number");
+});
+
+test("unifica técnicos no cadastro central e mantém a etiqueta editável", () => {
+    commissionService.salvarTecnico({ name: "Técnico Central", og1Code: "TEC-CENTRAL", phone: "82999990000" });
+    const tecnico = db.prepare("SELECT * FROM technicians WHERE og1_code='TEC-CENTRAL'").get();
+    const cliente = userService.buscarPorId(tecnico.user_id);
+    assert.equal(cliente.customer_code, "TEC-CENTRAL");
+    assert.equal(cliente.tags.some(tag => tag.name === "Técnico"), true);
+    userService.atualizar(cliente.id, {
+        customer_code: cliente.customer_code,
+        company_name: "Oficina Central",
+        name: cliente.name,
+        telefone: "82999990000",
+        tag_ids: []
+    });
+    assert.equal(userService.buscarPorId(cliente.id).tags.length, 0);
+    assert.equal(db.prepare("SELECT COUNT(*) total FROM technicians WHERE id=?").get(tecnico.id).total, 1);
 });
 
 test("registra técnico que perguntou sobre comissão sem alterar créditos", () => {
@@ -300,14 +336,25 @@ test("importa reativação por código e preserva dados manuais ao atualizar", a
     assert.equal((await reactivationService.importar({ base64, filename: "reativacao.xlsx" })).novos, 1);
     const cliente = reactivationService.listar({ seller: "Letícia" }).find(item => item.customer_code === "REAT-001");
     const vip = reactivationService.listarTags().find(tag => tag.name === "VIP");
-    reactivationService.salvar(cliente.id, { ...cliente, telefone: "21988887777", reactivation_status: "Aguardando", reactivation_notes: "Preservar", tag_ids: [vip.id] });
-    reactivationService.registrarContato(cliente.id, { kind: "ligacao", notes: "Contato manual", next_contact_at: "2026-09-01" });
+    reactivationService.salvar(cliente.id, { ...cliente, telefone: "21988887777", reactivation_status: "Aguardando retorno", reactivation_notes: "Preservar", tag_ids: [vip.id] });
+    reactivationService.registrarContato(cliente.id, { kind: "ligacao", responsible: "Alisson", notes: "Contato manual", resulting_status: "Aguardando retorno", next_action: "Ligar novamente", next_contact_at: "2026-09-01" });
     assert.equal((await reactivationService.importar({ base64, filename: "reativacao.xlsx" })).atualizados, 1);
     const atualizado = reactivationService.obter(cliente.id);
-    assert.equal(atualizado.reactivation_status, "Aguardando");
+    assert.equal(atualizado.reactivation_status, "Aguardando retorno");
     assert.equal(atualizado.reactivation_notes, "Preservar");
     assert.equal(atualizado.tags[0].name, "VIP");
     assert.equal(atualizado.contacts[0].notes, "Contato manual");
+    assert.equal(atualizado.contacts[0].responsible, "Alisson");
+    assert.equal(atualizado.contacts[0].resulting_status, "Aguardando retorno");
+    assert.equal(atualizado.contacts[0].next_action, "Ligar novamente");
+    assert.ok(atualizado.reactivation_score.score >= 0 && atualizado.reactivation_score.score <= 100);
+    assert.ok(Array.isArray(atualizado.reactivation_score.factors));
+    assert.throws(() => reactivationService.registrarContato(cliente.id, { kind: "ligacao" }), /Preencha responsável/);
+    const semRetorno = reactivationService.registrarContato(cliente.id, {
+        kind: "whatsapp", responsible: "Alisson", notes: "Cliente orientado", resulting_status: "Contatado", schedule_return: false
+    });
+    assert.equal(semRetorno.next_contact_at, null);
+    assert.equal(reactivationService.obter(cliente.id).next_contact_at, null);
     assert.equal(atualizado.accumulated_value, 12500);
     db.prepare("UPDATE users SET created_at='2020-01-01 00:00:00',reactivation_updated_at=NULL,reactivation_sequence=NULL WHERE id=?").run(cliente.id);
     const outro = reactivationService.salvar(null, { customer_code: "REAT-002", company_name: "Cliente mais novo", seller: "Letícia" });
@@ -316,7 +363,7 @@ test("importa reativação por código e preserva dados manuais ao atualizar", a
     assert.equal(reactivationService.listar({ seller: "Letícia" })[0].id, cliente.id);
     assert.equal(reactivationService.listar({ seller: "Letícia", sort: "accumulated", direction: "desc" })[0].accumulated_value, 12500);
     assert.equal(reactivationService.listar({ seller: "todos" }).some(item => item.id === cliente.id), true);
-    assert.equal(reactivationService.listar({ seller: "todos", status: "Aguardando" }).some(item => item.id === cliente.id), true);
+    assert.equal(reactivationService.listar({ seller: "todos", status: "Aguardando retorno" }).some(item => item.id === cliente.id), true);
     assert.equal(reactivationService.listar({ seller: "todos", status: "Contatado" }).some(item => item.id === cliente.id), false);
     reactivationService.atualizarStatus(cliente.id, "Entrar em contato");
     assert.equal(reactivationService.listar({ seller: "todos", status: "Entrar em contato" }).some(item => item.id === cliente.id), true);
@@ -325,13 +372,13 @@ test("importa reativação por código e preserva dados manuais ao atualizar", a
 });
 
 test("campanha fixa inclui Aguardando e não repete código já contatado", async () => {
-    db.prepare("UPDATE users SET reactivation_status='Sem Contato' WHERE customer_code IS NOT NULL").run();
+    db.prepare("UPDATE users SET reactivation_status='Não contatado' WHERE customer_code IS NOT NULL").run();
     const client = reactivationService.salvar(null, {
         customer_code: "WAIT-001",
         company_name: "Cliente aguardando",
         name: "Ana",
         telefone: "21977776666",
-        reactivation_status: "Aguardando"
+        reactivation_status: "Aguardando retorno"
     });
     const campaign = campaignService.ensureWaitingCampaign();
     assert.equal(campaign.fixed_key, "reactivation_waiting");
@@ -346,7 +393,7 @@ test("campanha fixa inclui Aguardando e não repete código já contatado", asyn
     whatsappService.enviarMensagem = async () => ({ messageId: "waiting-campaign" });
     await campaignService.validarDestinatarios(campaign.id);
     assert.equal((await campaignService.enviar(campaign.id)).enviados, 1);
-    assert.equal(reactivationService.obter(client.id).reactivation_status, "Último Contato");
+    assert.equal(reactivationService.obter(client.id).reactivation_status, "Contatado");
     campaignService.syncWaitingRecipients(campaign.id);
     recipients = campaignService.listarDestinatarios(campaign.id);
     assert.equal(recipients.length, 0);
@@ -355,13 +402,13 @@ test("campanha fixa inclui Aguardando e não repete código já contatado", asyn
 });
 
 test("campanha de reativação combina status com Data de cadastro local", () => {
-    db.prepare("UPDATE users SET reactivation_status='Sem Contato' WHERE customer_code IS NOT NULL").run();
+    db.prepare("UPDATE users SET reactivation_status='Não contatado' WHERE customer_code IS NOT NULL").run();
     const ontem = new Date();
     ontem.setDate(ontem.getDate() - 1);
     const hoje = new Date();
     const dataLocal = data => `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
-    const clienteOntem = reactivationService.salvar(null, { customer_code: "DATE-OLD", company_name: "Empresa Ontem", name: "Contato Ontem", telefone: "21970000001", reactivation_status: "Aguardando" });
-    const clienteHoje = reactivationService.salvar(null, { customer_code: "DATE-TODAY", company_name: "Empresa Hoje", name: "Contato Hoje", telefone: "21970000002", reactivation_status: "Aguardando" });
+    const clienteOntem = reactivationService.salvar(null, { customer_code: "DATE-OLD", company_name: "Empresa Ontem", name: "Contato Ontem", telefone: "21970000001", reactivation_status: "Aguardando retorno" });
+    const clienteHoje = reactivationService.salvar(null, { customer_code: "DATE-TODAY", company_name: "Empresa Hoje", name: "Contato Hoje", telefone: "21970000002", reactivation_status: "Aguardando retorno" });
     db.prepare("UPDATE users SET created_at=? WHERE id=?").run(`${dataLocal(ontem)} 12:00:00`, clienteOntem.id);
     db.prepare("UPDATE users SET created_at=? WHERE id=?").run(`${dataLocal(hoje)} 12:00:00`, clienteHoje.id);
     const campaign = campaignService.ensureWaitingCampaign();
@@ -385,6 +432,8 @@ test("formulário de solicitação de crédito associa rótulos a todos os campo
 test("gera e persiste PDF válido com os dados da solicitação de crédito", async () => {
     const solicitacao = commissionService.listarSolicitacoes()[0];
     const completa = commissionService.obterSolicitacao(solicitacao.id);
+    assert.ok(completa.customer_id);
+    assert.equal(completa.customer_code, completa.og1_code);
     const pdf = await commissionPdfService.gerar(completa);
     assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
     assert.equal(pdf.length > 1000, true);
@@ -394,7 +443,11 @@ test("gera e persiste PDF válido com os dados da solicitação de crédito", as
     const persistido = commissionService.obterPdfSolicitacao(solicitacao.id);
     assert.equal(persistido.data.subarray(0, 5).toString(), "%PDF-");
     assert.deepEqual(persistido.data, pdf);
-    assert.equal(commissionService.listarSolicitacoes()[0].pdf_available, 1);
+    const listada = commissionService.listarSolicitacoes()[0];
+    assert.equal(listada.pdf_available, 1);
+    assert.equal(listada.document_url, `/api/commissions/requests/${solicitacao.id}/pdf`);
+    const cliente360 = customerMetricsService.customer(completa.customer_id);
+    assert.equal(cliente360.requests.some(item => item.id === solicitacao.id && item.document_url === listada.document_url), true);
 });
 
 test("importa relatório para conferência e só aprova com Código OG1", async () => {
@@ -416,7 +469,7 @@ test("importa relatório para conferência e só aprova com Código OG1", async 
         customer_code: "OG1-REPORT-001",
         company_name: row.company_name,
         seller: "Clayton",
-        reactivation_status: "Sem Contato",
+        reactivation_status: "Não contatado",
         accumulated_value: row.purchased_value,
         tag_ids: [tag.id]
     });
@@ -557,10 +610,37 @@ test("importa métricas mensais pelo código OG1 e aceita cliente sem nome", asy
     assert.equal(metric.seller, "Outros");
     assert.equal(metric.report_seller, "Vendedor Externo");
     assert.equal(metric.average_order_value, 100);
-    await assert.rejects(customerMetricsService.import(arquivo), /sobrepõe/);
+    const repetido = await customerMetricsService.import(arquivo);
+    assert.equal(repetido.importedMetrics, 0);
+    assert.equal(repetido.ignoredDuplicates, 2);
+    assert.equal(db.prepare("SELECT COUNT(*) total FROM customer_monthly_metrics WHERE period_start='2025-01-01' AND period_end='2025-01-31'").get().total, 2);
     const updated = customerMetricsService.updateProducts(noName.id, { main_products: "Capacitor", latest_products: "Filtro secador" });
     assert.equal(updated.main_products, "Capacitor");
     assert.equal(updated.latest_products, "Filtro secador");
+});
+
+test("registra compra manual no histórico e soma às métricas do cliente", async () => {
+    const customerId = Number(db.prepare(`INSERT INTO users(customer_code,company_name,seller,reactivation_status)
+        VALUES('MANUAL-TEST-001','Cliente de compra manual','Alisson','Não contatado')`).run().lastInsertRowid);
+    const customer = customerMetricsService.customer(customerId);
+    const updated = customerMetricsService.addManualPurchase(customer.id, {
+        date: "2025-01-20", value: "250,50", items: "Filtro secador", notes: "Compra registrada pela equipe"
+    });
+    const metric = updated.metrics.find(item => item.period_start === "2025-01-01");
+    assert.equal(metric.purchased_value, 250.5);
+    assert.equal(metric.order_count, 1);
+    assert.equal(updated.purchases[0].items, "Filtro secador");
+    assert.equal(updated.purchases[0].notes, "Compra registrada pela equipe");
+    assert.equal(updated.last_movement_at, "2025-01-20");
+    assert.equal(reactivationService.obter(customer.id).last_movement_at, "2025-01-20");
+    const workbook = XLSX.utils.book_new();
+    const sheet = XLSX.utils.json_to_sheet([{ Código: "MANUAL-TEST-001", Nome: "Cliente de compra manual", Valor: "1.000,00", Quantidade: 2, Vendedor: "Alisson" }]);
+    XLSX.utils.sheet_add_aoa(sheet, [["PERÍODO: 01/01/2025 A 31/01/2025"]], { origin: "H1" });
+    XLSX.utils.book_append_sheet(workbook, sheet, "Janeiro");
+    await customerMetricsService.import({ filename: "importacao-apos-compra-manual.xlsx", base64: XLSX.write(workbook, { bookType: "xlsx", type: "base64" }) });
+    const merged = customerMetricsService.customer(customerId).metrics.find(item => item.period_start === "2025-01-01");
+    assert.equal(merged.purchased_value, 1250.5);
+    assert.equal(merged.order_count, 3);
 });
 
 test("não grava telefone da coluna Contato como nome do cliente", async () => {
@@ -569,7 +649,7 @@ test("não grava telefone da coluna Contato como nome do cliente", async () => {
         Cliente: "Empresa correta",
         Contato: "(82) 3334-0273",
         WhatsApp: "82999998888",
-        Status: "Aguardando"
+        Status: "Aguardando retorno"
     }).name, "");
 
     const workbook = XLSX.utils.book_new();
@@ -584,6 +664,133 @@ test("não grava telefone da coluna Contato como nome do cliente", async () => {
     const customer = userService.listar().find(item => item.customer_code === "NAME-002");
     assert.equal(customer.name, null);
     assert.equal(customer.company_name, "Outra empresa correta");
+});
+
+test("aceita relatório anual após janeiro sem duplicar os totais", async () => {
+    const workbook = XLSX.utils.book_new();
+    const sheet = XLSX.utils.json_to_sheet([
+        { Código: "1.06728", Nome: "CLIENTE COM NOME", Valor: "12.000,00", Quantidade: "12", Vendedor: "Alisson" }
+    ]);
+    XLSX.utils.sheet_add_aoa(sheet, [["PERÍODO: 01/01/2025 A 31/12/2025"]], { origin: "H1" });
+    XLSX.utils.book_append_sheet(workbook, sheet, "Ano");
+    const imported = await customerMetricsService.import({
+        filename: "clientes-ano-2025.xlsx",
+        base64: XLSX.write(workbook, { bookType: "xlsx", type: "base64" })
+    });
+    assert.equal(imported.importedMetrics, 1);
+    const anual = customerMetricsService.dashboard({ yearA: 2024, yearB: 2025 });
+    assert.equal(anual.customers.find(item => item.customer_code === "1.06728").totalB, 12000);
+    const janeiro = customerMetricsService.dashboard({ yearA: 2024, yearB: 2025, fromMonth: 1, toMonth: 1 });
+    assert.equal(janeiro.customers.find(item => item.customer_code === "1.06728").totalB, 1250.5);
+    assert.equal(db.pragma("foreign_key_check").length, 0);
+});
+
+test("edita vendedor, status, funil e prioridade na ficha unificada", () => {
+    const cliente = db.prepare("SELECT id FROM users WHERE customer_code='1.06728'").get();
+    const commercial = customerMetricsService.createStatus({ scope: "metrics", name: "Visita agendada", color: "#123456" });
+    const renamed = customerMetricsService.updateStatus(commercial.id, { name: "Visita confirmada", color: "#654321" });
+    assert.equal(renamed.name, "Visita confirmada");
+    assert.throws(() => customerMetricsService.createStatus({ scope: "reactivation", name: "Contatado" }), /já existe em Reativação/);
+    assert.throws(() => customerMetricsService.createStatus({ scope: "reactivation", name: "Visita realizada" }), /etapas comerciais oficiais/);
+    const updated = customerMetricsService.updateCustomer(cliente.id, {
+        seller: "Maria - carteira especial",
+        metric_status: "Visita confirmada",
+        reactivation_status: "Negociação",
+        next_contact_at: "2026-10-10",
+        last_movement_at: "2026-09-08",
+        inactivity_reason: "Aguardando aprovação do orçamento",
+        reactivation_notes: "Prefere contato à tarde",
+        priority_override: "Alta",
+        priority_notes: "Cliente estratégico",
+        main_products: "Compressores",
+        latest_products: "Filtro secador",
+        metric_notes: "Possui três unidades"
+    });
+    assert.equal(updated.seller, "Maria - carteira especial");
+    assert.equal(updated.metric_status, "Visita confirmada");
+    assert.equal(updated.reactivation_status, "Negociação");
+    assert.equal(updated.last_movement_at, "2026-09-08");
+    assert.equal(updated.inactivity_reason, "Aguardando aprovação do orçamento");
+    assert.equal(updated.priority.level, "Alta");
+    assert.equal(updated.priority.manual, true);
+    assert.equal(updated.priority.reason, "Cliente estratégico");
+    assert.equal(typeof updated.analytics.faturamento, "number");
+    assert.ok(Array.isArray(updated.analytics.series.monthly));
+    assert.ok(Array.isArray(updated.credits));
+    assert.ok(Array.isArray(updated.requests));
+    assert.ok(Array.isArray(updated.commercial_history));
+    const filtrados = userService.listarPaginado({ priority: "Alta", seller: "Maria - carteira especial",
+        active: "ativo", minDays: 0, sort: "revenue_desc" });
+    assert.equal(filtrados.items.some(item => item.id === cliente.id), true);
+    assert.equal(filtrados.items.every(item => item.prioridade.level === "Alta"), true);
+    assert.equal(customerMetricsService.updateCustomer(cliente.id, { active: false }).active, 0);
+    assert.equal(userService.listarPaginado({ active: "inativo" }).items.some(item => item.id === cliente.id), true);
+    assert.equal(userService.listarPaginado({ active: "ativo" }).items.some(item => item.id === cliente.id), false);
+    customerMetricsService.updateCustomer(cliente.id, { active: true });
+    const respostaCompacta = customerMetricsService.updateCustomer(cliente.id, { metric_status: "Visita confirmada" }, { compact: true });
+    assert.equal(respostaCompacta.metric_status, "Visita confirmada");
+    assert.equal(respostaCompacta.metrics, undefined);
+});
+
+test("gera relatórios comerciais por período e vendedor", async () => {
+    const cliente = db.prepare("SELECT id FROM users WHERE customer_code='1.06728'").get();
+    customerMetricsService.updateCustomer(cliente.id, { seller: "Alisson", priority_override: "Alta", priority_notes: "Prioridade do relatório" });
+    reactivationService.registrarContato(cliente.id, { kind: "ligacao", responsible: "Alisson", notes: "Contato para relatório", resulting_status: "Contatado", schedule_return: false, contacted_at: "2026-09-11" });
+    customerMetricsService.addManualPurchase(cliente.id, { date: "2026-09-10", value: "150", items: "Peça", notes: "Venda para relatório" });
+    const query = { start: "2026-09-01", end: "2026-09-30", seller: "Alisson" };
+    const process = reportsService.process(query);
+    assert.equal(process.activities.some(item => item.type === "contato"), true);
+    assert.equal(process.activities.some(item => item.type === "contato" && item.notes === "Contato para relatório"), true);
+    assert.equal(process.activities.some(item => item.type === "venda"), true);
+    const priorities = reportsService.priorities(query);
+    assert.equal(priorities.rows.some(item => item.customer_code === "1.06728"), true);
+    assert.equal(reportsService.priorities({ ...query, priority: "Alta" }).rows.every(item => item.priority.level === "Alta"), true);
+    const semNome = Number(db.prepare("INSERT INTO users(customer_code,seller) VALUES('RELATORIO-SEM-NOME','Alisson')").run().lastInsertRowid);
+    assert.equal(reportsService.priorities(query).rows.some(item => item.id === semNome), true);
+    const pdf = await reportsService.pdf("acompanhamento", query);
+    assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
+});
+
+test("confirma reativação por nova compra e preserva número do movimento", async () => {
+    const cliente = reactivationService.salvar(null, {
+        customer_code: "REAT-METRIC-1",
+        company_name: "Cliente para reativar",
+        reactivation_status: "Negociação"
+    });
+    const workbook = XLSX.utils.book_new();
+    const sheet = XLSX.utils.json_to_sheet([{
+        Código: "REAT-METRIC-1",
+        Nome: "Cliente para reativar",
+        Valor: "850,00",
+        Quantidade: 1,
+        Vendedor: "Noberto",
+        "Número do Movimento": "MOV-REAT-001"
+    }]);
+    XLSX.utils.sheet_add_aoa(sheet, [["PERÍODO: 01/02/2027 A 28/02/2027"]], { origin: "H1" });
+    XLSX.utils.book_append_sheet(workbook, sheet, "Fevereiro");
+    await customerMetricsService.import({
+        filename: "reativados-fevereiro-2027.xlsx",
+        base64: XLSX.write(workbook, { bookType: "xlsx", type: "base64" })
+    });
+    const atualizado = customerMetricsService.customer(cliente.id);
+    assert.equal(atualizado.reactivation_status, "Reativado");
+    assert.equal(atualizado.reactivation_result, 850);
+    assert.equal(atualizado.metrics[0].movement_numbers, "MOV-REAT-001");
+    assert.equal(db.prepare("SELECT COUNT(*) total FROM reactivation_events WHERE user_id=?").get(cliente.id).total, 1);
+    const repeatedSheet = XLSX.utils.json_to_sheet([{
+        Código: "REAT-METRIC-1", Nome: "Cliente para reativar", Valor: "850,00", Quantidade: 1,
+        Vendedor: "Noberto", "Número do Movimento": "MOV-REAT-001"
+    }]);
+    XLSX.utils.sheet_add_aoa(repeatedSheet, [["PERÍODO: 01/03/2027 A 31/03/2027"]], { origin: "H1" });
+    const repeatedWorkbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(repeatedWorkbook, repeatedSheet, "Março");
+    const repeated = await customerMetricsService.import({
+        filename: "movimento-repetido.xlsx",
+        base64: XLSX.write(repeatedWorkbook, { bookType: "xlsx", type: "base64" })
+    });
+    assert.equal(repeated.importedMetrics, 0);
+    assert.equal(repeated.ignoredDuplicates, 1);
+    assert.equal(db.prepare("SELECT COUNT(*) total FROM customer_movements WHERE movement_number='MOV-REAT-001'").get().total, 1);
 });
 
 test("interpreta PDF convertido do relatório de comissionados", () => {

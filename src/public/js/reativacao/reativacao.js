@@ -8,20 +8,21 @@ const REATIVACAO_VENDEDORES = [
   "Outros",
 ];
 let REATIVACAO_STATUS = [
-  "Último Contato",
+  "Não contatado",
   "Entrar em contato",
   "Contatado",
-  "Avulso",
-  "Recente",
-  "Aguardando",
-  "Sem Contato",
-  "Não ligar",
-  "-",
+  "Aguardando retorno",
+  "Negociação",
+  "Reativado",
+  "Sem interesse",
 ];
 let reativacaoFiltro = "Alisson";
 let reativacaoVendedorGlobal = "todos";
 let reativacaoStatusFiltro = "todos";
 let reativacaoCampanhaFiltro = "todos";
+let reativacaoPrioridadeFiltro = "todos";
+let reativacaoRetornoFiltro = "";
+let reativacaoReativadoRecente = false;
 let reativacaoCampanhas = [];
 let reativacaoClientesSelecionados = new Set();
 let reativacaoTags = [];
@@ -204,7 +205,7 @@ async function inicializarReativacaoResumo() {
   }
 }
 
-async function inicializarReativacaoVendedores() {
+window.inicializarReativacaoVendedores = async () => {
   const [tags, campanhas, statusOptions] = await Promise.all([
     rcJson("/api/reactivation/tags"),
     rcJson("/api/campaigns"),
@@ -213,6 +214,19 @@ async function inicializarReativacaoVendedores() {
   reativacaoTags = tags;
   reativacaoCampanhas = campanhas;
   REATIVACAO_STATUS = statusOptions.map((item) => item.name);
+  const dashboardFilter = window.sessionStorage.getItem("baileyDashboardReactivationFilter");
+  if (dashboardFilter) {
+    window.sessionStorage.removeItem("baileyDashboardReactivationFilter");
+    try {
+      const filter = JSON.parse(dashboardFilter);
+      reativacaoFiltro = "Todos os Clientes";
+      reativacaoVendedorGlobal = filter.seller || "todos";
+      reativacaoStatusFiltro = filter.status || "todos";
+      reativacaoPrioridadeFiltro = filter.priority || "todos";
+      reativacaoRetornoFiltro = filter.returnFilter || "";
+      reativacaoReativadoRecente = filter.reactivatedRecently === true;
+    } catch { /* filtro inválido não deve impedir a tela */ }
+  }
   const opcoesCampanhas = reativacaoCampanhas
     .filter((campanha) => !["processando", "cancelando"].includes(campanha.status))
     .map((campanha) => `<option value="${campanha.id}">${rcSeguro(campanha.nome)}</option>`)
@@ -229,6 +243,8 @@ async function inicializarReativacaoVendedores() {
       (status) => `<option value="${rcSeguro(status)}">${rcSeguro(status)}</option>`,
     ),
   ].join("");
+  document.getElementById("reativacaoFiltroVendedor").value = reativacaoVendedorGlobal;
+  document.getElementById("reativacaoFiltroStatus").value = reativacaoStatusFiltro;
   const tabs = document.getElementById("reativacaoVendedorTabs");
   tabs.innerHTML = REATIVACAO_VENDEDORES.map(
     (nome) =>
@@ -289,6 +305,9 @@ async function inicializarReativacaoVendedores() {
   document
     .getElementById("btnRegistrarContato")
     .addEventListener("click", registrarContatoReativacao);
+  document
+    .getElementById("rcContatoAgendarRetorno")
+    .addEventListener("change", atualizarAgendamentoContatoReativacao);
   document.getElementById("reativacaoFiltrosEtiquetas").innerHTML = reativacaoTags
     .map((tag) => `<label class="form-check"><input class="form-check-input" type="checkbox" value="${tag.id}"> <span class="form-check-label"><span class="badge" style="background:${rcSeguro(tag.color)}">${rcSeguro(tag.name)}</span></span></label>`)
     .join("");
@@ -375,7 +394,7 @@ async function carregarClientesReativacao() {
       : reativacaoFiltro;
   const tags = reativacaoSemEtiqueta ? "none" : [...reativacaoTagsFiltro].join(",");
   const clientes = await rcJson(
-    `/api/reactivation/clients?seller=${encodeURIComponent(seller)}&status=${encodeURIComponent(visaoGlobal ? reativacaoStatusFiltro : "todos")}&search=${encodeURIComponent(pesquisa)}&sort=${encodeURIComponent(reativacaoOrdenacao.campo)}&direction=${reativacaoOrdenacao.direcao}&tags=${encodeURIComponent(tags)}&campaign=${encodeURIComponent(reativacaoCampanhaFiltro)}`,
+    `/api/reactivation/clients?seller=${encodeURIComponent(seller)}&status=${encodeURIComponent(visaoGlobal ? reativacaoStatusFiltro : "todos")}&priority=${encodeURIComponent(reativacaoPrioridadeFiltro)}&returnFilter=${encodeURIComponent(reativacaoRetornoFiltro)}&reactivatedRecently=${reativacaoReativadoRecente}&search=${encodeURIComponent(pesquisa)}&sort=${encodeURIComponent(reativacaoOrdenacao.campo)}&direction=${reativacaoOrdenacao.direcao}&tags=${encodeURIComponent(tags)}&campaign=${encodeURIComponent(reativacaoCampanhaFiltro)}`,
   );
   document
     .querySelectorAll(".reactivation-responsavel")
@@ -547,8 +566,23 @@ function renderizarTagsReativacao(selecionadas = []) {
     .join("");
 }
 
+function atualizarAgendamentoContatoReativacao() {
+  const agendar = document.getElementById("rcContatoAgendarRetorno");
+  const acao = document.getElementById("rcContatoAcao");
+  const proximo = document.getElementById("rcContatoProximo");
+  if (!agendar || !acao || !proximo) return;
+  acao.required = agendar.checked;
+  acao.disabled = !agendar.checked;
+  proximo.disabled = !agendar.checked;
+  document.getElementById("rcContatoAcaoArea")?.classList.toggle("opacity-50", !agendar.checked);
+  document.getElementById("rcContatoProximoArea")?.classList.toggle("opacity-50", !agendar.checked);
+}
+
 async function abrirClienteReativacao(id = null) {
   document.getElementById("formClienteReativacao").reset();
+  document.getElementById("rcUltimaData").readOnly = false;
+  document.getElementById("rcUltimaData").title = "";
+  atualizarAgendamentoContatoReativacao();
   document.getElementById("reativacaoClienteId").value = id || "";
   renderizarTagsReativacao([]);
   document.getElementById("rcHistoricoArea").classList.toggle("d-none", !id);
@@ -567,10 +601,14 @@ async function abrirClienteReativacao(id = null) {
     );
     document.getElementById("rcVendedor").value = cliente.seller || "";
     document.getElementById("rcStatus").value =
-      cliente.reactivation_status || "Sem Contato";
+      cliente.reactivation_status || "Não contatado";
     document.getElementById("rcUltimaData").value = rcDataFormulario(
       cliente.last_movement_at,
     );
+    document.getElementById("rcUltimaData").readOnly = Boolean(cliente.last_purchase_from_history);
+    document.getElementById("rcUltimaData").title = cliente.last_purchase_from_history
+      ? "Data preenchida pelo histórico de compras"
+      : "";
     document.getElementById("rcUltimoValor").value = rcFormatarReal(
       cliente.last_movement_value,
     );
@@ -582,6 +620,14 @@ async function abrirClienteReativacao(id = null) {
     );
     document.getElementById("rcObservacao").value =
       cliente.reactivation_notes || "";
+    document.getElementById("rcContatoResponsavel").value = cliente.seller || "";
+    document.getElementById("rcContatoStatus").value =
+      cliente.reactivation_status || "Não contatado";
+    document.getElementById("rcContatoProximo").value = cliente.next_contact_at
+      ? rcData(cliente.next_contact_at)
+      : "";
+    document.getElementById("rcContatoAgendarRetorno").checked = Boolean(cliente.next_contact_at);
+    atualizarAgendamentoContatoReativacao();
     renderizarTagsReativacao(cliente.tags.map((tag) => tag.id));
     renderizarHistoricoReativacao(cliente.contacts);
     document.getElementById("rcCampanhasAtuais").textContent = cliente.campaigns?.length
@@ -635,7 +681,7 @@ function renderizarHistoricoReativacao(contatos) {
     ? contatos
         .map(
           (item) =>
-            `<div class="reactivation-history-item"><div><strong>${rcSeguro(item.kind)}</strong><small>${new Date(item.contacted_at).toLocaleString("pt-BR")}</small></div><p>${rcSeguro(item.notes || "Sem observação")}</p>${item.next_contact_at ? `<span>Próximo: ${rcData(item.next_contact_at)}</span>` : ""}</div>`,
+            `<div class="reactivation-history-item"><div><strong>${rcSeguro(item.kind)}</strong><small>${new Date(item.contacted_at).toLocaleString("pt-BR")}</small></div><p>${rcSeguro(item.notes || "Sem observação")}</p><span>${rcSeguro(item.responsible || "Responsável não registrado")} · ${rcSeguro(item.resulting_status || item.result || "Status não registrado")}</span>${item.next_action ? `<span>Próxima ação: ${rcSeguro(item.next_action)}</span>` : ""}${item.next_contact_at ? `<span>Retorno: ${rcData(item.next_contact_at)}</span>` : ""}</div>`,
         )
         .join("")
     : '<div class="text-secondary small">Nenhum contato registrado.</div>';
@@ -643,17 +689,26 @@ function renderizarHistoricoReativacao(contatos) {
 async function registrarContatoReativacao() {
   const id = document.getElementById("reativacaoClienteId").value;
   if (!id) return;
+  const dados = {
+    kind: document.getElementById("rcContatoTipo").value,
+    responsible: document.getElementById("rcContatoResponsavel").value.trim(),
+    resulting_status: document.getElementById("rcContatoStatus").value,
+    next_action: document.getElementById("rcContatoAcao").value.trim(),
+    notes: document.getElementById("rcContatoObs").value.trim(),
+    schedule_return: document.getElementById("rcContatoAgendarRetorno").checked,
+    next_contact_at: rcCompletarData(document.getElementById("rcContatoProximo").value),
+  };
+  if (!dados.responsible || !dados.notes || (dados.schedule_return && (!dados.next_action || !dados.next_contact_at))) {
+    alert(dados.schedule_return
+      ? "Preencha responsável, próxima ação, observação e data de retorno."
+      : "Preencha responsável e observação.");
+    return;
+  }
   try {
     await rcJson(`/api/reactivation/clients/${id}/contacts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        kind: document.getElementById("rcContatoTipo").value,
-        notes: document.getElementById("rcContatoObs").value,
-        next_contact_at: rcCompletarData(
-          document.getElementById("rcContatoProximo").value,
-        ),
-      }),
+      body: JSON.stringify(dados),
     });
     await abrirClienteReativacao(id);
   } catch (erro) {

@@ -10,6 +10,17 @@
     >
 </div>
 
+<div class="card bg-secondary text-light border-0 mb-3"><div class="card-body"><div class="row g-3">
+    <div class="col-md-2"><label for="filtroClientePrioridade" class="form-label">Prioridade</label><select id="filtroClientePrioridade" class="form-select"><option value="todos">Todas</option><option>Alta</option><option>Média</option><option>Baixa</option></select></div>
+    <div class="col-md-2"><label for="filtroClienteStatus" class="form-label">Status</label><select id="filtroClienteStatus" class="form-select"><option value="todos">Todos</option></select></div>
+    <div class="col-md-2"><label for="filtroClienteVendedor" class="form-label">Vendedor</label><select id="filtroClienteVendedor" class="form-select"><option value="todos">Todos</option></select></div>
+    <div class="col-md-2"><label for="filtroClienteAtivo" class="form-label">Situação</label><select id="filtroClienteAtivo" class="form-select"><option value="todos">Todos</option><option value="ativo">Ativos</option><option value="inativo">Inativos</option></select></div>
+    <div class="col-md-2"><label for="filtroClienteDiasMin" class="form-label">Sem comprar — mínimo</label><input id="filtroClienteDiasMin" type="number" min="0" class="form-control" placeholder="Dias"></div>
+    <div class="col-md-2"><label for="filtroClienteDiasMax" class="form-label">Sem comprar — máximo</label><input id="filtroClienteDiasMax" type="number" min="0" class="form-control" placeholder="Dias"></div>
+    <div class="col-md-5"><label for="ordenacaoClientes" class="form-label">Ordenar por</label><select id="ordenacaoClientes" class="form-select"><option value="az">Nome A–Z</option><option value="za">Nome Z–A</option><option value="revenue_desc">Maior faturamento</option><option value="revenue_asc">Menor faturamento</option><option value="growth_desc">Maior crescimento</option><option value="fall_desc">Maior queda</option><option value="days_desc">Maior tempo sem comprar</option><option value="days_asc">Menor tempo sem comprar</option></select></div>
+    <div class="col-md-3 d-flex align-items-end"><button id="limparFiltrosClientes" class="btn btn-outline-light w-100" type="button">Limpar filtros</button></div>
+</div></div></div>
+
 <!-- Ficha consolidada -->
 <div class="modal fade" id="modalFichaCliente" tabindex="-1">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -78,9 +89,11 @@
 
                     <th>Código</th>
                     <th>Nome da Empresa</th>
-                    <th>Nome</th>
-                    <th>Telefone</th>
-                    <th>Data</th>
+                    <th>Vendedor</th>
+                    <th>Prioridade</th>
+                    <th>Status</th>
+                    <th>Faturamento</th>
+                    <th>Sem comprar</th>
                     <th width="120">Ações</th>
 
                 </tr>
@@ -91,7 +104,7 @@
 
                 <tr>
 
-                    <td colspan="6" class="text-center text-secondary py-4">
+                    <td colspan="8" class="text-center text-secondary py-4">
                         Nenhum cliente cadastrado.
                     </td>
 
@@ -133,6 +146,12 @@
                 <div class="mb-3">
                     <label class="form-label">Código do cliente</label>
                     <input type="text" class="form-control" id="customer_code">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Etiquetas</label>
+                    <div id="clienteEtiquetas" class="d-flex flex-wrap gap-2"></div>
+                    <div class="form-text text-light-emphasis">A etiqueta Técnico identifica os clientes vinculados à aba Comissões.</div>
                 </div>
 
                 <div class="mb-3">

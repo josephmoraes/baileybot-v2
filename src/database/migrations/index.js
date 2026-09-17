@@ -436,6 +436,314 @@ const migrations = [
             adicionarColuna("credit_requests", "pdf_mime_type", "TEXT");
             adicionarColuna("credit_requests", "pdf_generated_at", "DATETIME");
         }
+    },
+    {
+        id: "019_clientes_unificados_reativacao",
+        up() {
+            adicionarColuna("technicians", "user_id", "INTEGER");
+            adicionarColuna("users", "inactivity_reason", "TEXT");
+            adicionarColuna("users", "reactivated_at", "TEXT");
+            adicionarColuna("users", "reactivation_source_import_id", "INTEGER");
+            adicionarColuna("customer_monthly_metrics", "movement_numbers", "TEXT");
+            adicionarColuna("reactivation_contacts", "result", "TEXT");
+            db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_technicians_user
+                ON technicians(user_id) WHERE user_id IS NOT NULL;
+            CREATE INDEX IF NOT EXISTS idx_users_reactivated_at ON users(reactivated_at);
+            CREATE TABLE IF NOT EXISTS reactivation_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                import_id INTEGER,
+                previous_status TEXT,
+                confirmed_at TEXT NOT NULL,
+                purchased_value REAL NOT NULL DEFAULT 0,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (import_id) REFERENCES customer_metric_imports(id) ON DELETE SET NULL,
+                UNIQUE(user_id,import_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_reactivation_events_user
+                ON reactivation_events(user_id,confirmed_at DESC);`);
+
+            const inserirStatus = db.prepare(`INSERT OR IGNORE INTO customer_status_options(scope,name,color,position)
+                VALUES('reactivation',?,?,?)`);
+            [
+                ["Para contatar", "#dc3545"],
+                ["Respondeu", "#0dcaf0"],
+                ["Interessado", "#ffc107"],
+                ["Reativado", "#198754"]
+            ].forEach(([name, color], index) => inserirStatus.run(name, color, 100 + index));
+
+            const tecnicoTag = Number(db.prepare(`INSERT INTO reactivation_tags(name,color)
+                VALUES('Técnico','#6f42c1') ON CONFLICT(name) DO UPDATE SET color=excluded.color
+                RETURNING id`).get().id);
+            const tecnicos = db.prepare("SELECT id,name,og1_code,user_id FROM technicians ORDER BY id").all();
+            const buscarCliente = db.prepare("SELECT id FROM users WHERE customer_code=?");
+            const criarCliente = db.prepare("INSERT INTO users(customer_code,company_name,name,jid) VALUES(?,NULL,?,NULL)");
+            const vincularTecnico = db.prepare("UPDATE technicians SET user_id=? WHERE id=?");
+            const vincularTag = db.prepare("INSERT OR IGNORE INTO reactivation_user_tags(user_id,tag_id) VALUES(?,?)");
+            for (const tecnico of tecnicos) {
+                let userId = tecnico.user_id || buscarCliente.get(tecnico.og1_code)?.id;
+                if (!userId) userId = Number(criarCliente.run(tecnico.og1_code, tecnico.name).lastInsertRowid);
+                vincularTecnico.run(userId, tecnico.id);
+                vincularTag.run(userId, tecnicoTag);
+            }
+        }
+    },
+    {
+        id: "020_metricas_periodos_sobrepostos",
+        transaction: false,
+        up() {
+            db.pragma("foreign_keys = OFF");
+            db.pragma("legacy_alter_table = ON");
+            try {
+                db.transaction(() => {
+                    db.exec(`ALTER TABLE reactivation_events RENAME TO reactivation_events_019;
+                    ALTER TABLE customer_monthly_metrics RENAME TO customer_monthly_metrics_019;
+                    ALTER TABLE customer_metric_imports RENAME TO customer_metric_imports_019;
+
+                    CREATE TABLE customer_metric_imports (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        filename TEXT NOT NULL,
+                        reference_year INTEGER NOT NULL,
+                        reference_month INTEGER NOT NULL CHECK(reference_month BETWEEN 1 AND 12),
+                        total_rows INTEGER NOT NULL DEFAULT 0,
+                        inserted_customers INTEGER NOT NULL DEFAULT 0,
+                        updated_customers INTEGER NOT NULL DEFAULT 0,
+                        total_value REAL NOT NULL DEFAULT 0,
+                        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        period_start TEXT NOT NULL,
+                        period_end TEXT NOT NULL
+                    );
+                    INSERT INTO customer_metric_imports
+                        (id,filename,reference_year,reference_month,total_rows,inserted_customers,updated_customers,total_value,created_at,period_start,period_end)
+                    SELECT id,filename,reference_year,reference_month,total_rows,inserted_customers,updated_customers,total_value,created_at,period_start,period_end
+                    FROM customer_metric_imports_019;
+
+                    CREATE TABLE customer_monthly_metrics (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        import_id INTEGER NOT NULL,
+                        reference_year INTEGER NOT NULL,
+                        reference_month INTEGER NOT NULL CHECK(reference_month BETWEEN 1 AND 12),
+                        seller TEXT NOT NULL DEFAULT 'Outros',
+                        report_seller TEXT,
+                        purchased_value REAL NOT NULL DEFAULT 0,
+                        order_count REAL NOT NULL DEFAULT 0,
+                        average_order_value REAL NOT NULL DEFAULT 0,
+                        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        period_start TEXT NOT NULL,
+                        period_end TEXT NOT NULL,
+                        movement_numbers TEXT,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                        FOREIGN KEY (import_id) REFERENCES customer_metric_imports(id) ON DELETE CASCADE,
+                        UNIQUE(user_id,period_start,period_end)
+                    );
+                    INSERT INTO customer_monthly_metrics
+                        (id,user_id,import_id,reference_year,reference_month,seller,report_seller,purchased_value,order_count,average_order_value,created_at,updated_at,period_start,period_end,movement_numbers)
+                    SELECT id,user_id,import_id,reference_year,reference_month,seller,report_seller,purchased_value,order_count,average_order_value,created_at,updated_at,period_start,period_end,movement_numbers
+                    FROM customer_monthly_metrics_019;
+
+                    CREATE TABLE reactivation_events (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        import_id INTEGER,
+                        previous_status TEXT,
+                        confirmed_at TEXT NOT NULL,
+                        purchased_value REAL NOT NULL DEFAULT 0,
+                        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                        FOREIGN KEY (import_id) REFERENCES customer_metric_imports(id) ON DELETE SET NULL,
+                        UNIQUE(user_id,import_id)
+                    );
+                    INSERT INTO reactivation_events
+                        (id,user_id,import_id,previous_status,confirmed_at,purchased_value,created_at)
+                    SELECT id,user_id,import_id,previous_status,confirmed_at,purchased_value,created_at
+                    FROM reactivation_events_019;
+
+                    DROP TABLE reactivation_events_019;
+                    DROP TABLE customer_monthly_metrics_019;
+                    DROP TABLE customer_metric_imports_019;
+
+                    CREATE INDEX idx_metric_import_range ON customer_metric_imports(period_start,period_end);
+                    CREATE INDEX idx_customer_metrics_period ON customer_monthly_metrics(reference_year,reference_month);
+                    CREATE INDEX idx_customer_metrics_seller ON customer_monthly_metrics(seller,reference_year,reference_month);
+                    CREATE INDEX idx_customer_metrics_user ON customer_monthly_metrics(user_id,reference_year,reference_month);
+                    CREATE INDEX idx_metric_range ON customer_monthly_metrics(period_start,period_end);
+                    CREATE INDEX idx_reactivation_events_user ON reactivation_events(user_id,confirmed_at DESC);`);
+                })();
+            } finally {
+                db.pragma("legacy_alter_table = OFF");
+                db.pragma("foreign_keys = ON");
+            }
+        }
+    },
+    {
+        id: "021_clientes_campos_editaveis",
+        up() {
+            adicionarColuna("users", "priority_override", "TEXT");
+            adicionarColuna("users", "priority_notes", "TEXT");
+        }
+    },
+    {
+        id: "022_base_unica_historico_importacoes",
+        up() {
+            const duplicados = db.prepare(`SELECT UPPER(TRIM(customer_code)) code,COUNT(*) total
+                FROM users WHERE customer_code IS NOT NULL AND TRIM(customer_code)<>''
+                GROUP BY UPPER(TRIM(customer_code)) HAVING COUNT(*)>1`).all();
+            if (duplicados.length) {
+                throw new Error(`Não foi possível proteger os códigos OG1: ${duplicados.length} duplicidade(s) precisam ser revisadas.`);
+            }
+            db.exec(`UPDATE users SET customer_code=UPPER(TRIM(customer_code))
+                WHERE customer_code IS NOT NULL AND customer_code<>UPPER(TRIM(customer_code));
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_users_customer_code_normalized
+                ON users(UPPER(TRIM(customer_code)))
+                WHERE customer_code IS NOT NULL AND TRIM(customer_code)<>'';
+            CREATE TABLE IF NOT EXISTS import_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                module TEXT NOT NULL,
+                filename TEXT NOT NULL,
+                imported_by TEXT NOT NULL DEFAULT 'Administrador local',
+                total_rows INTEGER NOT NULL DEFAULT 0,
+                imported_rows INTEGER NOT NULL DEFAULT 0,
+                ignored_rows INTEGER NOT NULL DEFAULT 0,
+                duplicate_rows INTEGER NOT NULL DEFAULT 0,
+                created_customers INTEGER NOT NULL DEFAULT 0,
+                updated_customers INTEGER NOT NULL DEFAULT 0,
+                error_rows INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'concluida',
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                finished_at DATETIME
+            );
+            CREATE TABLE IF NOT EXISTS import_history_errors (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                import_history_id INTEGER NOT NULL,
+                row_number INTEGER,
+                customer_code TEXT,
+                movement_number TEXT,
+                error TEXT NOT NULL,
+                raw_data TEXT,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (import_history_id) REFERENCES import_history(id) ON DELETE CASCADE
+            );
+            CREATE TABLE IF NOT EXISTS customer_movements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                import_history_id INTEGER,
+                movement_number TEXT NOT NULL,
+                movement_date TEXT NOT NULL,
+                seller TEXT NOT NULL,
+                value REAL NOT NULL,
+                source_module TEXT NOT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (import_history_id) REFERENCES import_history(id) ON DELETE SET NULL
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_customer_movements_number
+                ON customer_movements(UPPER(TRIM(movement_number)));
+            CREATE INDEX IF NOT EXISTS idx_import_history_created ON import_history(created_at DESC,id DESC);
+            CREATE INDEX IF NOT EXISTS idx_import_history_errors_import ON import_history_errors(import_history_id,row_number);
+            CREATE INDEX IF NOT EXISTS idx_customer_movements_user_date ON customer_movements(user_id,movement_date DESC);`);
+        }
+    },
+    {
+        id: "023_cliente_360_ativo",
+        up() {
+            adicionarColuna("users", "active", "INTEGER NOT NULL DEFAULT 1");
+            db.exec("CREATE INDEX IF NOT EXISTS idx_users_active ON users(active)");
+        }
+    },
+    {
+        id: "024_fluxo_comercial_reativacao",
+        up() {
+            adicionarColuna("reactivation_contacts", "responsible", "TEXT");
+            adicionarColuna("reactivation_contacts", "resulting_status", "TEXT");
+            adicionarColuna("reactivation_contacts", "next_action", "TEXT");
+            const mappings = [
+                ["Não contatado", "Sem Contato"], ["Não contatado", "-"],
+                ["Entrar em contato", "Para contatar"], ["Contatado", "Último Contato"],
+                ["Contatado", "Respondeu"], ["Aguardando retorno", "Aguardando"],
+                ["Negociação", "Interessado"], ["Não contatado", "Avulso"],
+                ["Não contatado", "Recente"], ["Sem interesse", "Não ligar"]
+            ];
+            const migrate = db.prepare("UPDATE users SET reactivation_status=? WHERE reactivation_status=?");
+            mappings.forEach(([target, source]) => migrate.run(target, source));
+            const statuses = ["Não contatado", "Entrar em contato", "Contatado", "Aguardando retorno", "Negociação", "Reativado", "Sem interesse"];
+            db.prepare("UPDATE customer_status_options SET active=0 WHERE scope='reactivation'").run();
+            const upsert = db.prepare(`INSERT INTO customer_status_options(scope,name,color,position,active) VALUES('reactivation',?,?,?,1)
+                ON CONFLICT(scope,name) DO UPDATE SET color=excluded.color,position=excluded.position,active=1`);
+            const colors = ["#64748b", "#0d6efd", "#0dcaf0", "#ffc107", "#fd7e14", "#198754", "#dc3545"];
+            statuses.forEach((status, index) => upsert.run(status, colors[index], index + 1));
+            db.exec(`CREATE INDEX IF NOT EXISTS idx_reactivation_contacts_status ON reactivation_contacts(resulting_status);
+                CREATE INDEX IF NOT EXISTS idx_reactivation_contacts_return ON reactivation_contacts(next_contact_at);`);
+        }
+    },
+    {
+        id: "025_compras_manuais_clientes",
+        up() {
+            adicionarColuna("customer_movements", "items", "TEXT");
+            adicionarColuna("customer_movements", "notes", "TEXT");
+            adicionarColuna("customer_monthly_metrics", "manual_only", "INTEGER NOT NULL DEFAULT 0");
+            db.exec("CREATE INDEX IF NOT EXISTS idx_customer_movements_source ON customer_movements(user_id,source_module,movement_date DESC)");
+        }
+    },
+    {
+        id: "026_logs_operacao",
+        up() {
+            db.exec(`CREATE TABLE IF NOT EXISTS operation_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                level TEXT NOT NULL DEFAULT 'info',
+                module TEXT NOT NULL DEFAULT 'sistema',
+                action TEXT NOT NULL,
+                message TEXT NOT NULL,
+                details TEXT,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_operation_logs_created ON operation_logs(created_at DESC,id DESC);
+            CREATE INDEX IF NOT EXISTS idx_operation_logs_level ON operation_logs(level,created_at DESC);`);
+        }
+    },
+    {
+        id: "027_historico_relatorios_clientes",
+        up() {
+            db.exec(`CREATE TABLE IF NOT EXISTS customer_activity_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                activity_type TEXT NOT NULL,
+                field_name TEXT,
+                previous_value TEXT,
+                current_value TEXT,
+                seller TEXT,
+                occurred_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_customer_activity_logs_date ON customer_activity_logs(occurred_at DESC,id DESC);
+            CREATE INDEX IF NOT EXISTS idx_customer_activity_logs_user ON customer_activity_logs(user_id,occurred_at DESC);`);
+        }
+    },
+    {
+        id: "028_distribuicao_reativacao",
+        up() {
+            db.exec(`CREATE TABLE IF NOT EXISTS reactivation_assignments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                seller TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pendente',
+                removed_at DATETIME,
+                assigned_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                completed_at DATETIME,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_reactivation_assignments_status ON reactivation_assignments(status,seller,assigned_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_reactivation_assignments_user ON reactivation_assignments(user_id,status);`);
+            adicionarColuna("reactivation_assignments", "removed_at", "DATETIME");
+        }
+    },
+    {
+        id: "029_remocao_distribuicao_reativacao",
+        up() {
+            adicionarColuna("reactivation_assignments", "removed_at", "DATETIME");
+        }
     }
 ];
 

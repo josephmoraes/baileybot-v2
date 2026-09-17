@@ -205,6 +205,22 @@ async function carregarStatusConfiguraveis() {
     document.getElementById("statusConfigLista").innerHTML = itens.map(item => `<span class="badge d-inline-flex align-items-center gap-2 p-2" style="background:${item.color}">${item.name}<button type="button" class="btn-close btn-close-white" data-remover-status="${item.id}" aria-label="Remover"></button></span>`).join("") || '<span class="text-secondary">Nenhum status configurado.</span>';
 }
 
+async function carregarVendedoresConfiguracoes() {
+    const resposta = await fetch("/api/settings/sellers");
+    const vendedores = await resposta.json();
+    if (!resposta.ok) throw new Error(vendedores.error || "Não foi possível carregar os vendedores.");
+    document.getElementById("configListaVendedores").innerHTML = vendedores.map(nome => `<span class="badge bg-secondary p-2">${nome}</span>`).join("");
+}
+
+async function adicionarVendedorConfiguracoes() {
+    const resposta = await fetch("/api/settings/sellers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: document.getElementById("configNovoVendedor").value }) });
+    const dados = await resposta.json();
+    if (!resposta.ok) throw new Error(dados.error || "Não foi possível adicionar o vendedor.");
+    document.getElementById("configNovoVendedor").value = "";
+    await carregarVendedoresConfiguracoes();
+    mostrarAlertaConfiguracoes("Vendedor cadastrado. Os próximos relatórios importados já usarão esta validação.");
+}
+
 async function adicionarStatusConfiguravel() {
     const resposta = await fetch("/api/customer-metrics/status-options", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: document.getElementById("statusConfigEscopo").value, name: document.getElementById("statusConfigNome").value, color: document.getElementById("statusConfigCor").value }) });
     const dados = await resposta.json(); if (!resposta.ok) throw new Error(dados.error || "Não foi possível adicionar o status.");
@@ -216,6 +232,7 @@ async function inicializarConfiguracoes() {
         await carregarConfiguracoes();
         await carregarBloqueados();
         await carregarStatusConfiguraveis();
+        await carregarVendedoresConfiguracoes();
     } catch (erro) {
         const alerta = document.getElementById("alertaConfiguracoes");
         alerta.className = "alert alert-danger";
@@ -229,5 +246,6 @@ async function inicializarConfiguracoes() {
     document.getElementById("btnAdicionarBloqueio")?.addEventListener("click", () => adicionarBloqueio().catch(erro => mostrarAlertaConfiguracoes(erro.message, "danger")));
     document.getElementById("statusConfigEscopo")?.addEventListener("change", carregarStatusConfiguraveis);
     document.getElementById("btnAdicionarStatusConfig")?.addEventListener("click", () => adicionarStatusConfiguravel().catch(erro => mostrarAlertaConfiguracoes(erro.message, "danger")));
+    document.getElementById("btnAdicionarVendedor")?.addEventListener("click", () => adicionarVendedorConfiguracoes().catch(erro => mostrarAlertaConfiguracoes(erro.message, "danger")));
     document.getElementById("statusConfigLista")?.addEventListener("click", async evento => { const botao = evento.target.closest("[data-remover-status]"); if (!botao) return; const resposta = await fetch(`/api/customer-metrics/status-options/${botao.dataset.removerStatus}`, { method: "DELETE" }); const dados = await resposta.json(); if (!resposta.ok) return mostrarAlertaConfiguracoes(dados.error, "danger"); await carregarStatusConfiguraveis(); });
 }

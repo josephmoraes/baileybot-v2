@@ -109,7 +109,7 @@ async function rrOpenRow(id) {
   document.getElementById("rrTelefone").value = existing?.telefone || "";
   document.getElementById("rrVendedor").value = existing?.seller || "";
   document.getElementById("rrStatus").value =
-    existing?.reactivation_status || "Sem Contato";
+    existing?.reactivation_status || "Não contatado";
   document.getElementById("rrUltimaData").value =
     existing?.last_movement_at || "";
   document.getElementById("rrUltimoValor").value = rrNumber(

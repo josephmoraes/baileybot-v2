@@ -1,6 +1,7 @@
 import dashboardRepository from "../repositories/dashboardRepository.js";
 import settingsService from "../services/settingsService.js";
 import whatsappService from "../services/whatsappService.js";
+import customerMetricsService from "../services/customerMetricsService.js";
 
 const formatarData = valor => {
     if (!valor) return "Agora";
@@ -12,6 +13,7 @@ const formatarData = valor => {
 export function obterDashboard(req, res, next) {
     try {
         const indicadores = dashboardRepository.obterIndicadores();
+        const operational = customerMetricsService.operationalDashboard();
         const limiteDiario = settingsService.obterBot().limiteDiario;
         const whatsappStatus = whatsappService.getStatus();
         const graficoMensagens = dashboardRepository.listarMensagensSemana().map(item => ({
@@ -41,6 +43,7 @@ export function obterDashboard(req, res, next) {
             campanhas: dashboardRepository.listarCampanhasRecentes(),
             ultimosEnvios: dashboardRepository.listarEnviosRecentes(),
             avisos,
+            operational,
             atualizadoEm: new Date().toISOString()
         });
     } catch (erro) {

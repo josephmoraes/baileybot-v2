@@ -5,6 +5,8 @@ import db from "../database/database.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const databaseDir = path.resolve(__dirname, "../../database");
+const VENDEDORES_PADRAO = ["Alisson", "Noberto", "Aldener", "Letícia", "Joseph", "Clayton", "Outros"];
+const chaveVendedor = valor => String(valor ?? "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 class SettingsService {
     obterValor(chave, padrao = "") {
@@ -26,6 +28,32 @@ class SettingsService {
                 dias: Number(this.obterValor("commission_release_days", "15"))
             }
         };
+    }
+
+    listarVendedores() {
+        try {
+            const salvos = JSON.parse(this.obterValor("registered_sellers", "[]"));
+            const nomes = [...VENDEDORES_PADRAO, ...(Array.isArray(salvos) ? salvos : [])]
+                .map(nome => String(nome ?? "").trim()).filter(Boolean);
+            return [...new Map(nomes.map(nome => [chaveVendedor(nome), nome])).values()];
+        } catch { return [...VENDEDORES_PADRAO]; }
+    }
+
+    normalizarVendedor(valor) {
+        const nome = String(valor ?? "").trim();
+        if (!nome) return "Outros";
+        return this.listarVendedores().find(item => chaveVendedor(item) === chaveVendedor(nome)) || "Outros";
+    }
+
+    adicionarVendedor(valor) {
+        const nome = String(valor ?? "").trim();
+        if (!nome || nome.length > 80) throw new Error("Informe um vendedor com até 80 caracteres.");
+        const atuais = this.listarVendedores();
+        if (atuais.some(item => chaveVendedor(item) === chaveVendedor(nome))) throw new Error("Este vendedor já está cadastrado.");
+        const adicionais = atuais.filter(item => !VENDEDORES_PADRAO.some(padrao => chaveVendedor(padrao) === chaveVendedor(item)));
+        db.prepare(`INSERT INTO app_settings(key,value,updated_at) VALUES('registered_sellers',?,CURRENT_TIMESTAMP)
+            ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP`).run(JSON.stringify([...adicionais, nome]));
+        return this.listarVendedores();
     }
 
     salvarBot(dados) {

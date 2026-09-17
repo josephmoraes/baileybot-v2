@@ -6,6 +6,11 @@
 <div id="alertaConfiguracoes" class="alert d-none" role="alert"></div>
 
 <div class="card bg-dark text-light border-secondary shadow mb-4">
+    <div class="card-header"><h5 class="mb-1"><i class="bi bi-person-badge me-2"></i>Vendedores</h5><small class="text-secondary">Os relatórios importados reconhecem somente os vendedores cadastrados; os demais entram como Outros.</small></div>
+    <div class="card-body"><div class="row g-2 align-items-end"><div class="col-md-8"><label for="configNovoVendedor" class="form-label">Adicionar vendedor</label><input id="configNovoVendedor" class="form-control" maxlength="80" placeholder="Nome do vendedor"></div><div class="col-md-4"><button id="btnAdicionarVendedor" class="btn btn-success w-100" type="button">Adicionar vendedor</button></div></div><div id="configListaVendedores" class="d-flex flex-wrap gap-2 mt-3"></div></div>
+</div>
+
+<div class="card bg-dark text-light border-secondary shadow mb-4">
     <div class="card-header"><h5 class="mb-1"><i class="bi bi-tags me-2"></i>Status dos clientes</h5><small class="text-secondary">Crie opções com cores para o trabalho de Reativação e Métricas.</small></div>
     <div class="card-body">
         <div class="row g-2 align-items-end mb-3"><div class="col-md-3"><label for="statusConfigEscopo" class="form-label">Usar em</label><select id="statusConfigEscopo" class="form-select"><option value="metrics">Métricas</option><option value="reactivation">Reativação</option></select></div><div class="col-md-5"><label for="statusConfigNome" class="form-label">Nome do status</label><input id="statusConfigNome" class="form-control" placeholder="Ex.: Visita realizada"></div><div class="col-md-2"><label for="statusConfigCor" class="form-label">Cor</label><input id="statusConfigCor" type="color" class="form-control form-control-color w-100" value="#198754"></div><div class="col-md-2"><button id="btnAdicionarStatusConfig" class="btn btn-success w-100">Adicionar</button></div></div>

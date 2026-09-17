@@ -2,6 +2,7 @@ import XLSX from "xlsx";
 import userService from "./userService.js";
 import fileImportService from "./fileImportService.js";
 import { cleanCustomerName } from "../utils/customerName.js";
+import importHistoryService from "./importHistoryService.js";
 
 function normalizarChave(valor) {
     return String(valor ?? "")
@@ -23,10 +24,11 @@ function obter(linha, nomes) {
 }
 
 class ExcelService {
-    async importar(base64, filename = "clientes.xlsx") {
+    async importar(base64, filename = "clientes.xlsx", importedBy = "Administrador local") {
         const linhas = await fileImportService.extrairLinhas({ base64, filename });
 
-        const resultado = { total: linhas.length, importados: 0, duplicados: 0, invalidos: 0, erros: [] };
+        const historyId = importHistoryService.iniciar({ module: "clientes", filename, importedBy, totalRows: linhas.length });
+        const resultado = { total: linhas.length, importados: 0, atualizados: 0, duplicados: 0, invalidos: 0, erros: [], historyId };
         linhas.forEach((linha, indice) => {
             const dados = {
                 customer_code: obter(linha, ["codigo", "codigo cliente", "cod cliente", "codigo og1", "cliente codigo", "customer_code"]),
@@ -36,19 +38,24 @@ class ExcelService {
             };
             try {
                 if (!dados.customer_code) throw new Error("Código do cliente é obrigatório.");
-                if (userService.buscarPorCodigo(dados.customer_code)) {
-                    resultado.duplicados += 1;
-                    return;
-                }
-                userService.criar(dados);
-                resultado.importados += 1;
+                const existente = userService.buscarPorCodigo(dados.customer_code);
+                const salvo = userService.criar(dados);
+                if (existente || salvo.updated) resultado.atualizados += 1;
+                else resultado.importados += 1;
             } catch (erro) {
                 if (erro.message.includes("já está cadastrado")) resultado.duplicados += 1;
                 else {
                     resultado.invalidos += 1;
                     if (resultado.erros.length < 10) resultado.erros.push(`Linha ${indice + 2}: ${erro.message}`);
+                    importHistoryService.erro(historyId, { rowNumber: indice + 2, customerCode: dados.customer_code,
+                        error: erro.message, rawData: linha });
                 }
             }
+        });
+        resultado.history = importHistoryService.concluir(historyId, {
+            totalRows: resultado.total, importedRows: resultado.importados + resultado.atualizados,
+            ignoredRows: resultado.invalidos + resultado.duplicados, duplicateRows: resultado.duplicados,
+            createdCustomers: resultado.importados, updatedCustomers: resultado.atualizados, errorRows: resultado.invalidos
         });
         return resultado;
     }

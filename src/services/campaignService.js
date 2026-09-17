@@ -52,11 +52,11 @@ class CampaignService {
         db.transaction(() => {
             db.prepare(`UPDATE campaign_recipients SET active=0 WHERE campaign_id=? AND
                 (status='enviado' OR customer_code IS NULL OR NOT EXISTS (SELECT 1 FROM users u
-                    WHERE u.id=campaign_recipients.cliente_id AND u.reactivation_status='Aguardando'
+                    WHERE u.id=campaign_recipients.cliente_id AND u.reactivation_status='Aguardando retorno'
                     AND u.customer_code=campaign_recipients.customer_code${dateWhere}))`).run(campaignId, ...dateParams);
             const clients = db.prepare(`SELECT u.id,u.customer_code,
                 COALESCE(NULLIF(u.company_name,''),NULLIF(u.name,''),'Cliente') name,u.jid FROM users u
-                WHERE u.reactivation_status='Aguardando' AND u.customer_code IS NOT NULL AND trim(u.customer_code)<>''
+                WHERE u.reactivation_status='Aguardando retorno' AND u.customer_code IS NOT NULL AND trim(u.customer_code)<>''
                 AND u.jid IS NOT NULL AND trim(u.jid)<>'' AND NOT EXISTS (SELECT 1 FROM campaign_recipients sent
                     WHERE sent.campaign_id=? AND sent.customer_code=u.customer_code AND sent.status='enviado')${dateWhere} ORDER BY name`).all(campaignId, ...dateParams);
             const existing = db.prepare("SELECT * FROM campaign_recipients WHERE campaign_id=? AND customer_code=? ORDER BY id DESC LIMIT 1");
@@ -357,7 +357,7 @@ class CampaignService {
             throw new Error("Campanha não encontrada.");
         }
 
-        if (campanha.fixed_key) throw new Error("Os contatos desta campanha são definidos automaticamente pelo status Aguardando.");
+        if (campanha.fixed_key) throw new Error("Os contatos desta campanha são definidos automaticamente pelo status Aguardando retorno.");
 
         if (["processando", "cancelando"].includes(campanha.status)) {
             throw new Error(
@@ -732,10 +732,10 @@ class CampaignService {
                 `).run(destinatario.id);
                 if (campanha.fixed_key === "reactivation_waiting" && destinatario.customer_code) {
                     db.transaction(() => {
-                        db.prepare(`INSERT INTO reactivation_contacts(user_id,kind,notes,contacted_at)
-                            SELECT id,'whatsapp_campanha',?,CURRENT_TIMESTAMP FROM users WHERE customer_code=?`)
+                        db.prepare(`INSERT INTO reactivation_contacts(user_id,kind,notes,contacted_at,next_contact_at,result,responsible,resulting_status,next_action)
+                            SELECT id,'whatsapp_campanha',?,CURRENT_TIMESTAMP,date('now','localtime','+7 days'),'Contatado','Bailey - campanha','Contatado','Acompanhar retorno' FROM users WHERE customer_code=?`)
                             .run(`Contato enviado pela campanha ${campanha.nome}.`, destinatario.customer_code);
-                        db.prepare(`UPDATE users SET reactivation_status='Último Contato',reactivation_updated_at=CURRENT_TIMESTAMP,
+                        db.prepare(`UPDATE users SET reactivation_status='Contatado',next_contact_at=date('now','localtime','+7 days'),reactivation_updated_at=CURRENT_TIMESTAMP,
                             reactivation_sequence=COALESCE((SELECT MAX(reactivation_sequence)+1 FROM users),1)
                             WHERE customer_code=?`).run(destinatario.customer_code);
                     })();

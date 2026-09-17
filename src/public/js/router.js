@@ -1,6 +1,9 @@
 const paginas = {
   dashboard: { arquivo: "dashboard/dashboard.html", hash: "dashboard" },
   clientes: { arquivo: "clientes/clientes.html", hash: "clientes" },
+  "cliente-360": { arquivo: "clientes/cliente-360.html", hash: "clientes/360" },
+  operacao: { arquivo: "operacao/operacao.html", hash: "operacao" },
+  relatorios: { arquivo: "relatorios/relatorios.html", hash: "relatorios" },
   metricas: { arquivo: "metricas/metricas.html", hash: "metricas" },
   campanhas: { arquivo: "campanhas/campanhas.html", hash: "campanhas" },
   mensagens: { arquivo: "mensagens/mensagens.html", hash: "mensagens" },
@@ -30,12 +33,16 @@ const paginas = {
     hash: "comissoes/solicitacoes",
   },
   "reativacao-resumo": {
-    arquivo: "reativacao/resumo.html",
+    arquivo: "metricas/metricas.html",
     hash: "reativacao/resumo",
   },
   "reativacao-vendedores": {
     arquivo: "reativacao/vendedores.html",
     hash: "reativacao/vendedores",
+  },
+  "reativacao-distribuicao": {
+    arquivo: "reativacao/distribuicao.html",
+    hash: "reativacao/distribuicao",
   },
   "reativacao-relatorios": {
     arquivo: "reativacao/relatorios.html",
@@ -52,6 +59,7 @@ const Router = {
   paginaPeloHash() {
     const caminho =
       location.hash.replace(/^#\/?/, "").replace(/\/$/, "") || "dashboard";
+    if (/^clientes\/360\/\d+$/.test(caminho)) return "cliente-360";
     return (
       Object.entries(paginas).find(
         ([, config]) => config.hash === caminho,
@@ -99,6 +107,9 @@ const Router = {
         await carregarClientes?.();
         inicializarClientes?.();
       },
+      "cliente-360": () => window.inicializarCliente360?.(),
+      operacao: () => window.inicializarOperacao?.(),
+      relatorios: () => window.inicializarRelatorios?.(),
       metricas: () => window.inicializarMetricasClientes?.(),
       templates: async () => {
         await carregarTemplates?.();
@@ -116,8 +127,9 @@ const Router = {
       "comissoes-tecnicos": () => inicializarTecnicosComissao?.(),
       "comissoes-historico": () => inicializarHistoricoComissoes?.(),
       "comissoes-solicitacao": () => inicializarSolicitacaoComissao?.(),
-      "reativacao-resumo": () => window.inicializarReativacaoResumo?.(),
+      "reativacao-resumo": () => window.inicializarMetricasClientes?.(),
       "reativacao-vendedores": () => window.inicializarReativacaoVendedores?.(),
+      "reativacao-distribuicao": () => window.inicializarDistribuicaoReativacao?.(),
       "reativacao-relatorios": () => window.inicializarRelatoriosReativacao?.(),
     };
     await inicializadores[pagina]?.();

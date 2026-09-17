@@ -13,9 +13,11 @@ router.post("/imports", respond(req => customerMetricsService.import(req.body)))
 router.get("/dashboard", respond(req => customerMetricsService.dashboard(req.query)));
 router.get("/status-options/:scope", respond(req => customerMetricsService.statusOptions(req.params.scope)));
 router.post("/status-options", respond(req => customerMetricsService.createStatus(req.body)));
+router.put("/status-options/:id", respond(req => customerMetricsService.updateStatus(req.params.id, req.body)));
 router.delete("/status-options/:id", respond(req => customerMetricsService.deleteStatus(req.params.id)));
 router.get("/clients/:id", respond(req => customerMetricsService.customer(req.params.id)));
-router.put("/clients/:id", respond(req => customerMetricsService.updateCustomer(req.params.id, req.body)));
+router.post("/clients/:id/purchases", respond(req => customerMetricsService.addManualPurchase(req.params.id, req.body)));
+router.put("/clients/:id", respond(req => customerMetricsService.updateCustomer(req.params.id, req.body, { compact: req.query.compact === "1" })));
 router.put("/clients/:id/products", respond(req => customerMetricsService.updateCustomer(req.params.id, req.body)));
 
 export default router;

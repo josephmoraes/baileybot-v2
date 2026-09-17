@@ -220,7 +220,7 @@
             ><select class="form-select" id="rcStatus"></select>
           </div>
           <div class="col-md-4">
-            <label class="form-label">Última movimentação</label
+            <label class="form-label">Última compra</label
             ><input
               class="form-control reactivation-date-input"
               id="rcUltimaData"
@@ -313,7 +313,14 @@
                     <option value="outro">Outro</option>
                   </select>
                 </div>
-                <div class="col-7">
+                <div class="col-md-6"><label class="form-label" for="rcContatoResponsavel">Responsável</label><input class="form-control" id="rcContatoResponsavel" required></div>
+                <div class="col-md-6"><label class="form-label" for="rcContatoStatus">Status resultante</label><select class="form-select" id="rcContatoStatus"><option>Não contatado</option><option>Entrar em contato</option><option>Contatado</option><option>Aguardando retorno</option><option>Negociação</option><option>Reativado</option><option>Sem interesse</option></select></div>
+                <div class="col-12 form-check form-switch ms-2 mt-2">
+                  <input class="form-check-input" type="checkbox" role="switch" id="rcContatoAgendarRetorno" checked>
+                  <label class="form-check-label" for="rcContatoAgendarRetorno">Agendar retorno para este cliente</label>
+                </div>
+                <div class="col-md-6" id="rcContatoAcaoArea"><label class="form-label" for="rcContatoAcao">Próxima ação</label><input class="form-control" id="rcContatoAcao" required></div>
+                <div class="col-7" id="rcContatoProximoArea">
                   <input
                     class="form-control reactivation-date-input"
                     id="rcContatoProximo"

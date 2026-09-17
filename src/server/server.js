@@ -12,6 +12,9 @@ import dashboardRoutes from "./routes/dashboard.js";
 import authRoutes from "./routes/auth.js";
 import reactivationRoutes from "./routes/reactivation.js";
 import customerMetricsRoutes from "./routes/customerMetrics.js";
+import operationsRoutes from "./routes/operations.js";
+import reportsRoutes from "./routes/reports.js";
+import operationLogService from "../services/operationLogService.js";
 import { protegerApi } from "../middleware/adminSession.js";
 
 const app = express();
@@ -26,6 +29,16 @@ app.use((req, res, next) => {
 });
 app.use(express.static(path.join(__dirname, "../public"), { maxAge: process.env.NODE_ENV === "production" ? "1h" : 0 }));
 app.use(express.json({ limit: "10mb" }));
+app.use((req, res, next) => {
+    res.on("finish", () => {
+        if (!req.path.startsWith("/api/") || res.statusCode < 400 || req.path.startsWith("/api/operations/logs")) return;
+        try {
+            operationLogService.registrar({ level: res.statusCode >= 500 ? "error" : "warning", module: "api",
+                action: `${req.method} ${req.path}`, message: `A operação retornou HTTP ${res.statusCode}.` });
+        } catch (error) { console.error("Não foi possível registrar o log da operação.", error); }
+    });
+    next();
+});
 
 app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
@@ -41,6 +54,8 @@ app.use("/api/commissions", commissionsRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/reactivation", reactivationRoutes);
 app.use("/api/customer-metrics", customerMetricsRoutes);
+app.use("/api/operations", operationsRoutes);
+app.use("/api/reports", reportsRoutes);
 app.use("/api", apiRoutes);
 
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "../public/index.html")));
@@ -53,6 +68,7 @@ app.use((req, res, next) => {
 app.use((erro, req, res, next) => {
     if (res.headersSent) return next(erro);
     console.error(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`, erro);
+    try { operationLogService.registrar({ level: "error", module: "servidor", action: `${req.method} ${req.path}`, message: erro.message }); } catch (logError) { console.error(logError); }
     res.status(erro.status || 500).json({
         error: erro.status && erro.status < 500 ? erro.message : "Erro interno do servidor."
     });

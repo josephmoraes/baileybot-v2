@@ -1,4 +1,17 @@
 import db from "../database/database.js";
+import customerService, { normalizarCodigoOg1 } from "./customerService.js";
+import { resumoCliente } from "./customerAnalyticsService.js";
+
+const tagsDoCliente = id => db.prepare(`SELECT t.id,t.name,t.color FROM reactivation_tags t
+    JOIN reactivation_user_tags ut ON ut.tag_id=t.id WHERE ut.user_id=? ORDER BY t.name`).all(id);
+
+function salvarTags(id, tags) {
+    if (!Array.isArray(tags)) return;
+    const ids = [...new Set(tags.map(Number).filter(Number.isInteger))];
+    db.prepare("DELETE FROM reactivation_user_tags WHERE user_id=?").run(id);
+    const inserir = db.prepare("INSERT OR IGNORE INTO reactivation_user_tags(user_id,tag_id) VALUES(?,?)");
+    ids.forEach(tagId => inserir.run(id, tagId));
+}
 
 function formatarJid(numero) {
 
@@ -31,13 +44,13 @@ class UserService {
                 created_at
             FROM users
             ORDER BY COALESCE(NULLIF(company_name, ''), name)
-        `).all();
+        `).all().map(cliente => ({ ...cliente, tags: tagsDoCliente(cliente.id) }));
 
     }
 
    buscarPorId(id) {
 
-        return db.prepare(`
+        const cliente = db.prepare(`
             SELECT
                 id,
                 customer_code,
@@ -48,24 +61,60 @@ class UserService {
             FROM users
             WHERE id = ?
         `).get(id);
+        return cliente ? { ...cliente, tags: tagsDoCliente(cliente.id) } : null;
 
     }
 
     buscarPorCodigo(codigo) {
-        if (!codigo?.trim()) return null;
-        return db.prepare("SELECT id FROM users WHERE customer_code = ?").get(codigo.trim());
+        return customerService.buscarPorCodigo(codigo);
     }
 
-    listarPaginado({ page = 1, perPage = 50, search = "" } = {}) {
+    listarPaginado({ page = 1, perPage = 50, search = "", priority = "todos", status = "todos",
+        seller = "todos", active = "todos", minDays = "", maxDays = "", sort = "az" } = {}) {
         const pagina = Math.max(1, Number(page) || 1);
         const limite = Math.min(100, Math.max(10, Number(perPage) || 50));
         const termo = String(search || "").trim();
-        const where = termo ? "WHERE customer_code LIKE ? OR company_name LIKE ? OR name LIKE ? OR jid LIKE ?" : "";
-        const params = termo ? Array(4).fill(`%${termo}%`) : [];
-        const total = db.prepare(`SELECT COUNT(*) total FROM users ${where}`).get(...params).total;
-        const items = db.prepare(`SELECT id,customer_code,company_name,name,jid,created_at FROM users ${where}
-            ORDER BY COALESCE(NULLIF(company_name,''),name),id LIMIT ? OFFSET ?`).all(...params, limite, (pagina - 1) * limite);
-        return { items, page: pagina, perPage: limite, total, pages: Math.max(1, Math.ceil(total / limite)) };
+        const telefone = termo.replace(/\D/g, "");
+        const telefonePesquisavel = telefone.length >= 8 ? telefone : "";
+        const where = termo ? `WHERE customer_code LIKE ? OR company_name LIKE ? OR name LIKE ? OR jid LIKE ?
+            OR (? <> '' AND jid LIKE ?)
+            OR EXISTS (SELECT 1 FROM reactivation_user_tags sut JOIN reactivation_tags st ON st.id=sut.tag_id
+                WHERE sut.user_id=users.id AND st.name LIKE ?)` : "";
+        const params = termo ? [
+            ...Array(4).fill(`%${termo}%`),
+            telefonePesquisavel,
+            `%${telefonePesquisavel}%`,
+            `%${termo}%`
+        ] : [];
+        const clientes = db.prepare(`SELECT id,customer_code,company_name,name,jid,seller,reactivation_status,last_movement_at,
+            next_contact_at,priority_override,priority_notes,COALESCE(active,1) active,created_at FROM users ${where}`).all(...params);
+        const metricas = db.prepare("SELECT * FROM customer_monthly_metrics ORDER BY user_id,period_start,id").all();
+        const porCliente = new Map();
+        metricas.forEach(item => { if (!porCliente.has(item.user_id)) porCliente.set(item.user_id, []); porCliente.get(item.user_id).push(item); });
+        const enriquecidos = clientes.map(cliente => ({ ...cliente, ...resumoCliente(cliente, porCliente.get(cliente.id) || []) }));
+        const minimo = minDays === "" ? null : Number(minDays); const maximo = maxDays === "" ? null : Number(maxDays);
+        const filtrados = enriquecidos.filter(cliente =>
+            (priority === "todos" || cliente.prioridade.level === priority) &&
+            (status === "todos" || cliente.reactivation_status === status) &&
+            (seller === "todos" || (cliente.seller || "Sem vendedor") === seller) &&
+            (active === "todos" || String(cliente.active) === String(active === "ativo" ? 1 : 0)) &&
+            (minimo === null || cliente.diasSemComprar !== null && cliente.diasSemComprar >= minimo) &&
+            (maximo === null || cliente.diasSemComprar !== null && cliente.diasSemComprar <= maximo));
+        const nome = item => (item.company_name || item.name || item.customer_code || "").toLocaleLowerCase("pt-BR");
+        const ordenacoes = {
+            az: (a, b) => nome(a).localeCompare(nome(b), "pt-BR"), za: (a, b) => nome(b).localeCompare(nome(a), "pt-BR"),
+            revenue_desc: (a, b) => b.faturamento - a.faturamento, revenue_asc: (a, b) => a.faturamento - b.faturamento,
+            growth_desc: (a, b) => b.crescimento - a.crescimento, fall_desc: (a, b) => a.crescimento - b.crescimento,
+            days_desc: (a, b) => (b.diasSemComprar ?? -1) - (a.diasSemComprar ?? -1),
+            days_asc: (a, b) => (a.diasSemComprar ?? Number.MAX_SAFE_INTEGER) - (b.diasSemComprar ?? Number.MAX_SAFE_INTEGER)
+        };
+        filtrados.sort(ordenacoes[sort] || ordenacoes.az);
+        const total = filtrados.length; const pages = Math.max(1, Math.ceil(total / limite)); const currentPage = Math.min(pagina, pages);
+        const items = filtrados.slice((currentPage - 1) * limite, currentPage * limite)
+            .map(cliente => ({ ...cliente, tags: tagsDoCliente(cliente.id) }));
+        return { items, page: currentPage, perPage: limite, total, pages,
+            filters: { sellers: [...new Set(clientes.map(item => item.seller || "Sem vendedor"))].sort(),
+                statuses: [...new Set(clientes.map(item => item.reactivation_status || "Não contatado"))].sort() } };
     }
 
     criar(dados) {
@@ -83,25 +132,17 @@ class UserService {
 
         const jid = telefone?.trim() ? formatarJid(telefone) : null;
         try {
-
-            db.prepare(`
-                INSERT INTO users (
-                    customer_code,
-                    company_name,
-                    name,
-                    jid
-                )
-                VALUES (?, ?, ?, ?)
-            `).run(
-                customer_code?.trim() || null,
-                company_name?.trim() || null,
-                name?.trim() || null,
-                jid
-            );
-
-            return {
-                success: true
-            };
+            const resultado = db.transaction(() => {
+                if (!customer_code?.trim()) {
+                    const inserido = db.prepare("INSERT INTO users(company_name,name,jid) VALUES(?,?,?)")
+                        .run(company_name?.trim() || null, name?.trim() || null, jid);
+                    return { customer: db.prepare("SELECT * FROM users WHERE id=?").get(inserido.lastInsertRowid), created: true, updated: false };
+                }
+                const upsert = customerService.upsertPorCodigo({ customer_code, company_name, name, jid });
+                salvarTags(upsert.customer.id, dados.tag_ids);
+                return upsert;
+            })();
+            return { success: true, id: resultado.customer.id, created: resultado.created, updated: resultado.updated };
 
         } catch (erro) {
 
@@ -155,8 +196,8 @@ class UserService {
         }
 
         if (customer_code?.trim()) {
-            const codigoExistente = db.prepare("SELECT id FROM users WHERE customer_code = ? AND id != ?")
-                .get(customer_code.trim(), id);
+            const codigoExistente = db.prepare("SELECT id FROM users WHERE UPPER(TRIM(customer_code)) = ? AND id != ?")
+                .get(normalizarCodigoOg1(customer_code), id);
             if (codigoExistente) throw new Error("Código de cliente já cadastrado.");
         }
 
@@ -169,12 +210,13 @@ class UserService {
                 jid = ?
             WHERE id = ?
         `).run(
-            customer_code?.trim() || null,
+            normalizarCodigoOg1(customer_code) || null,
             company_name?.trim() || null,
             name?.trim() || null,
             jid,
             id
         );
+        salvarTags(Number(id), dados.tag_ids);
 
         return {
             success: true
