@@ -160,6 +160,54 @@ class ReactivationService {
             }).filter(cliente => priority === "todos" || cliente.priority.level === priority);
     }
 
+    listarPaginado(filtros = {}) {
+        const paginaSolicitada = Math.max(1, Number(filtros.page) || 1);
+        const porPagina = Math.min(100, Math.max(10, Number(filtros.perPage) || 50));
+        if (filtros.priority && filtros.priority !== "todos") {
+            const todos = this.listar(filtros);
+            const pages = Math.max(1, Math.ceil(todos.length / porPagina));
+            const page = Math.min(paginaSolicitada, pages);
+            return { items: todos.slice((page - 1) * porPagina, page * porPagina), page, perPage: porPagina, total: todos.length, pages };
+        }
+        const { seller = "todos", status = "todos", returnFilter = "", reactivatedRecently = "", search = "", sort = "recent", direction = "desc", tags = "", campaign = "todos" } = filtros;
+        const clausulas = [];
+        const params = [];
+        if (seller && seller !== "todos") {
+            if (seller === "outros") {
+                const oficiais = vendedoresOficiais();
+                clausulas.push(`COALESCE(seller,'') <> '' AND lower(seller) NOT IN (${oficiais.map(() => "lower(?)").join(",")})`);
+                params.push(...oficiais);
+            } else if (seller === "sem-vendedor") clausulas.push("COALESCE(TRIM(seller),'') = ''");
+            else { clausulas.push("lower(seller)=lower(?)"); params.push(seller); }
+        }
+        if (status && status !== "todos") { clausulas.push("reactivation_status=?"); params.push(status); }
+        if (returnFilter === "today") clausulas.push("date(next_contact_at)=date('now','localtime')");
+        if (returnFilter === "overdue") clausulas.push("date(next_contact_at)<date('now','localtime')");
+        if (returnFilter === "pending") clausulas.push("date(next_contact_at)<=date('now','localtime')");
+        if (reactivatedRecently === "true") clausulas.push("date(reactivated_at)>=date('now','localtime','-30 days')");
+        if (search) { clausulas.push("(customer_code LIKE ? OR company_name LIKE ? OR name LIKE ? OR jid LIKE ?)"); params.push(...Array(4).fill(`%${search}%`)); }
+        if (tags === "none") clausulas.push("NOT EXISTS (SELECT 1 FROM reactivation_user_tags filter_tags WHERE filter_tags.user_id=users.id)");
+        else if (tags) {
+            const ids = [...new Set(String(tags).split(",").map(Number).filter(Number.isInteger))];
+            if (ids.length) { clausulas.push(`EXISTS (SELECT 1 FROM reactivation_user_tags filter_tags WHERE filter_tags.user_id=users.id AND filter_tags.tag_id IN (${ids.map(() => "?").join(",")}))`); params.push(...ids); }
+        }
+        if (campaign && campaign !== "todos") { clausulas.push("EXISTS (SELECT 1 FROM campaign_recipients filter_campaign WHERE filter_campaign.cliente_id=users.id AND filter_campaign.campaign_id=? AND filter_campaign.active=1)"); params.push(Number(campaign)); }
+        const where = clausulas.length ? `WHERE ${clausulas.join(" AND ")}` : "";
+        const ordenacoes = { recent: "COALESCE(reactivation_sequence,0)", code: "customer_code", client: "COALESCE(NULLIF(company_name,''),name)", phone: "jid", seller: "seller", movement: "last_movement_at", lastValue: "last_movement_value", accumulated: "accumulated_value", status: "reactivation_status", nextContact: "next_contact_at" };
+        const coluna = ordenacoes[sort] || ordenacoes.recent;
+        const sentido = String(direction).toLowerCase() === "asc" ? "ASC" : "DESC";
+        const total = db.prepare(`SELECT COUNT(*) total FROM users ${where}`).get(...params).total;
+        const pages = Math.max(1, Math.ceil(total / porPagina));
+        const page = Math.min(paginaSolicitada, pages);
+        const clientes = db.prepare(`SELECT id,customer_code,company_name,name,jid,seller,
+            COALESCE((SELECT movement_date FROM customer_movements WHERE user_id=users.id ORDER BY movement_date DESC,id DESC LIMIT 1),last_movement_at) last_movement_at,
+            COALESCE((SELECT value FROM customer_movements WHERE user_id=users.id ORDER BY movement_date DESC,id DESC LIMIT 1),last_movement_value) last_movement_value,
+            accumulated_value,reactivation_status,next_contact_at FROM users ${where}
+            ORDER BY ${coluna} ${sentido},created_at DESC,id DESC LIMIT ? OFFSET ?`).all(...params, porPagina, (page - 1) * porPagina)
+            .map(cliente => ({ ...cliente, tags: tagsDoCliente(cliente.id), campaigns: campanhasDoCliente(cliente.id) }));
+        return { items: clientes, page, perPage: porPagina, total, pages };
+    }
+
     obter(id) { return clienteCompleto(id); }
 
     salvar(id, dados) {

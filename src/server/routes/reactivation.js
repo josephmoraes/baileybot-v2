@@ -5,7 +5,9 @@ const router = express.Router();
 const responder = funcao => (req, res) => { try { res.json(funcao(req, res)); } catch (erro) { res.status(/não encontrado/i.test(erro.message) ? 404 : 400).json({ error: erro.message }); } };
 
 router.get("/dashboard", responder(() => reactivationService.dashboard()));
-router.get("/clients", responder(req => reactivationService.listar(req.query)));
+router.get("/clients", responder(req => req.query.page || req.query.perPage
+    ? reactivationService.listarPaginado(req.query)
+    : reactivationService.listar(req.query)));
 router.get("/clients/:id", responder(req => reactivationService.obter(req.params.id) || (() => { throw new Error("Cliente não encontrado."); })()));
 router.post("/clients", responder(req => reactivationService.salvar(null, req.body)));
 router.put("/clients/:id", responder(req => reactivationService.salvar(req.params.id, req.body)));

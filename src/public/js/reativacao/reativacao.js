@@ -22,6 +22,8 @@ let reativacaoTagsFiltro = new Set();
 let reativacaoSemEtiqueta = false;
 let reativacaoArquivo = null;
 let reativacaoOrdenacao = { campo: "recent", direcao: "desc" };
+let reativacaoPagina = 1;
+let reativacaoPaginas = 1;
 const REATIVACAO_COLUNAS = [
   { id: "code", label: "Código", classe: "col-code" },
   { id: "client", label: "Cliente", classe: "col-client" },
@@ -288,25 +290,25 @@ window.inicializarReativacaoVendedores = async () => {
           (item.className = `btn ${item === botao ? "btn-success" : "btn-outline-secondary"}`),
       );
     atualizarFiltrosGlobaisReativacao();
-    await carregarClientesReativacao();
+    await carregarClientesReativacao(1);
   });
   document
     .getElementById("reativacaoFiltroVendedor")
     .addEventListener("change", async (evento) => {
       reativacaoVendedorGlobal = evento.target.value;
-      await carregarClientesReativacao();
+      await carregarClientesReativacao(1);
     });
   document
     .getElementById("reativacaoFiltroStatus")
     .addEventListener("change", async (evento) => {
       reativacaoStatusFiltro = evento.target.value;
-      await carregarClientesReativacao();
+      await carregarClientesReativacao(1);
     });
   document
     .getElementById("reativacaoFiltroCampanha")
     .addEventListener("change", async (evento) => {
       reativacaoCampanhaFiltro = evento.target.value;
-      await carregarClientesReativacao();
+      await carregarClientesReativacao(1);
     });
   document
     .getElementById("btnAdicionarSelecionadosCampanha")
@@ -339,7 +341,7 @@ window.inicializarReativacaoVendedores = async () => {
     .getElementById("reativacaoPesquisa")
     .addEventListener("input", () => {
       clearTimeout(atraso);
-      atraso = setTimeout(carregarClientesReativacao, 250);
+      atraso = setTimeout(() => carregarClientesReativacao(1), 250);
     });
   document
     .getElementById("btnNovoClienteReativacao")
@@ -373,7 +375,7 @@ window.inicializarReativacaoVendedores = async () => {
         document.getElementById("reativacaoFiltroSemEtiqueta").checked = false;
         document.getElementById("reativacaoTagsFiltroTotal").textContent =
           reativacaoTagsFiltro.size;
-        await carregarClientesReativacao();
+        await carregarClientesReativacao(1);
       }),
     );
   document
@@ -390,7 +392,7 @@ window.inicializarReativacaoVendedores = async () => {
       }
       document.getElementById("reativacaoTagsFiltroTotal").textContent =
         reativacaoSemEtiqueta ? "1" : "0";
-      await carregarClientesReativacao();
+      await carregarClientesReativacao(1);
     });
   document
     .getElementById("reativacaoLimparEtiquetas")
@@ -405,7 +407,7 @@ window.inicializarReativacaoVendedores = async () => {
           input.checked = false;
         });
       document.getElementById("reativacaoTagsFiltroTotal").textContent = "0";
-      await carregarClientesReativacao();
+      await carregarClientesReativacao(1);
     });
   inicializarSeletorColunasReativacao();
   atualizarFiltrosGlobaisReativacao();
@@ -451,13 +453,19 @@ window.inicializarReativacaoVendedores = async () => {
               ? `bi bi-sort-${reativacaoOrdenacao.direcao === "asc" ? "up" : "down"}`
               : "bi bi-arrow-down-up";
       });
-      await carregarClientesReativacao();
+      await carregarClientesReativacao(1);
     }),
   );
-  await carregarClientesReativacao();
+  document.getElementById("reativacaoPaginaAnterior").addEventListener("click", () =>
+    carregarClientesReativacao(reativacaoPagina - 1),
+  );
+  document.getElementById("reativacaoPaginaProxima").addEventListener("click", () =>
+    carregarClientesReativacao(reativacaoPagina + 1),
+  );
+  await carregarClientesReativacao(1);
 };
 
-async function carregarClientesReativacao() {
+async function carregarClientesReativacao(page = reativacaoPagina) {
   const pesquisa = document.getElementById("reativacaoPesquisa")?.value || "";
   const visaoGlobal = reativacaoFiltro === "Todos os Clientes";
   const seller = visaoGlobal
@@ -468,9 +476,12 @@ async function carregarClientesReativacao() {
   const tags = reativacaoSemEtiqueta
     ? "none"
     : [...reativacaoTagsFiltro].join(",");
-  const clientes = await rcJson(
-    `/api/reactivation/clients?seller=${encodeURIComponent(seller)}&status=${encodeURIComponent(visaoGlobal ? reativacaoStatusFiltro : "todos")}&priority=${encodeURIComponent(reativacaoPrioridadeFiltro)}&returnFilter=${encodeURIComponent(reativacaoRetornoFiltro)}&reactivatedRecently=${reativacaoReativadoRecente}&search=${encodeURIComponent(pesquisa)}&sort=${encodeURIComponent(reativacaoOrdenacao.campo)}&direction=${reativacaoOrdenacao.direcao}&tags=${encodeURIComponent(tags)}&campaign=${encodeURIComponent(reativacaoCampanhaFiltro)}`,
+  const dados = await rcJson(
+    `/api/reactivation/clients?seller=${encodeURIComponent(seller)}&status=${encodeURIComponent(visaoGlobal ? reativacaoStatusFiltro : "todos")}&priority=${encodeURIComponent(reativacaoPrioridadeFiltro)}&returnFilter=${encodeURIComponent(reativacaoRetornoFiltro)}&reactivatedRecently=${reativacaoReativadoRecente}&search=${encodeURIComponent(pesquisa)}&sort=${encodeURIComponent(reativacaoOrdenacao.campo)}&direction=${reativacaoOrdenacao.direcao}&tags=${encodeURIComponent(tags)}&campaign=${encodeURIComponent(reativacaoCampanhaFiltro)}&page=${page}&perPage=50`,
   );
+  const clientes = dados.items;
+  reativacaoPagina = dados.page;
+  reativacaoPaginas = dados.pages;
   document
     .querySelectorAll(".reactivation-responsavel")
     .forEach((item) =>
@@ -480,7 +491,12 @@ async function carregarClientesReativacao() {
       ),
     );
   document.getElementById("reativacaoContagem").textContent =
-    `${clientes.length} cliente(s)`;
+    `${dados.total} cliente(s)`;
+  document.getElementById("reativacaoPaginacaoResumo").textContent =
+    `${dados.total} cliente(s) • página ${dados.page} de ${dados.pages}`;
+  document.getElementById("reativacaoPaginaAnterior").disabled = dados.page <= 1;
+  document.getElementById("reativacaoPaginaProxima").disabled =
+    dados.page >= dados.pages;
   document.getElementById("reativacaoClientes").innerHTML = clientes.length
     ? clientes
         .map(
