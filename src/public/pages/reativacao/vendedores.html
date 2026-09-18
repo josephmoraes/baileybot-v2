@@ -24,32 +24,80 @@
         placeholder="Pesquisar código, cliente ou telefone"
       />
       <div class="d-flex flex-wrap gap-2 d-none" id="reativacaoFiltrosGlobais">
-        <select class="form-select" id="reativacaoFiltroVendedor" aria-label="Filtrar por vendedor">
+        <select
+          class="form-select"
+          id="reativacaoFiltroVendedor"
+          aria-label="Filtrar por vendedor"
+        >
           <option value="todos">Todos os vendedores</option>
-          <option>Alisson</option><option>Noberto</option><option>Aldener</option><option>Letícia</option><option>Clayton</option>
-          <option value="outros">Outros</option><option value="sem-vendedor">Sem vendedor</option>
         </select>
-        <select class="form-select" id="reativacaoFiltroStatus" aria-label="Filtrar por status"></select>
+        <select
+          class="form-select"
+          id="reativacaoFiltroStatus"
+          aria-label="Filtrar por status"
+        ></select>
       </div>
       <div class="dropdown">
-        <button class="btn btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-          <i class="bi bi-tags me-1"></i> Etiquetas <span class="badge bg-success ms-1" id="reativacaoTagsFiltroTotal">0</span>
+        <button
+          class="btn btn-outline-light dropdown-toggle"
+          type="button"
+          data-bs-toggle="dropdown"
+          data-bs-auto-close="outside"
+        >
+          <i class="bi bi-tags me-1"></i> Etiquetas
+          <span class="badge bg-success ms-1" id="reativacaoTagsFiltroTotal"
+            >0</span
+          >
         </button>
-        <div class="dropdown-menu dropdown-menu-dark p-3" style="min-width: 260px">
-          <p class="small text-secondary mb-2">Mostrar clientes com qualquer etiqueta selecionada</p>
-          <label class="form-check mb-2"><input class="form-check-input" type="checkbox" id="reativacaoFiltroSemEtiqueta"> <span class="form-check-label">Sem etiqueta</span></label>
+        <div
+          class="dropdown-menu dropdown-menu-dark p-3"
+          style="min-width: 260px"
+        >
+          <p class="small text-secondary mb-2">
+            Mostrar clientes com qualquer etiqueta selecionada
+          </p>
+          <label class="form-check mb-2"
+            ><input
+              class="form-check-input"
+              type="checkbox"
+              id="reativacaoFiltroSemEtiqueta"
+            />
+            <span class="form-check-label">Sem etiqueta</span></label
+          >
           <div id="reativacaoFiltrosEtiquetas" class="d-grid gap-2"></div>
-          <button class="btn btn-sm btn-outline-secondary w-100 mt-3" type="button" id="reativacaoLimparEtiquetas">Limpar filtro</button>
+          <button
+            class="btn btn-sm btn-outline-secondary w-100 mt-3"
+            type="button"
+            id="reativacaoLimparEtiquetas"
+          >
+            Limpar filtro
+          </button>
         </div>
       </div>
-      <select class="form-select" id="reativacaoFiltroCampanha" aria-label="Filtrar por campanha" style="max-width: 230px">
+      <select
+        class="form-select"
+        id="reativacaoFiltroCampanha"
+        aria-label="Filtrar por campanha"
+        style="max-width: 230px"
+      >
         <option value="todos">Todas as campanhas</option>
       </select>
       <div class="input-group" style="max-width: 390px">
-        <select class="form-select" id="reativacaoCampanhaDestino" aria-label="Campanha de destino">
+        <select
+          class="form-select"
+          id="reativacaoCampanhaDestino"
+          aria-label="Campanha de destino"
+        >
           <option value="">Adicionar selecionados à campanha...</option>
         </select>
-        <button class="btn btn-outline-success" id="btnAdicionarSelecionadosCampanha" type="button" disabled>Adicionar</button>
+        <button
+          class="btn btn-outline-success"
+          id="btnAdicionarSelecionadosCampanha"
+          type="button"
+          disabled
+        >
+          Adicionar
+        </button>
       </div>
       <div class="d-flex align-items-center gap-2 ms-auto">
         <span class="text-secondary small" id="reativacaoContagem"></span>
@@ -95,7 +143,14 @@
       >
         <thead>
           <tr>
-            <th><input class="form-check-input" type="checkbox" id="reativacaoSelecionarTodos" aria-label="Selecionar todos os clientes visíveis" /></th>
+            <th>
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="reativacaoSelecionarTodos"
+                aria-label="Selecionar todos os clientes visíveis"
+              />
+            </th>
             <th class="col-code">
               <button class="reactivation-sort" data-sort="code">
                 Código <i class="bi bi-arrow-down-up"></i>
@@ -190,30 +245,7 @@
           </div>
           <div class="col-md-4">
             <label class="form-label">Responsável</label
-            ><input
-              class="form-control"
-              id="rcVendedor"
-              list="vendedoresReativacao"
-              autocomplete="off"
-              placeholder="Digite ou escolha um vendedor"
-            />
-            <div
-              class="reactivation-seller-suggestions mt-2"
-              aria-label="Vendedores oficiais"
-            >
-              <span>Oficiais:</span
-              ><button type="button" data-seller-suggestion="Alisson">
-                Alisson</button
-              ><button type="button" data-seller-suggestion="Noberto">
-                Noberto</button
-              ><button type="button" data-seller-suggestion="Aldener">
-                Aldener</button
-              ><button type="button" data-seller-suggestion="Letícia">
-                Letícia</button
-              ><button type="button" data-seller-suggestion="Clayton">
-                Clayton
-              </button>
-            </div>
+            ><select class="form-select" id="rcVendedor"></select>
           </div>
           <div class="col-md-4">
             <label class="form-label">Status</label
@@ -296,7 +328,9 @@
             <select class="form-select" id="rcCampanhaAdicionar">
               <option value="">Adicionar este cliente a uma campanha...</option>
             </select>
-            <div class="form-text" id="rcCampanhasAtuais">Salve o cliente para adicioná-lo a campanhas.</div>
+            <div class="form-text" id="rcCampanhasAtuais">
+              Salve o cliente para adicioná-lo a campanhas.
+            </div>
           </div>
         </div>
         <hr class="border-secondary" />
@@ -313,13 +347,45 @@
                     <option value="outro">Outro</option>
                   </select>
                 </div>
-                <div class="col-md-6"><label class="form-label" for="rcContatoResponsavel">Responsável</label><input class="form-control" id="rcContatoResponsavel" required></div>
-                <div class="col-md-6"><label class="form-label" for="rcContatoStatus">Status resultante</label><select class="form-select" id="rcContatoStatus"><option>Não contatado</option><option>Entrar em contato</option><option>Contatado</option><option>Aguardando retorno</option><option>Negociação</option><option>Reativado</option><option>Sem interesse</option></select></div>
-                <div class="col-12 form-check form-switch ms-2 mt-2">
-                  <input class="form-check-input" type="checkbox" role="switch" id="rcContatoAgendarRetorno" checked>
-                  <label class="form-check-label" for="rcContatoAgendarRetorno">Agendar retorno para este cliente</label>
+                <div class="col-md-6">
+                  <label class="form-label" for="rcContatoResponsavel"
+                    >Responsável</label
+                  ><input
+                    class="form-control"
+                    id="rcContatoResponsavel"
+                    required
+                  />
                 </div>
-                <div class="col-md-6" id="rcContatoAcaoArea"><label class="form-label" for="rcContatoAcao">Próxima ação</label><input class="form-control" id="rcContatoAcao" required></div>
+                <div class="col-md-6">
+                  <label class="form-label" for="rcContatoStatus"
+                    >Status resultante</label
+                  ><select class="form-select" id="rcContatoStatus">
+                    <option>Não contatado</option>
+                    <option>Entrar em contato</option>
+                    <option>Contatado</option>
+                    <option>Aguardando retorno</option>
+                    <option>Negociação</option>
+                    <option>Reativado</option>
+                    <option>Sem interesse</option>
+                  </select>
+                </div>
+                <div class="col-12 form-check form-switch ms-2 mt-2">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    role="switch"
+                    id="rcContatoAgendarRetorno"
+                    checked
+                  />
+                  <label class="form-check-label" for="rcContatoAgendarRetorno"
+                    >Agendar retorno para este cliente</label
+                  >
+                </div>
+                <div class="col-md-6" id="rcContatoAcaoArea">
+                  <label class="form-label" for="rcContatoAcao"
+                    >Próxima ação</label
+                  ><input class="form-control" id="rcContatoAcao" required />
+                </div>
                 <div class="col-7" id="rcContatoProximoArea">
                   <input
                     class="form-control reactivation-date-input"
@@ -356,13 +422,6 @@
             </div>
           </div>
         </div>
-        <datalist id="vendedoresReativacao">
-          <option>Alisson</option>
-          <option>Noberto</option>
-          <option>Aldener</option>
-          <option>Letícia</option>
-          <option>Clayton</option>
-        </datalist>
       </div>
       <div class="modal-footer border-secondary">
         <button

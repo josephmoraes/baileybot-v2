@@ -212,7 +212,19 @@ async function rrImport() {
   await rrOpenReport(result.report.id);
 }
 async function inicializarRelatoriosReativacao() {
-  rrTags = await rcJson("/api/reactivation/tags");
+  const [tags, sellers] = await Promise.all([
+    rcJson("/api/reactivation/tags"),
+    rcJson("/api/settings/sellers"),
+  ]);
+  rrTags = tags;
+  document.getElementById("rrVendedor").innerHTML =
+    '<option value="">Sem vendedor</option>' +
+    sellers
+      .map(
+        (seller) =>
+          `<option value="${rcSeguro(seller)}">${rcSeguro(seller)}</option>`,
+      )
+      .join("");
   document.getElementById("rrStatus").innerHTML = REATIVACAO_STATUS.map(
     (status) => `<option>${status}</option>`,
   ).join("");

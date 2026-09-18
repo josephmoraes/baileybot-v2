@@ -4,202 +4,195 @@ let metricasArquivo = null;
 let metricasStatus = [];
 let metricasPesquisa = "";
 
-const mtSeguro = valor =>
-    String(valor ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;");
+const mtSeguro = (valor) =>
+  String(valor ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 
-const mtMoeda = valor =>
-    Number(valor || 0).toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL"
-    });
+const mtMoeda = (valor) =>
+  Number(valor || 0).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
 
-const mtPercentual = valor =>
-    `${Number(valor || 0) >= 0 ? "+" : ""}${Number(valor || 0).toLocaleString("pt-BR", {
-        maximumFractionDigits: 1
-    })}%`;
+const mtPercentual = (valor) =>
+  `${Number(valor || 0) >= 0 ? "+" : ""}${Number(valor || 0).toLocaleString(
+    "pt-BR",
+    {
+      maximumFractionDigits: 1,
+    },
+  )}%`;
 
-const mtData = valor =>
-    valor
-        ? new Date(`${String(valor).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")
-        : "—";
+const mtData = (valor) =>
+  valor
+    ? new Date(`${String(valor).slice(0, 10)}T12:00:00`).toLocaleDateString(
+        "pt-BR",
+      )
+    : "—";
 
 async function mtJson(url, options) {
-    const response = await fetch(url, options);
-    const data = await response.json();
+  const response = await fetch(url, options);
+  const data = await response.json();
 
-    if (!response.ok) {
-        throw new Error(data.error || "Não foi possível concluir a operação.");
-    }
+  if (!response.ok) {
+    throw new Error(data.error || "Não foi possível concluir a operação.");
+  }
 
-    return data;
+  return data;
 }
 
 function mtMostrarAviso(mensagem, tipo = "success") {
-    let container = document.getElementById("metricasAvisos");
+  let container = document.getElementById("metricasAvisos");
 
-    if (!container) {
-        container = document.createElement("div");
-        container.id = "metricasAvisos";
-        container.className = "metrics-toast-container";
-        container.setAttribute("aria-live", "polite");
-        container.setAttribute("aria-atomic", "true");
-        document.body.appendChild(container);
-    }
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "metricasAvisos";
+    container.className = "metrics-toast-container";
+    container.setAttribute("aria-live", "polite");
+    container.setAttribute("aria-atomic", "true");
+    document.body.appendChild(container);
+  }
 
-    const aviso = document.createElement("div");
-    aviso.className = `metrics-toast metrics-toast-${tipo}`;
-    aviso.setAttribute("role", tipo === "success" ? "status" : "alert");
+  const aviso = document.createElement("div");
+  aviso.className = `metrics-toast metrics-toast-${tipo}`;
+  aviso.setAttribute("role", tipo === "success" ? "status" : "alert");
 
-    const icone = document.createElement("i");
-    icone.className = tipo === "success"
-        ? "bi bi-check-circle-fill"
-        : "bi bi-exclamation-triangle-fill";
+  const icone = document.createElement("i");
+  icone.className =
+    tipo === "success"
+      ? "bi bi-check-circle-fill"
+      : "bi bi-exclamation-triangle-fill";
 
-    const texto = document.createElement("span");
-    texto.textContent = mensagem;
+  const texto = document.createElement("span");
+  texto.textContent = mensagem;
 
-    aviso.append(icone, texto);
-    container.appendChild(aviso);
+  aviso.append(icone, texto);
+  container.appendChild(aviso);
 
-    window.requestAnimationFrame(() => aviso.classList.add("show"));
+  window.requestAnimationFrame(() => aviso.classList.add("show"));
 
-    window.setTimeout(() => {
-        aviso.classList.remove("show");
-        window.setTimeout(() => aviso.remove(), 220);
-    }, 3500);
+  window.setTimeout(() => {
+    aviso.classList.remove("show");
+    window.setTimeout(() => aviso.remove(), 220);
+  }, 3500);
 }
-
 
 function mtAtualizarRecortes() {
-    const preset = document.getElementById("metricasPreset").value;
-    const select = document.getElementById("metricasRecorte");
+  const preset = document.getElementById("metricasPreset").value;
+  const select = document.getElementById("metricasRecorte");
 
-    const opcoes =
-        preset === "quarter"
-            ? [
-                ["1-3", "1º trimestre"],
-                ["4-6", "2º trimestre"],
-                ["7-9", "3º trimestre"],
-                ["10-12", "4º trimestre"]
-            ]
-            : preset === "semester"
-                ? [
-                    ["1-6", "1º semestre"],
-                    ["7-12", "2º semestre"]
-                ]
-                : [
-                    ["1-12", "Ano completo"]
-                ];
+  const opcoes =
+    preset === "quarter"
+      ? [
+          ["1-3", "1º trimestre"],
+          ["4-6", "2º trimestre"],
+          ["7-9", "3º trimestre"],
+          ["10-12", "4º trimestre"],
+        ]
+      : preset === "semester"
+        ? [
+            ["1-6", "1º semestre"],
+            ["7-12", "2º semestre"],
+          ]
+        : [["1-12", "Ano completo"]];
 
-    select.innerHTML = opcoes
-        .map(([value, label]) => `<option value="${value}">${label}</option>`)
-        .join("");
+  select.innerHTML = opcoes
+    .map(([value, label]) => `<option value="${value}">${label}</option>`)
+    .join("");
 
-    select.disabled = preset === "custom";
+  select.disabled = preset === "custom";
 
-    document
-        .getElementById("metricasDatasPersonalizadas")
-        .classList.toggle("d-none", preset !== "custom");
+  document
+    .getElementById("metricasDatasPersonalizadas")
+    .classList.toggle("d-none", preset !== "custom");
 }
-
 
 function mtParametros() {
-    const yearA = document.getElementById("metricasAnoA").value;
-    const yearB = document.getElementById("metricasAnoB").value;
-    const seller = document.getElementById("metricasVendedor").value;
+  const yearA = document.getElementById("metricasAnoA").value;
+  const yearB = document.getElementById("metricasAnoB").value;
+  const seller = document.getElementById("metricasVendedor").value;
 
-    if (document.getElementById("metricasPreset").value === "custom") {
-        return new URLSearchParams({
-            yearA,
-            yearB,
-            seller,
-            startA: document.getElementById("metricasInicioA").value,
-            endA: document.getElementById("metricasFimA").value,
-            startB: document.getElementById("metricasInicioB").value,
-            endB: document.getElementById("metricasFimB").value
-        });
-    }
-
-    const [fromMonth, toMonth] =
-        document.getElementById("metricasRecorte").value.split("-");
-
+  if (document.getElementById("metricasPreset").value === "custom") {
     return new URLSearchParams({
-        yearA,
-        yearB,
-        seller,
-        fromMonth,
-        toMonth
+      yearA,
+      yearB,
+      seller,
+      startA: document.getElementById("metricasInicioA").value,
+      endA: document.getElementById("metricasFimA").value,
+      startB: document.getElementById("metricasInicioB").value,
+      endB: document.getElementById("metricasFimB").value,
     });
-}
+  }
 
+  const [fromMonth, toMonth] = document
+    .getElementById("metricasRecorte")
+    .value.split("-");
+
+  return new URLSearchParams({
+    yearA,
+    yearB,
+    seller,
+    fromMonth,
+    toMonth,
+  });
+}
 
 function mtClientesFiltrados() {
-    const status =
-        document.getElementById("metricasStatusFiltro")?.value || "todos";
+  const status =
+    document.getElementById("metricasStatusFiltro")?.value || "todos";
 
-    const priority =
-        document.getElementById("metricasPrioridadeFiltro")?.value || "todos";
+  const priority =
+    document.getElementById("metricasPrioridadeFiltro")?.value || "todos";
 
-    const order =
-        document.getElementById("metricasOrdenacao")?.value || "priority-desc";
+  const order =
+    document.getElementById("metricasOrdenacao")?.value || "priority-desc";
 
-    const lista = metricasClientesCache.filter(item =>
-        (status === "todos" || item.metric_status === status) &&
-        (priority === "todos" || item.priority.level === priority) &&
-        `${item.customer_code} ${item.company_name}`
-            .toLowerCase()
-            .includes(metricasPesquisa)
-    );
+  const lista = metricasClientesCache.filter(
+    (item) =>
+      (status === "todos" || item.metric_status === status) &&
+      (priority === "todos" || item.priority.level === priority) &&
+      `${item.customer_code} ${item.company_name}`
+        .toLowerCase()
+        .includes(metricasPesquisa),
+  );
 
-    const comparadores = {
-        "priority-desc": (a, b) =>
-            b.priority.score - a.priority.score,
+  const comparadores = {
+    "priority-desc": (a, b) => b.priority.score - a.priority.score,
 
-        "variation-desc": (a, b) =>
-            b.variation - a.variation,
+    "variation-desc": (a, b) => b.variation - a.variation,
 
-        "variation-asc": (a, b) =>
-            a.variation - b.variation,
+    "variation-asc": (a, b) => a.variation - b.variation,
 
-        "name-asc": (a, b) =>
-            (a.company_name || "").localeCompare(
-                b.company_name || "",
-                "pt-BR"
-            ),
+    "name-asc": (a, b) =>
+      (a.company_name || "").localeCompare(b.company_name || "", "pt-BR"),
 
-        "name-desc": (a, b) =>
-            (b.company_name || "").localeCompare(
-                a.company_name || "",
-                "pt-BR"
-            )
-    };
+    "name-desc": (a, b) =>
+      (b.company_name || "").localeCompare(a.company_name || "", "pt-BR"),
+  };
 
-    return [...lista].sort(comparadores[order]);
+  return [...lista].sort(comparadores[order]);
 }
 
-
 function mtRenderTable() {
-    const customers = mtClientesFiltrados();
+  const customers = mtClientesFiltrados();
 
-    document.getElementById("metricasTabela").innerHTML =
-        customers.length
-            ? customers.map(customer => {
-                const badge =
-                    customer.priority.level === "Alta"
-                        ? "danger"
-                        : customer.priority.level === "Média"
-                            ? "warning text-dark"
-                            : "success";
+  document.getElementById("metricasTabela").innerHTML = customers.length
+    ? customers
+        .map((customer) => {
+          const badge =
+            customer.priority.level === "Alta"
+              ? "danger"
+              : customer.priority.level === "Média"
+                ? "warning text-dark"
+                : "success";
 
-                const status = metricasStatus.find(
-                    item => item.name === customer.metric_status
-                );
+          const status = metricasStatus.find(
+            (item) => item.name === customer.metric_status,
+          );
 
-                return `
+          return `
                     <tr
                         role="button"
                         data-cliente-metrica="${customer.id}"
@@ -247,8 +240,9 @@ function mtRenderTable() {
                         </td>
                     </tr>
                 `;
-            }).join("")
-            : `
+        })
+        .join("")
+    : `
                 <tr>
                     <td
                         colspan="10"
@@ -260,16 +254,14 @@ function mtRenderTable() {
             `;
 }
 
-
 function mtRenderChart(items, labelA, labelB) {
-    const max = Math.max(
-        1,
-        ...items.flatMap(item => [item.valueA, item.valueB])
-    );
+  const max = Math.max(
+    1,
+    ...items.flatMap((item) => [item.valueA, item.valueB]),
+  );
 
-    document.getElementById("metricasGrafico").innerHTML =
-        items.length
-            ? `
+  document.getElementById("metricasGrafico").innerHTML = items.length
+    ? `
                 <div class="metrics-legend">
                     <span>
                         <i class="year-a"></i>
@@ -283,15 +275,17 @@ function mtRenderChart(items, labelA, labelB) {
                 </div>
 
                 <div class="metrics-bars">
-                    ${items.map(item => `
+                    ${items
+                      .map(
+                        (item) => `
                         <div class="metrics-month">
 
                             <div class="metrics-columns">
                                 <span
                                     class="year-a"
                                     style="height:${Math.max(
-                                        item.valueA ? 4 : 0,
-                                        item.valueA / max * 150
+                                      item.valueA ? 4 : 0,
+                                      (item.valueA / max) * 150,
                                     )}px"
                                     title="${mtMoeda(item.valueA)}"
                                 ></span>
@@ -299,8 +293,8 @@ function mtRenderChart(items, labelA, labelB) {
                                 <span
                                     class="year-b"
                                     style="height:${Math.max(
-                                        item.valueB ? 4 : 0,
-                                        item.valueB / max * 150
+                                      item.valueB ? 4 : 0,
+                                      (item.valueB / max) * 150,
                                     )}px"
                                     title="${mtMoeda(item.valueB)}"
                                 ></span>
@@ -311,10 +305,12 @@ function mtRenderChart(items, labelA, labelB) {
                             </small>
 
                         </div>
-                    `).join("")}
+                    `,
+                      )
+                      .join("")}
                 </div>
             `
-            : `
+    : `
                 <div class="app-state py-4">
                     <p class="mb-0">
                         Não há relatórios dentro do período escolhido.
@@ -323,14 +319,15 @@ function mtRenderChart(items, labelA, labelB) {
             `;
 }
 
-
 function mtRenderFila() {
-    document.getElementById("metricasFilaTotal").textContent =
-        metricasFilaCache.length;
+  document.getElementById("metricasFilaTotal").textContent =
+    metricasFilaCache.length;
 
-    document.getElementById("metricasFilaHoje").innerHTML =
-        metricasFilaCache.length
-            ? metricasFilaCache.map(item => `
+  document.getElementById("metricasFilaHoje").innerHTML =
+    metricasFilaCache.length
+      ? metricasFilaCache
+          .map(
+            (item) => `
                 <button
                     type="button"
                     class="list-group-item list-group-item-action bg-transparent text-light border-secondary"
@@ -356,9 +353,9 @@ function mtRenderFila() {
 
                             <small class="d-block text-secondary">
                                 ${
-                                    item.next_contact_at
-                                        ? `Retorno ${mtData(item.next_contact_at)}`
-                                        : "Contato recomendado"
+                                  item.next_contact_at
+                                    ? `Retorno ${mtData(item.next_contact_at)}`
+                                    : "Contato recomendado"
                                 }
                             </small>
 
@@ -366,83 +363,70 @@ function mtRenderFila() {
 
                     </div>
                 </button>
-            `).join("")
-            : `
+            `,
+          )
+          .join("")
+      : `
                 <div class="p-4 text-center text-secondary">
                     Nenhum contato prioritário para hoje.
                 </div>
             `;
 }
 
-
 function mtGraficoCliente(metrics) {
-    if (!metrics.length) {
-        return `
+  if (!metrics.length) {
+    return `
             <div class="app-state py-4">
                 <p class="mb-0">
                     Sem compras importadas.
                 </p>
             </div>
         `;
-    }
+  }
 
-    const ordered = [...metrics].sort(
-        (a, b) => a.period_start.localeCompare(b.period_start)
-    );
+  const ordered = [...metrics].sort((a, b) =>
+    a.period_start.localeCompare(b.period_start),
+  );
 
-    const width = 900;
-    const height = 260;
-    const pad = 48;
+  const width = 900;
+  const height = 260;
+  const pad = 48;
 
-    const maxValue = Math.max(
-        ...ordered.map(item => Number(item.purchased_value))
-    );
+  const maxValue = Math.max(
+    ...ordered.map((item) => Number(item.purchased_value)),
+  );
 
-    const minValue = Math.min(
-        ...ordered.map(item => Number(item.purchased_value))
-    );
+  const minValue = Math.min(
+    ...ordered.map((item) => Number(item.purchased_value)),
+  );
 
-    const scaleMax = Math.max(1, maxValue);
+  const scaleMax = Math.max(1, maxValue);
 
-    const x = index =>
-        ordered.length === 1
-            ? width / 2
-            : pad +
-              index *
-              ((width - pad * 2) / (ordered.length - 1));
+  const x = (index) =>
+    ordered.length === 1
+      ? width / 2
+      : pad + index * ((width - pad * 2) / (ordered.length - 1));
 
-    const y = value =>
-        height -
-        pad -
-        (Number(value) / scaleMax) *
-        (height - pad * 2);
+  const y = (value) =>
+    height - pad - (Number(value) / scaleMax) * (height - pad * 2);
 
-    const points = ordered
-        .map(
-            (item, index) =>
-                `${x(index)},${y(item.purchased_value)}`
-        )
-        .join(" ");
+  const points = ordered
+    .map((item, index) => `${x(index)},${y(item.purchased_value)}`)
+    .join(" ");
 
-    const circles = ordered.map((item, index) => {
-        const high =
-            Number(item.purchased_value) === maxValue;
+  const circles = ordered
+    .map((item, index) => {
+      const high = Number(item.purchased_value) === maxValue;
 
-        const low =
-            Number(item.purchased_value) === minValue;
+      const low = Number(item.purchased_value) === minValue;
 
-        const movement =
-            item.movement_numbers
-                ? ` · Movimento(s): ${item.movement_numbers}`
-                : "";
+      const movement = item.movement_numbers
+        ? ` · Movimento(s): ${item.movement_numbers}`
+        : "";
 
-        return `
+      return `
             <g class="${
-                high
-                    ? "metric-point-high"
-                    : low
-                        ? "metric-point-low"
-                        : ""
+              high ? "metric-point-high" : low ? "metric-point-low" : ""
             }">
 
                 <circle
@@ -459,20 +443,20 @@ function mtGraficoCliente(metrics) {
                 </circle>
 
                 ${
-                    high || low
-                        ? `
+                  high || low
+                    ? `
                             <text
                                 x="${x(index)}"
                                 y="${Math.max(
-                                    16,
-                                    y(item.purchased_value) - 13
+                                  16,
+                                  y(item.purchased_value) - 13,
                                 )}"
                                 text-anchor="middle"
                             >
                                 ${mtSeguro(mtMoeda(item.purchased_value))}
                             </text>
                         `
-                        : ""
+                    : ""
                 }
 
                 <text
@@ -486,9 +470,10 @@ function mtGraficoCliente(metrics) {
 
             </g>
         `;
-    }).join("");
+    })
+    .join("");
 
-    return `
+  return `
         <div class="d-flex gap-2 mb-2">
 
             <span class="badge bg-success">
@@ -535,45 +520,39 @@ function mtGraficoCliente(metrics) {
     `;
 }
 
-
 async function carregarMetricasClientes() {
-    const data = await mtJson(
-        `/api/customer-metrics/dashboard?${mtParametros()}`
-    );
+  const [data, registeredSellers] = await Promise.all([
+    mtJson(`/api/customer-metrics/dashboard?${mtParametros()}`),
+    mtJson("/api/settings/sellers"),
+  ]);
 
-    metricasClientesCache = data.customers;
-    metricasFilaCache = data.contactToday || [];
+  metricasClientesCache = data.customers;
+  metricasFilaCache = data.contactToday || [];
 
-    const labelA =
-        `${mtData(data.rangeA.start)} a ${mtData(data.rangeA.end)}`;
+  const labelA = `${mtData(data.rangeA.start)} a ${mtData(data.rangeA.end)}`;
 
-    const labelB =
-        `${mtData(data.rangeB.start)} a ${mtData(data.rangeB.end)}`;
+  const labelB = `${mtData(data.rangeB.start)} a ${mtData(data.rangeB.end)}`;
 
-    document.getElementById("metricasCabA").textContent = labelA;
-    document.getElementById("metricasCabB").textContent = labelB;
+  document.getElementById("metricasCabA").textContent = labelA;
+  document.getElementById("metricasCabB").textContent = labelB;
 
-    const totalA = data.customers.reduce(
-        (sum, item) => sum + item.totalA,
-        0
-    );
+  const totalA = data.customers.reduce((sum, item) => sum + item.totalA, 0);
 
-    const totalB = data.customers.reduce(
-        (sum, item) => sum + item.totalB,
-        0
-    );
+  const totalB = data.customers.reduce((sum, item) => sum + item.totalB, 0);
 
-    const result = data.customers.reduce(
-        (sum, item) => sum + item.reactivation_result,
-        0
-    );
+  const result = data.customers.reduce(
+    (sum, item) => sum + item.reactivation_result,
+    0,
+  );
 
-    document.getElementById("metricasCards").innerHTML = [
-        ["Clientes analisados", data.customers.length, "bi-people"],
-        ["Período anterior", mtMoeda(totalA), "bi-calendar3"],
-        ["Período atual", mtMoeda(totalB), "bi-calendar-check"],
-        ["Resultado das reativações", mtMoeda(result), "bi-cash-coin"]
-    ].map(([label, value, icon]) => `
+  document.getElementById("metricasCards").innerHTML = [
+    ["Clientes analisados", data.customers.length, "bi-people"],
+    ["Período anterior", mtMoeda(totalA), "bi-calendar3"],
+    ["Período atual", mtMoeda(totalB), "bi-calendar-check"],
+    ["Resultado das reativações", mtMoeda(result), "bi-cash-coin"],
+  ]
+    .map(
+      ([label, value, icon]) => `
         <div class="col-sm-6 col-xl-3">
 
             <div class="card metrics-panel metrics-summary-card text-light shadow h-100">
@@ -593,80 +572,73 @@ async function carregarMetricasClientes() {
             </div>
 
         </div>
-    `).join("");
+    `,
+    )
+    .join("");
 
-    const select =
-        document.getElementById("metricasVendedor");
+  const select = document.getElementById("metricasVendedor");
 
-    const selected = select.value;
+  const selected = select.value;
 
-    const sellers = [
-        ...new Set([
-            ...(data.sellers || []),
-            "Alisson",
-            "Noberto",
-            "Aldener",
-            "Letícia",
-            "Clayton",
-            "Outros"
-        ])
-    ].sort();
+  const sellers = registeredSellers;
 
-    select.innerHTML =
-        '<option value="todos">Todos</option>' +
-        sellers
-            .map(item => `<option>${mtSeguro(item)}</option>`)
-            .join("");
+  select.innerHTML =
+    '<option value="todos">Todos</option>' +
+    sellers.map((item) => `<option>${mtSeguro(item)}</option>`).join("");
 
-    select.value =
-        sellers.includes(selected)
-            ? selected
-            : "todos";
+  select.value = sellers.includes(selected) ? selected : "todos";
 
-    mtRenderTable();
-    mtRenderFila();
-    mtRenderChart(data.timeline, labelA, labelB);
+  mtRenderTable();
+  mtRenderFila();
+  mtRenderChart(data.timeline, labelA, labelB);
 }
 
-
 async function mtAbrirCliente(id) {
-    const client = await mtJson(
-        `/api/customer-metrics/clients/${id}`
+  const [client, sellers] = await Promise.all([
+    mtJson(`/api/customer-metrics/clients/${id}`),
+    mtJson("/api/settings/sellers"),
+  ]);
+
+  document.getElementById("metricasFichaTitulo").textContent =
+    `${client.customer_code || "Sem código"} — ${
+      client.company_name || client.name || "Nome não informado"
+    }`;
+
+  const hasLegacyReactivationStatus =
+    client.reactivation_status &&
+    !client.reactivation_status_options.some(
+      (item) => item.name === client.reactivation_status,
     );
-
-    document.getElementById("metricasFichaTitulo").textContent =
-        `${client.customer_code || "Sem código"} — ${
-            client.company_name ||
-            client.name ||
-            "Nome não informado"
-        }`;
-
-    const hasLegacyReactivationStatus = client.reactivation_status && !client.reactivation_status_options.some(item => item.name === client.reactivation_status);
-    const statusOptions =
-        `${hasLegacyReactivationStatus ? `<option value="" selected disabled>Status anterior: ${mtSeguro(client.reactivation_status)} — selecione uma etapa</option>` : ""}` + client.reactivation_status_options
-            .map(item => `
+  const statusOptions =
+    `${hasLegacyReactivationStatus ? `<option value="" selected disabled>Status anterior: ${mtSeguro(client.reactivation_status)} — selecione uma etapa</option>` : ""}` +
+    client.reactivation_status_options
+      .map(
+        (item) => `
                 <option
                     ${item.name === client.reactivation_status ? "selected" : ""}
                 >
                     ${mtSeguro(item.name)}
                 </option>
-            `)
-            .join("");
+            `,
+      )
+      .join("");
 
-    const commercialOptions =
-        client.status_options
-            .map(item => `
+  const commercialOptions = client.status_options
+    .map(
+      (item) => `
                 <option
                     ${item.name === client.metric_status ? "selected" : ""}
                 >
                     ${mtSeguro(item.name)}
                 </option>
-            `)
-            .join("");
+            `,
+    )
+    .join("");
 
-    const contacts =
-        client.contacts.length
-            ? client.contacts.map(item => `
+  const contacts = client.contacts.length
+    ? client.contacts
+        .map(
+          (item) => `
                 <div class="reactivation-history-item">
 
                     <div>
@@ -684,37 +656,38 @@ async function mtAbrirCliente(id) {
                     </p>
 
                     ${
-                        item.result
-                            ? `
+                      item.result
+                        ? `
                                 <span>
                                     Resultado:
                                     ${mtSeguro(item.result)}
                                 </span>
                             `
-                            : ""
+                        : ""
                     }
 
                     ${
-                        item.next_contact_at
-                            ? `
+                      item.next_contact_at
+                        ? `
                                 <span>
                                     Próximo:
                                     ${mtData(item.next_contact_at)}
                                 </span>
                             `
-                            : ""
+                        : ""
                     }
 
                 </div>
-            `).join("")
-            : `
+            `,
+        )
+        .join("")
+    : `
                 <p class="text-secondary">
                     Nenhum contato registrado.
                 </p>
             `;
 
-
-    document.getElementById("metricasFichaConteudo").innerHTML = `
+  document.getElementById("metricasFichaConteudo").innerHTML = `
 
         <!-- TOPO -->
         <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
@@ -722,11 +695,11 @@ async function mtAbrirCliente(id) {
             <div>
 
                 <span class="badge bg-${
-                    client.priority.level === "Alta"
-                        ? "danger"
-                        : client.priority.level === "Média"
-                            ? "warning text-dark"
-                            : "success"
+                  client.priority.level === "Alta"
+                    ? "danger"
+                    : client.priority.level === "Média"
+                      ? "warning text-dark"
+                      : "success"
                 }">
                     ${mtSeguro(client.priority.level)}
                 </span>
@@ -772,22 +745,13 @@ async function mtAbrirCliente(id) {
                             Vendedor responsável
                         </label>
 
-                        <input
+                        <select
                             id="mtVendedor"
-                            class="form-control"
-                            list="mtVendedoresLista"
-                            value="${mtSeguro(client.seller || "")}"
-                            placeholder="Digite ou escolha"
+                            class="form-select"
                         >
-
-                        <datalist id="mtVendedoresLista">
-                            <option>Alisson</option>
-                            <option>Noberto</option>
-                            <option>Aldener</option>
-                            <option>Letícia</option>
-                            <option>Clayton</option>
-                            <option>Outros</option>
-                        </datalist>
+                            <option value="">Sem vendedor</option>
+                            ${sellers.map((item) => `<option value="${mtSeguro(item)}" ${item === client.seller ? "selected" : ""}>${mtSeguro(item)}</option>`).join("")}
+                        </select>
 
                     </div>
 
@@ -839,27 +803,27 @@ async function mtAbrirCliente(id) {
                         >
 
                             <option value="">
-                                Automática (${
-                                    mtSeguro(
-                                        client.priority.automaticLevel ||
-                                        client.priority.level
-                                    )
-                                })
+                                Automática (${mtSeguro(
+                                  client.priority.automaticLevel ||
+                                    client.priority.level,
+                                )})
                             </option>
 
                             ${["Alta", "Média", "Baixa"]
-                                .map(item => `
+                              .map(
+                                (item) => `
                                     <option
                                         ${
-                                            client.priority_override === item
-                                                ? "selected"
-                                                : ""
+                                          client.priority_override === item
+                                            ? "selected"
+                                            : ""
                                         }
                                     >
                                         ${item}
                                     </option>
-                                `)
-                                .join("")}
+                                `,
+                              )
+                              .join("")}
 
                         </select>
 
@@ -952,7 +916,7 @@ async function mtAbrirCliente(id) {
                 <div class="table-responsive mt-4">
                     <table class="table table-dark table-sm align-middle mb-0">
                         <thead><tr><th>Data</th><th>Itens</th><th>Valor</th><th>Observação</th></tr></thead>
-                        <tbody>${client.purchases?.length ? client.purchases.map(purchase => `<tr><td>${mtData(purchase.movement_date)}</td><td>${mtSeguro(purchase.items || "Compra importada")}</td><td>${mtMoeda(purchase.value)}</td><td>${mtSeguro(purchase.notes || "—")}</td></tr>`).join("") : '<tr><td colspan="4" class="text-center text-secondary py-3">Nenhuma compra registrada.</td></tr>'}</tbody>
+                        <tbody>${client.purchases?.length ? client.purchases.map((purchase) => `<tr><td>${mtData(purchase.movement_date)}</td><td>${mtSeguro(purchase.items || "Compra importada")}</td><td>${mtMoeda(purchase.value)}</td><td>${mtSeguro(purchase.notes || "—")}</td></tr>`).join("") : '<tr><td colspan="4" class="text-center text-secondary py-3">Nenhuma compra registrada.</td></tr>'}</tbody>
                     </table>
                 </div>
             </div>
@@ -1289,298 +1253,293 @@ async function mtAbrirCliente(id) {
         </div>
     `;
 
+  document.getElementById("mtEditarCadastro").onclick = () => {
+    bootstrap.Modal.getInstance(
+      document.getElementById("modalFichaMetricas"),
+    )?.hide();
 
-    document.getElementById("mtEditarCadastro").onclick = () => {
-        bootstrap.Modal
-            .getInstance(document.getElementById("modalFichaMetricas"))
-            ?.hide();
+    window.sessionStorage.setItem("abrirFichaCliente", String(id));
 
-        window.sessionStorage.setItem(
-            "abrirFichaCliente",
-            String(id)
-        );
+    Router.carregarPagina("clientes");
+  };
 
-        Router.carregarPagina("clientes");
-    };
+  document.querySelectorAll("[data-gerenciar-status]").forEach((button) => {
+    button.onclick = () =>
+      mtGerenciarStatus(button.dataset.gerenciarStatus, id);
+  });
 
+  document.getElementById("mtSalvarOperacao").onclick = async (event) => {
+    const botao = event.currentTarget;
+    const conteudoOriginal = botao.innerHTML;
 
-    document
-        .querySelectorAll("[data-gerenciar-status]")
-        .forEach(button => {
-            button.onclick = () =>
-                mtGerenciarStatus(
-                    button.dataset.gerenciarStatus,
-                    id
-                );
-        });
-
-
-    document.getElementById("mtSalvarOperacao").onclick = async event => {
-        const botao = event.currentTarget;
-        const conteudoOriginal = botao.innerHTML;
-
-        botao.disabled = true;
-        botao.innerHTML = `
+    botao.disabled = true;
+    botao.innerHTML = `
             <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
             Salvando...
         `;
 
-        try {
-            const payload = {
-                seller:
-                    document.getElementById("mtVendedor").value,
+    try {
+      const payload = {
+        seller: document.getElementById("mtVendedor").value,
 
-                metric_status:
-                    document.getElementById("mtStatusComercial").value,
+        metric_status: document.getElementById("mtStatusComercial").value,
 
-                priority_override:
-                    document.getElementById("mtPrioridadeManual").value,
+        priority_override: document.getElementById("mtPrioridadeManual").value,
 
-                priority_notes:
-                    document.getElementById("mtPrioridadeNotas").value,
+        priority_notes: document.getElementById("mtPrioridadeNotas").value,
 
-                ...(document.getElementById("mtReativacaoStatus").value
-                    ? { reactivation_status: document.getElementById("mtReativacaoStatus").value }
-                    : {}),
-
-                last_movement_at:
-                    document.getElementById("mtUltimaCompra").value,
-
-                inactivity_reason:
-                    document.getElementById("mtMotivoInatividade").value,
-
-                reactivation_notes:
-                    document.getElementById("mtNotasReativacao").value,
-
-                main_products:
-                    document.getElementById("mtProdutosPrincipais").value,
-
-                latest_products:
-                    document.getElementById("mtUltimosProdutos").value,
-
-                metric_notes:
-                    document.getElementById("mtNotasMetricas").value
-            };
-            const saved = await mtJson(
-                `/api/customer-metrics/clients/${id}?compact=1`,
-                {
-                    method: "PUT",
-
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-
-                    body: JSON.stringify(payload)
-                }
-            );
-
-            const cached = metricasClientesCache.find(item => String(item.id) === String(id));
-            if (cached) Object.assign(cached, saved);
-            mtRenderTable();
-
-            mtMostrarAviso("Informações salvas com sucesso.");
-        } catch (error) {
-            mtMostrarAviso(
-                error.message || "Não foi possível salvar as informações.",
-                "danger"
-            );
-        } finally {
-            const botaoAtual = document.getElementById("mtSalvarOperacao");
-
-            if (botaoAtual) {
-                botaoAtual.disabled = false;
-                botaoAtual.innerHTML = conteudoOriginal;
+        ...(document.getElementById("mtReativacaoStatus").value
+          ? {
+              reactivation_status:
+                document.getElementById("mtReativacaoStatus").value,
             }
-        }
+          : {}),
+
+        last_movement_at: document.getElementById("mtUltimaCompra").value,
+
+        inactivity_reason: document.getElementById("mtMotivoInatividade").value,
+
+        reactivation_notes: document.getElementById("mtNotasReativacao").value,
+
+        main_products: document.getElementById("mtProdutosPrincipais").value,
+
+        latest_products: document.getElementById("mtUltimosProdutos").value,
+
+        metric_notes: document.getElementById("mtNotasMetricas").value,
+      };
+      const saved = await mtJson(
+        `/api/customer-metrics/clients/${id}?compact=1`,
+        {
+          method: "PUT",
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify(payload),
+        },
+      );
+
+      const cached = metricasClientesCache.find(
+        (item) => String(item.id) === String(id),
+      );
+      if (cached) Object.assign(cached, saved);
+      if (document.getElementById("metricasTabela")) mtRenderTable();
+
+      mtMostrarAviso("Informações salvas com sucesso.");
+    } catch (error) {
+      mtMostrarAviso(
+        error.message || "Não foi possível salvar as informações.",
+        "danger",
+      );
+    } finally {
+      const botaoAtual = document.getElementById("mtSalvarOperacao");
+
+      if (botaoAtual) {
+        botaoAtual.disabled = false;
+        botaoAtual.innerHTML = conteudoOriginal;
+      }
+    }
+  };
+
+  const atualizarAgendamentoContatoMetricas = () => {
+    const agendar = document.getElementById("mtContatoAgendarRetorno");
+    const acao = document.getElementById("mtContatoAcao");
+    const proximo = document.getElementById("mtContatoProximo");
+    if (!agendar || !acao || !proximo) return;
+    acao.required = agendar.checked;
+    acao.disabled = !agendar.checked;
+    proximo.required = agendar.checked;
+    proximo.disabled = !agendar.checked;
+    document
+      .getElementById("mtContatoAcaoArea")
+      ?.classList.toggle("opacity-50", !agendar.checked);
+    document
+      .getElementById("mtContatoProximoArea")
+      ?.classList.toggle("opacity-50", !agendar.checked);
+  };
+  document.getElementById("mtContatoAgendarRetorno").checked = Boolean(
+    client.next_contact_at,
+  );
+  atualizarAgendamentoContatoMetricas();
+  document.getElementById("mtContatoAgendarRetorno").onchange =
+    atualizarAgendamentoContatoMetricas;
+
+  document.getElementById("mtRegistrarContato").onclick = async (event) => {
+    const button = event.currentTarget;
+    const fields = {
+      responsible: document.getElementById("mtContatoResponsavel").value.trim(),
+      resulting_status: document.getElementById("mtContatoStatus").value,
+      next_action: document.getElementById("mtContatoAcao").value.trim(),
+      notes: document.getElementById("mtContatoNotas").value.trim(),
+      schedule_return: document.getElementById("mtContatoAgendarRetorno")
+        .checked,
+      next_contact_at: document.getElementById("mtContatoProximo").value,
     };
+    if (
+      !fields.responsible ||
+      !fields.notes ||
+      (fields.schedule_return &&
+        (!fields.next_action || !fields.next_contact_at))
+    ) {
+      mtMostrarAviso(
+        fields.schedule_return
+          ? "Preencha responsável, próxima ação, observação e data de retorno."
+          : "Preencha responsável e observação.",
+        "danger",
+      );
+      return;
+    }
+    button.disabled = true;
+    try {
+      await mtJson(`/api/reactivation/clients/${id}/contacts`, {
+        method: "POST",
 
+        headers: {
+          "Content-Type": "application/json",
+        },
 
-    const atualizarAgendamentoContatoMetricas = () => {
-        const agendar = document.getElementById("mtContatoAgendarRetorno");
-        const acao = document.getElementById("mtContatoAcao");
-        const proximo = document.getElementById("mtContatoProximo");
-        if (!agendar || !acao || !proximo) return;
-        acao.required = agendar.checked;
-        acao.disabled = !agendar.checked;
-        proximo.required = agendar.checked;
-        proximo.disabled = !agendar.checked;
-        document.getElementById("mtContatoAcaoArea")?.classList.toggle("opacity-50", !agendar.checked);
-        document.getElementById("mtContatoProximoArea")?.classList.toggle("opacity-50", !agendar.checked);
-    };
-    document.getElementById("mtContatoAgendarRetorno").checked = Boolean(client.next_contact_at);
-    atualizarAgendamentoContatoMetricas();
-    document.getElementById("mtContatoAgendarRetorno").onchange = atualizarAgendamentoContatoMetricas;
+        body: JSON.stringify({
+          kind: document.getElementById("mtContatoTipo").value,
 
-    document.getElementById("mtRegistrarContato").onclick = async event => {
-        const button = event.currentTarget;
-        const fields = {
-            responsible: document.getElementById("mtContatoResponsavel").value.trim(),
-            resulting_status: document.getElementById("mtContatoStatus").value,
-            next_action: document.getElementById("mtContatoAcao").value.trim(),
-            notes: document.getElementById("mtContatoNotas").value.trim(),
-            schedule_return: document.getElementById("mtContatoAgendarRetorno").checked,
-            next_contact_at: document.getElementById("mtContatoProximo").value
-        };
-        if (!fields.responsible || !fields.notes || (fields.schedule_return && (!fields.next_action || !fields.next_contact_at))) {
-            mtMostrarAviso(fields.schedule_return
-                ? "Preencha responsável, próxima ação, observação e data de retorno."
-                : "Preencha responsável e observação.", "danger");
-            return;
-        }
-        button.disabled = true;
-        try {
-            await mtJson(
-            `/api/reactivation/clients/${id}/contacts`,
-            {
-                method: "POST",
+          responsible: fields.responsible,
+          resulting_status: fields.resulting_status,
+          next_action: fields.next_action,
+          notes: fields.notes,
+          schedule_return: fields.schedule_return,
+          next_contact_at: fields.next_contact_at,
+        }),
+      });
+      mtMostrarAviso("Contato registrado no histórico.");
+      if (document.getElementById("metricasTabela"))
+        await carregarMetricasClientes();
+      await mtAbrirCliente(id);
+    } catch (error) {
+      mtMostrarAviso(
+        error.message || "Não foi possível registrar o contato.",
+        "danger",
+      );
+    } finally {
+      if (document.body.contains(button)) button.disabled = false;
+    }
+  };
 
-                headers: {
-                    "Content-Type": "application/json"
-                },
+  document.getElementById("mtRegistrarCompra").onsubmit = async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = form.querySelector("button[type='submit']");
+    button.disabled = true;
+    try {
+      await mtJson(`/api/customer-metrics/clients/${id}/purchases`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: document.getElementById("mtCompraData").value,
+          value: document.getElementById("mtCompraValor").value,
+          items: document.getElementById("mtCompraItens").value,
+          notes: document.getElementById("mtCompraObservacao").value,
+        }),
+      });
+      mtMostrarAviso("Compra adicionada ao histórico e às métricas.");
+      if (document.getElementById("metricasTabela"))
+        await carregarMetricasClientes();
+      await mtAbrirCliente(id);
+    } catch (error) {
+      mtMostrarAviso(
+        error.message || "Não foi possível adicionar a compra.",
+        "danger",
+      );
+    } finally {
+      if (document.body.contains(button)) button.disabled = false;
+    }
+  };
 
-                body: JSON.stringify({
-                    kind:
-                        document.getElementById("mtContatoTipo").value,
-
-                    responsible: fields.responsible,
-                    resulting_status: fields.resulting_status,
-                    next_action: fields.next_action,
-                    notes: fields.notes,
-                    schedule_return: fields.schedule_return,
-                    next_contact_at: fields.next_contact_at
-                })
-            }
-            );
-            mtMostrarAviso("Contato registrado no histórico.");
-            await carregarMetricasClientes();
-            await mtAbrirCliente(id);
-        } catch (error) {
-            mtMostrarAviso(error.message || "Não foi possível registrar o contato.", "danger");
-        } finally {
-            if (document.body.contains(button)) button.disabled = false;
-        }
-    };
-
-    document.getElementById("mtRegistrarCompra").onsubmit = async event => {
-        event.preventDefault();
-        const form = event.currentTarget;
-        const button = form.querySelector("button[type='submit']");
-        button.disabled = true;
-        try {
-            await mtJson(`/api/customer-metrics/clients/${id}/purchases`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    date: document.getElementById("mtCompraData").value,
-                    value: document.getElementById("mtCompraValor").value,
-                    items: document.getElementById("mtCompraItens").value,
-                    notes: document.getElementById("mtCompraObservacao").value
-                })
-            });
-            mtMostrarAviso("Compra adicionada ao histórico e às métricas.");
-            await carregarMetricasClientes();
-            await mtAbrirCliente(id);
-        } catch (error) {
-            mtMostrarAviso(error.message || "Não foi possível adicionar a compra.", "danger");
-        } finally {
-            if (document.body.contains(button)) button.disabled = false;
-        }
-    };
-
-
-    bootstrap.Modal
-        .getOrCreateInstance(
-            document.getElementById("modalFichaMetricas")
-        )
-        .show();
+  bootstrap.Modal.getOrCreateInstance(
+    document.getElementById("modalFichaMetricas"),
+  ).show();
 }
 
+window.abrirFichaMetricas = mtAbrirCliente;
 
 async function mtFilePayload(file) {
-    const base64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result).split(",")[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
+  const base64 = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
-    return { filename: file.name, base64 };
+  return { filename: file.name, base64 };
 }
-
 
 function mtGerenciarStatus() {
-    bootstrap.Modal
-        .getInstance(document.getElementById("modalFichaMetricas"))
-        ?.hide();
-    Router.carregarPagina("configuracoes");
+  bootstrap.Modal.getInstance(
+    document.getElementById("modalFichaMetricas"),
+  )?.hide();
+  Router.carregarPagina("configuracoes");
 }
 
-
 window.inicializarMetricasClientes = async () => {
-    metricasStatus = await mtJson(
-        "/api/customer-metrics/status-options/metrics"
-    );
+  metricasStatus = await mtJson("/api/customer-metrics/status-options/metrics");
 
-    const filtro = document.getElementById("metricasStatusFiltro");
-    filtro.innerHTML =
-        '<option value="todos">Todos</option>' +
-        metricasStatus
-            .map(item => `<option>${mtSeguro(item.name)}</option>`)
-            .join("");
+  const filtro = document.getElementById("metricasStatusFiltro");
+  filtro.innerHTML =
+    '<option value="todos">Todos</option>' +
+    metricasStatus
+      .map((item) => `<option>${mtSeguro(item.name)}</option>`)
+      .join("");
 
-    mtAtualizarRecortes();
-    await carregarMetricasClientes();
+  mtAtualizarRecortes();
+  await carregarMetricasClientes();
 
-    document
-        .getElementById("metricasPreset")
-        .addEventListener("change", mtAtualizarRecortes);
-    document
-        .getElementById("btnAplicarMetricas")
-        .addEventListener("click", carregarMetricasClientes);
+  document
+    .getElementById("metricasPreset")
+    .addEventListener("change", mtAtualizarRecortes);
+  document
+    .getElementById("btnAplicarMetricas")
+    .addEventListener("click", carregarMetricasClientes);
 
-    [
-        "metricasStatusFiltro",
-        "metricasPrioridadeFiltro",
-        "metricasOrdenacao"
-    ].forEach(id => {
-        document.getElementById(id).addEventListener("change", mtRenderTable);
+  [
+    "metricasStatusFiltro",
+    "metricasPrioridadeFiltro",
+    "metricasOrdenacao",
+  ].forEach((id) => {
+    document.getElementById(id).addEventListener("change", mtRenderTable);
+  });
+
+  document
+    .getElementById("metricasPesquisa")
+    .addEventListener("input", (event) => {
+      metricasPesquisa = event.target.value.trim().toLowerCase();
+      mtRenderTable();
     });
 
-    document
-        .getElementById("metricasPesquisa")
-        .addEventListener("input", event => {
-            metricasPesquisa = event.target.value.trim().toLowerCase();
-            mtRenderTable();
-        });
-
-    ["metricasTabela", "metricasFilaHoje"].forEach(id => {
-        document.getElementById(id).addEventListener("click", event => {
-            const target = event.target.closest("[data-cliente-metrica]");
-            if (target) {
-                mtAbrirCliente(target.dataset.clienteMetrica)
-                    .catch(error => alert(error.message));
-            }
-        });
+  ["metricasTabela", "metricasFilaHoje"].forEach((id) => {
+    document.getElementById(id).addEventListener("click", (event) => {
+      const target = event.target.closest("[data-cliente-metrica]");
+      if (target) {
+        mtAbrirCliente(target.dataset.clienteMetrica).catch((error) =>
+          alert(error.message),
+        );
+      }
     });
+  });
 
-    document
-        .getElementById("btnPreverMetricas")
-        .addEventListener("click", async () => {
-            try {
-                const file = document.getElementById("arquivoMetricas").files[0];
-                if (!file) throw new Error("Selecione um relatório.");
+  document
+    .getElementById("btnPreverMetricas")
+    .addEventListener("click", async () => {
+      try {
+        const file = document.getElementById("arquivoMetricas").files[0];
+        if (!file) throw new Error("Selecione um relatório.");
 
-                metricasArquivo = await mtFilePayload(file);
-                const preview = await mtJson(
-                    "/api/customer-metrics/imports/preview",
-                    {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(metricasArquivo)
-                    }
-                );
+        metricasArquivo = await mtFilePayload(file);
+        const preview = await mtJson("/api/customer-metrics/imports/preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(metricasArquivo),
+        });
 
-                document.getElementById("metricasImportStatus").innerHTML = `
+        document.getElementById("metricasImportStatus").innerHTML = `
                     <div class="alert alert-info mb-0">
                         <strong>
                             ${mtSeguro(preview.period.type)}:
@@ -1591,36 +1550,33 @@ window.inicializarMetricasClientes = async () => {
                         ${mtMoeda(preview.totalValue)} em compras.
                     </div>
                 `;
-                document.getElementById("btnImportarMetricas").disabled = false;
-            } catch (error) {
-                document.getElementById("metricasImportStatus").innerHTML = `
+        document.getElementById("btnImportarMetricas").disabled = false;
+      } catch (error) {
+        document.getElementById("metricasImportStatus").innerHTML = `
                     <div class="alert alert-danger mb-0">
                         ${mtSeguro(error.message)}
                     </div>
                 `;
-            }
+      }
+    });
+
+  document
+    .getElementById("btnImportarMetricas")
+    .addEventListener("click", async () => {
+      try {
+        const result = await mtJson("/api/customer-metrics/imports", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(metricasArquivo),
         });
 
-    document
-        .getElementById("btnImportarMetricas")
-        .addEventListener("click", async () => {
-            try {
-                const result = await mtJson(
-                    "/api/customer-metrics/imports",
-                    {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(metricasArquivo)
-                    }
-                );
-
-                alert(`Relatório importado: ${result.total} clientes.`);
-                bootstrap.Modal
-                    .getInstance(document.getElementById("modalImportarMetricas"))
-                    ?.hide();
-                await carregarMetricasClientes();
-            } catch (error) {
-                alert(error.message);
-            }
-        });
+        alert(`Relatório importado: ${result.total} clientes.`);
+        bootstrap.Modal.getInstance(
+          document.getElementById("modalImportarMetricas"),
+        )?.hide();
+        await carregarMetricasClientes();
+      } catch (error) {
+        alert(error.message);
+      }
+    });
 };

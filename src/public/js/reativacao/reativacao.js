@@ -1,12 +1,4 @@
-const REATIVACAO_VENDEDORES = [
-  "Todos os Clientes",
-  "Alisson",
-  "Noberto",
-  "Aldener",
-  "Letícia",
-  "Clayton",
-  "Outros",
-];
+let REATIVACAO_VENDEDORES = ["Todos os Clientes"];
 let REATIVACAO_STATUS = [
   "Não contatado",
   "Entrar em contato",
@@ -16,7 +8,7 @@ let REATIVACAO_STATUS = [
   "Reativado",
   "Sem interesse",
 ];
-let reativacaoFiltro = "Alisson";
+let reativacaoFiltro = "Todos os Clientes";
 let reativacaoVendedorGlobal = "todos";
 let reativacaoStatusFiltro = "todos";
 let reativacaoCampanhaFiltro = "todos";
@@ -206,15 +198,35 @@ async function inicializarReativacaoResumo() {
 }
 
 window.inicializarReativacaoVendedores = async () => {
-  const [tags, campanhas, statusOptions] = await Promise.all([
+  const [tags, campanhas, statusOptions, sellers] = await Promise.all([
     rcJson("/api/reactivation/tags"),
     rcJson("/api/campaigns"),
     rcJson("/api/customer-metrics/status-options/reactivation"),
+    rcJson("/api/settings/sellers"),
   ]);
   reativacaoTags = tags;
   reativacaoCampanhas = campanhas;
   REATIVACAO_STATUS = statusOptions.map((item) => item.name);
-  const dashboardFilter = window.sessionStorage.getItem("baileyDashboardReactivationFilter");
+  REATIVACAO_VENDEDORES = ["Todos os Clientes", ...sellers];
+  document.getElementById("rcVendedor").innerHTML =
+    '<option value="">Sem vendedor</option>' +
+    sellers
+      .map(
+        (seller) =>
+          `<option value="${rcSeguro(seller)}">${rcSeguro(seller)}</option>`,
+      )
+      .join("");
+  document.getElementById("reativacaoFiltroVendedor").innerHTML = [
+    '<option value="todos">Todos os vendedores</option>',
+    ...sellers.map(
+      (seller) =>
+        `<option value="${rcSeguro(seller)}">${rcSeguro(seller)}</option>`,
+    ),
+    '<option value="sem-vendedor">Sem vendedor</option>',
+  ].join("");
+  const dashboardFilter = window.sessionStorage.getItem(
+    "baileyDashboardReactivationFilter",
+  );
   if (dashboardFilter) {
     window.sessionStorage.removeItem("baileyDashboardReactivationFilter");
     try {
@@ -225,26 +237,41 @@ window.inicializarReativacaoVendedores = async () => {
       reativacaoPrioridadeFiltro = filter.priority || "todos";
       reativacaoRetornoFiltro = filter.returnFilter || "";
       reativacaoReativadoRecente = filter.reactivatedRecently === true;
-    } catch { /* filtro inválido não deve impedir a tela */ }
+    } catch {
+      /* filtro inválido não deve impedir a tela */
+    }
   }
   const opcoesCampanhas = reativacaoCampanhas
-    .filter((campanha) => !["processando", "cancelando"].includes(campanha.status))
-    .map((campanha) => `<option value="${campanha.id}">${rcSeguro(campanha.nome)}</option>`)
+    .filter(
+      (campanha) => !["processando", "cancelando"].includes(campanha.status),
+    )
+    .map(
+      (campanha) =>
+        `<option value="${campanha.id}">${rcSeguro(campanha.nome)}</option>`,
+    )
     .join("");
-  document.getElementById("reativacaoFiltroCampanha").innerHTML = '<option value="todos">Todas as campanhas</option>' + opcoesCampanhas;
-  document.getElementById("reativacaoCampanhaDestino").innerHTML = '<option value="">Adicionar selecionados à campanha...</option>' + opcoesCampanhas;
-  document.getElementById("rcCampanhaAdicionar").innerHTML = '<option value="">Adicionar este cliente a uma campanha...</option>' + opcoesCampanhas;
+  document.getElementById("reativacaoFiltroCampanha").innerHTML =
+    '<option value="todos">Todas as campanhas</option>' + opcoesCampanhas;
+  document.getElementById("reativacaoCampanhaDestino").innerHTML =
+    '<option value="">Adicionar selecionados à campanha...</option>' +
+    opcoesCampanhas;
+  document.getElementById("rcCampanhaAdicionar").innerHTML =
+    '<option value="">Adicionar este cliente a uma campanha...</option>' +
+    opcoesCampanhas;
   document.getElementById("rcStatus").innerHTML = REATIVACAO_STATUS.map(
     (status) => `<option>${status}</option>`,
   ).join("");
   document.getElementById("reativacaoFiltroStatus").innerHTML = [
     '<option value="todos">Todos os status</option>',
     ...REATIVACAO_STATUS.map(
-      (status) => `<option value="${rcSeguro(status)}">${rcSeguro(status)}</option>`,
+      (status) =>
+        `<option value="${rcSeguro(status)}">${rcSeguro(status)}</option>`,
     ),
   ].join("");
-  document.getElementById("reativacaoFiltroVendedor").value = reativacaoVendedorGlobal;
-  document.getElementById("reativacaoFiltroStatus").value = reativacaoStatusFiltro;
+  document.getElementById("reativacaoFiltroVendedor").value =
+    reativacaoVendedorGlobal;
+  document.getElementById("reativacaoFiltroStatus").value =
+    reativacaoStatusFiltro;
   const tabs = document.getElementById("reativacaoVendedorTabs");
   tabs.innerHTML = REATIVACAO_VENDEDORES.map(
     (nome) =>
@@ -263,29 +290,50 @@ window.inicializarReativacaoVendedores = async () => {
     atualizarFiltrosGlobaisReativacao();
     await carregarClientesReativacao();
   });
-  document.getElementById("reativacaoFiltroVendedor").addEventListener("change", async (evento) => {
-    reativacaoVendedorGlobal = evento.target.value;
-    await carregarClientesReativacao();
-  });
-  document.getElementById("reativacaoFiltroStatus").addEventListener("change", async (evento) => {
-    reativacaoStatusFiltro = evento.target.value;
-    await carregarClientesReativacao();
-  });
-  document.getElementById("reativacaoFiltroCampanha").addEventListener("change", async (evento) => {
-    reativacaoCampanhaFiltro = evento.target.value;
-    await carregarClientesReativacao();
-  });
-  document.getElementById("btnAdicionarSelecionadosCampanha").addEventListener("click", () => adicionarSelecionadosCampanha().catch((erro) => alert(erro.message)));
-  document.getElementById("reativacaoCampanhaDestino").addEventListener("change", atualizarBotaoCampanhaReativacao);
-  document.getElementById("reativacaoSelecionarTodos").addEventListener("change", (evento) => {
-    document.querySelectorAll("[data-selecionar-cliente]").forEach((input) => {
-      input.checked = evento.target.checked;
-      if (input.checked) reativacaoClientesSelecionados.add(Number(input.value));
-      else reativacaoClientesSelecionados.delete(Number(input.value));
+  document
+    .getElementById("reativacaoFiltroVendedor")
+    .addEventListener("change", async (evento) => {
+      reativacaoVendedorGlobal = evento.target.value;
+      await carregarClientesReativacao();
     });
-    atualizarBotaoCampanhaReativacao();
-  });
-  document.getElementById("rcCampanhaAdicionar").addEventListener("change", () => adicionarClienteAtualCampanha().catch((erro) => alert(erro.message)));
+  document
+    .getElementById("reativacaoFiltroStatus")
+    .addEventListener("change", async (evento) => {
+      reativacaoStatusFiltro = evento.target.value;
+      await carregarClientesReativacao();
+    });
+  document
+    .getElementById("reativacaoFiltroCampanha")
+    .addEventListener("change", async (evento) => {
+      reativacaoCampanhaFiltro = evento.target.value;
+      await carregarClientesReativacao();
+    });
+  document
+    .getElementById("btnAdicionarSelecionadosCampanha")
+    .addEventListener("click", () =>
+      adicionarSelecionadosCampanha().catch((erro) => alert(erro.message)),
+    );
+  document
+    .getElementById("reativacaoCampanhaDestino")
+    .addEventListener("change", atualizarBotaoCampanhaReativacao);
+  document
+    .getElementById("reativacaoSelecionarTodos")
+    .addEventListener("change", (evento) => {
+      document
+        .querySelectorAll("[data-selecionar-cliente]")
+        .forEach((input) => {
+          input.checked = evento.target.checked;
+          if (input.checked)
+            reativacaoClientesSelecionados.add(Number(input.value));
+          else reativacaoClientesSelecionados.delete(Number(input.value));
+        });
+      atualizarBotaoCampanhaReativacao();
+    });
+  document
+    .getElementById("rcCampanhaAdicionar")
+    .addEventListener("change", () =>
+      adicionarClienteAtualCampanha().catch((erro) => alert(erro.message)),
+    );
   let atraso;
   document
     .getElementById("reativacaoPesquisa")
@@ -308,32 +356,57 @@ window.inicializarReativacaoVendedores = async () => {
   document
     .getElementById("rcContatoAgendarRetorno")
     .addEventListener("change", atualizarAgendamentoContatoReativacao);
-  document.getElementById("reativacaoFiltrosEtiquetas").innerHTML = reativacaoTags
-    .map((tag) => `<label class="form-check"><input class="form-check-input" type="checkbox" value="${tag.id}"> <span class="form-check-label"><span class="badge" style="background:${rcSeguro(tag.color)}">${rcSeguro(tag.name)}</span></span></label>`)
-    .join("");
-  document.querySelectorAll("#reativacaoFiltrosEtiquetas input").forEach((input) => input.addEventListener("change", async () => {
-    if (input.checked) reativacaoTagsFiltro.add(Number(input.value));
-    else reativacaoTagsFiltro.delete(Number(input.value));
-    reativacaoSemEtiqueta = false;
-    document.getElementById("reativacaoFiltroSemEtiqueta").checked = false;
-    document.getElementById("reativacaoTagsFiltroTotal").textContent = reativacaoTagsFiltro.size;
-    await carregarClientesReativacao();
-  }));
-  document.getElementById("reativacaoFiltroSemEtiqueta").addEventListener("change", async (evento) => {
-    reativacaoSemEtiqueta = evento.target.checked;
-    if (reativacaoSemEtiqueta) {
+  document.getElementById("reativacaoFiltrosEtiquetas").innerHTML =
+    reativacaoTags
+      .map(
+        (tag) =>
+          `<label class="form-check"><input class="form-check-input" type="checkbox" value="${tag.id}"> <span class="form-check-label"><span class="badge" style="background:${rcSeguro(tag.color)}">${rcSeguro(tag.name)}</span></span></label>`,
+      )
+      .join("");
+  document
+    .querySelectorAll("#reativacaoFiltrosEtiquetas input")
+    .forEach((input) =>
+      input.addEventListener("change", async () => {
+        if (input.checked) reativacaoTagsFiltro.add(Number(input.value));
+        else reativacaoTagsFiltro.delete(Number(input.value));
+        reativacaoSemEtiqueta = false;
+        document.getElementById("reativacaoFiltroSemEtiqueta").checked = false;
+        document.getElementById("reativacaoTagsFiltroTotal").textContent =
+          reativacaoTagsFiltro.size;
+        await carregarClientesReativacao();
+      }),
+    );
+  document
+    .getElementById("reativacaoFiltroSemEtiqueta")
+    .addEventListener("change", async (evento) => {
+      reativacaoSemEtiqueta = evento.target.checked;
+      if (reativacaoSemEtiqueta) {
+        reativacaoTagsFiltro.clear();
+        document
+          .querySelectorAll("#reativacaoFiltrosEtiquetas input")
+          .forEach((input) => {
+            input.checked = false;
+          });
+      }
+      document.getElementById("reativacaoTagsFiltroTotal").textContent =
+        reativacaoSemEtiqueta ? "1" : "0";
+      await carregarClientesReativacao();
+    });
+  document
+    .getElementById("reativacaoLimparEtiquetas")
+    .addEventListener("click", async () => {
       reativacaoTagsFiltro.clear();
-      document.querySelectorAll("#reativacaoFiltrosEtiquetas input").forEach((input) => { input.checked = false; });
-    }
-    document.getElementById("reativacaoTagsFiltroTotal").textContent = reativacaoSemEtiqueta ? "1" : "0";
-    await carregarClientesReativacao();
-  });
-  document.getElementById("reativacaoLimparEtiquetas").addEventListener("click", async () => {
-    reativacaoTagsFiltro.clear(); reativacaoSemEtiqueta = false;
-    document.querySelectorAll("#reativacaoFiltrosEtiquetas input, #reativacaoFiltroSemEtiqueta").forEach((input) => { input.checked = false; });
-    document.getElementById("reativacaoTagsFiltroTotal").textContent = "0";
-    await carregarClientesReativacao();
-  });
+      reativacaoSemEtiqueta = false;
+      document
+        .querySelectorAll(
+          "#reativacaoFiltrosEtiquetas input, #reativacaoFiltroSemEtiqueta",
+        )
+        .forEach((input) => {
+          input.checked = false;
+        });
+      document.getElementById("reativacaoTagsFiltroTotal").textContent = "0";
+      await carregarClientesReativacao();
+    });
   inicializarSeletorColunasReativacao();
   atualizarFiltrosGlobaisReativacao();
   document.getElementById("rcTelefone").addEventListener("input", (evento) => {
@@ -382,7 +455,7 @@ window.inicializarReativacaoVendedores = async () => {
     }),
   );
   await carregarClientesReativacao();
-}
+};
 
 async function carregarClientesReativacao() {
   const pesquisa = document.getElementById("reativacaoPesquisa")?.value || "";
@@ -392,14 +465,19 @@ async function carregarClientesReativacao() {
     : reativacaoFiltro === "Outros"
       ? "outros"
       : reativacaoFiltro;
-  const tags = reativacaoSemEtiqueta ? "none" : [...reativacaoTagsFiltro].join(",");
+  const tags = reativacaoSemEtiqueta
+    ? "none"
+    : [...reativacaoTagsFiltro].join(",");
   const clientes = await rcJson(
     `/api/reactivation/clients?seller=${encodeURIComponent(seller)}&status=${encodeURIComponent(visaoGlobal ? reativacaoStatusFiltro : "todos")}&priority=${encodeURIComponent(reativacaoPrioridadeFiltro)}&returnFilter=${encodeURIComponent(reativacaoRetornoFiltro)}&reactivatedRecently=${reativacaoReativadoRecente}&search=${encodeURIComponent(pesquisa)}&sort=${encodeURIComponent(reativacaoOrdenacao.campo)}&direction=${reativacaoOrdenacao.direcao}&tags=${encodeURIComponent(tags)}&campaign=${encodeURIComponent(reativacaoCampanhaFiltro)}`,
   );
   document
     .querySelectorAll(".reactivation-responsavel")
     .forEach((item) =>
-      item.classList.toggle("d-none", !visaoGlobal && reativacaoFiltro !== "Outros"),
+      item.classList.toggle(
+        "d-none",
+        !visaoGlobal && reativacaoFiltro !== "Outros",
+      ),
     );
   document.getElementById("reativacaoContagem").textContent =
     `${clientes.length} cliente(s)`;
@@ -411,11 +489,14 @@ async function carregarClientesReativacao() {
         )
         .join("")
     : `<tr><td colspan="12" class="text-center text-secondary py-5">Nenhum cliente encontrado para ${rcSeguro(reativacaoFiltro)}.</td></tr>`;
-  document.querySelectorAll("[data-selecionar-cliente]").forEach((input) => input.addEventListener("change", () => {
-    if (input.checked) reativacaoClientesSelecionados.add(Number(input.value));
-    else reativacaoClientesSelecionados.delete(Number(input.value));
-    atualizarBotaoCampanhaReativacao();
-  }));
+  document.querySelectorAll("[data-selecionar-cliente]").forEach((input) =>
+    input.addEventListener("change", () => {
+      if (input.checked)
+        reativacaoClientesSelecionados.add(Number(input.value));
+      else reativacaoClientesSelecionados.delete(Number(input.value));
+      atualizarBotaoCampanhaReativacao();
+    }),
+  );
   document
     .querySelectorAll("[data-abrir]")
     .forEach((botao) =>
@@ -445,11 +526,15 @@ async function carregarClientesReativacao() {
 }
 
 function atualizarBotaoCampanhaReativacao() {
-  const campanhaId = document.getElementById("reativacaoCampanhaDestino")?.value;
+  const campanhaId = document.getElementById(
+    "reativacaoCampanhaDestino",
+  )?.value;
   const botao = document.getElementById("btnAdicionarSelecionadosCampanha");
   if (botao) {
     botao.disabled = !campanhaId || reativacaoClientesSelecionados.size === 0;
-    botao.textContent = reativacaoClientesSelecionados.size ? `Adicionar (${reativacaoClientesSelecionados.size})` : "Adicionar";
+    botao.textContent = reativacaoClientesSelecionados.size
+      ? `Adicionar (${reativacaoClientesSelecionados.size})`
+      : "Adicionar";
   }
 }
 
@@ -457,12 +542,17 @@ async function adicionarSelecionadosCampanha() {
   const campaignId = document.getElementById("reativacaoCampanhaDestino").value;
   if (!campaignId || !reativacaoClientesSelecionados.size) return;
   const totalSelecionados = reativacaoClientesSelecionados.size;
-  const resultado = await rcJson(`/api/campaigns/${campaignId}/recipients/add`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ clienteIds: [...reativacaoClientesSelecionados] }),
-  });
-  alert(`${totalSelecionados} cliente(s) adicionado(s). A campanha agora tem ${resultado.total} participante(s).`);
+  const resultado = await rcJson(
+    `/api/campaigns/${campaignId}/recipients/add`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clienteIds: [...reativacaoClientesSelecionados] }),
+    },
+  );
+  alert(
+    `${totalSelecionados} cliente(s) adicionado(s). A campanha agora tem ${resultado.total} participante(s).`,
+  );
   reativacaoClientesSelecionados.clear();
   document.getElementById("reativacaoSelecionarTodos").checked = false;
   await carregarClientesReativacao();
@@ -470,7 +560,9 @@ async function adicionarSelecionadosCampanha() {
 }
 
 async function adicionarClienteAtualCampanha() {
-  const clienteId = Number(document.getElementById("reativacaoClienteId").value);
+  const clienteId = Number(
+    document.getElementById("reativacaoClienteId").value,
+  );
   const campaignId = document.getElementById("rcCampanhaAdicionar").value;
   if (!clienteId || !campaignId) return;
   await rcJson(`/api/campaigns/${campaignId}/recipients/add`, {
@@ -542,14 +634,19 @@ function aplicarColunasReativacao() {
   REATIVACAO_COLUNAS.forEach((coluna) =>
     document.querySelectorAll(`.${coluna.classe}`).forEach((elemento) => {
       const ocultar =
-        (!reativacaoColunasVisiveis.has(coluna.id) && !(visaoGlobal && coluna.id === "seller")) ||
-        (coluna.id === "seller" && !visaoGlobal && reativacaoFiltro !== "Outros");
+        (!reativacaoColunasVisiveis.has(coluna.id) &&
+          !(visaoGlobal && coluna.id === "seller")) ||
+        (coluna.id === "seller" &&
+          !visaoGlobal &&
+          reativacaoFiltro !== "Outros");
       elemento.classList.toggle("column-hidden", ocultar);
     }),
   );
-  const totalEfetivo = [...reativacaoColunasVisiveis].filter(
-    (id) => id !== "seller" || visaoGlobal || reativacaoFiltro === "Outros",
-  ).length + (visaoGlobal && !reativacaoColunasVisiveis.has("seller") ? 1 : 0);
+  const totalEfetivo =
+    [...reativacaoColunasVisiveis].filter(
+      (id) => id !== "seller" || visaoGlobal || reativacaoFiltro === "Outros",
+    ).length +
+    (visaoGlobal && !reativacaoColunasVisiveis.has("seller") ? 1 : 0);
   document
     .querySelector(".reactivation-table")
     ?.classList.toggle("many-columns", totalEfetivo > 6);
@@ -574,8 +671,12 @@ function atualizarAgendamentoContatoReativacao() {
   acao.required = agendar.checked;
   acao.disabled = !agendar.checked;
   proximo.disabled = !agendar.checked;
-  document.getElementById("rcContatoAcaoArea")?.classList.toggle("opacity-50", !agendar.checked);
-  document.getElementById("rcContatoProximoArea")?.classList.toggle("opacity-50", !agendar.checked);
+  document
+    .getElementById("rcContatoAcaoArea")
+    ?.classList.toggle("opacity-50", !agendar.checked);
+  document
+    .getElementById("rcContatoProximoArea")
+    ?.classList.toggle("opacity-50", !agendar.checked);
 }
 
 async function abrirClienteReativacao(id = null) {
@@ -605,10 +706,13 @@ async function abrirClienteReativacao(id = null) {
     document.getElementById("rcUltimaData").value = rcDataFormulario(
       cliente.last_movement_at,
     );
-    document.getElementById("rcUltimaData").readOnly = Boolean(cliente.last_purchase_from_history);
-    document.getElementById("rcUltimaData").title = cliente.last_purchase_from_history
-      ? "Data preenchida pelo histórico de compras"
-      : "";
+    document.getElementById("rcUltimaData").readOnly = Boolean(
+      cliente.last_purchase_from_history,
+    );
+    document.getElementById("rcUltimaData").title =
+      cliente.last_purchase_from_history
+        ? "Data preenchida pelo histórico de compras"
+        : "";
     document.getElementById("rcUltimoValor").value = rcFormatarReal(
       cliente.last_movement_value,
     );
@@ -620,17 +724,21 @@ async function abrirClienteReativacao(id = null) {
     );
     document.getElementById("rcObservacao").value =
       cliente.reactivation_notes || "";
-    document.getElementById("rcContatoResponsavel").value = cliente.seller || "";
+    document.getElementById("rcContatoResponsavel").value =
+      cliente.seller || "";
     document.getElementById("rcContatoStatus").value =
       cliente.reactivation_status || "Não contatado";
     document.getElementById("rcContatoProximo").value = cliente.next_contact_at
       ? rcData(cliente.next_contact_at)
       : "";
-    document.getElementById("rcContatoAgendarRetorno").checked = Boolean(cliente.next_contact_at);
+    document.getElementById("rcContatoAgendarRetorno").checked = Boolean(
+      cliente.next_contact_at,
+    );
     atualizarAgendamentoContatoReativacao();
     renderizarTagsReativacao(cliente.tags.map((tag) => tag.id));
     renderizarHistoricoReativacao(cliente.contacts);
-    document.getElementById("rcCampanhasAtuais").textContent = cliente.campaigns?.length
+    document.getElementById("rcCampanhasAtuais").textContent = cliente.campaigns
+      ?.length
       ? `Participa de: ${cliente.campaigns.map((campanha) => campanha.nome).join(", ")}.`
       : "Este cliente ainda não participa de campanhas.";
   }
@@ -696,12 +804,20 @@ async function registrarContatoReativacao() {
     next_action: document.getElementById("rcContatoAcao").value.trim(),
     notes: document.getElementById("rcContatoObs").value.trim(),
     schedule_return: document.getElementById("rcContatoAgendarRetorno").checked,
-    next_contact_at: rcCompletarData(document.getElementById("rcContatoProximo").value),
+    next_contact_at: rcCompletarData(
+      document.getElementById("rcContatoProximo").value,
+    ),
   };
-  if (!dados.responsible || !dados.notes || (dados.schedule_return && (!dados.next_action || !dados.next_contact_at))) {
-    alert(dados.schedule_return
-      ? "Preencha responsável, próxima ação, observação e data de retorno."
-      : "Preencha responsável e observação.");
+  if (
+    !dados.responsible ||
+    !dados.notes ||
+    (dados.schedule_return && (!dados.next_action || !dados.next_contact_at))
+  ) {
+    alert(
+      dados.schedule_return
+        ? "Preencha responsável, próxima ação, observação e data de retorno."
+        : "Preencha responsável e observação.",
+    );
     return;
   }
   try {
