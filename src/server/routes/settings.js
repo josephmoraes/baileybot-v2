@@ -16,6 +16,11 @@ router.put("/bot", (req, res) => {
     }
 });
 router.get("/sellers", (req, res) => res.json(settingsService.listarVendedores()));
+router.get("/seller-profiles", (req, res) => res.json(settingsService.listarPerfisVendedores()));
+router.put("/seller-profiles/:name", (req, res) => {
+    try { res.json(settingsService.salvarPerfilVendedor({ name: req.params.name, phone: req.body.phone })); }
+    catch (erro) { res.status(400).json({ error: erro.message }); }
+});
 router.post("/sellers", (req, res) => {
     try { res.status(201).json(settingsService.adicionarVendedor(req.body.name)); }
     catch (erro) { res.status(400).json({ error: erro.message }); }

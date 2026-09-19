@@ -24,6 +24,19 @@ async function distCarregarLista() {
         .join("")
     : '<tr><td colspan="5" class="text-center text-secondary py-4">Nenhum cliente distribuído.</td></tr>';
 }
+async function distAbrirPreviewEnvio(seller) {
+  document.getElementById("distEnvioVendedor").value = seller;
+  document.getElementById("distEnvioData").value = new Date().toISOString().slice(0, 10);
+  document.getElementById("distEnvioPreview").textContent = "Escolha a data para gerar a prévia.";
+  bootstrap.Modal.getOrCreateInstance(document.getElementById("distEnvioModal")).show();
+}
+async function distAtualizarPreviewEnvio() {
+  const seller = document.getElementById("distEnvioVendedor").value;
+  const contact_date = document.getElementById("distEnvioData").value;
+  if (!contact_date) return;
+  const dados = await distJson("/api/reactivation/assignments/seller-message/preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ seller, contact_date }) });
+  document.getElementById("distEnvioPreview").textContent = dados.message;
+}
 async function distPesquisar() {
   const busca = document.getElementById("distPesquisa").value.trim();
   const itens = await distJson(
@@ -78,6 +91,8 @@ window.inicializarDistribuicaoReativacao = async () => {
   document
     .getElementById("distFiltroVendedor")
     .insertAdjacentHTML("beforeend", options);
+  const perfis = await distJson("/api/settings/seller-profiles");
+  document.getElementById("distEnviosVendedores").innerHTML = perfis.map(perfil => `<button type="button" class="btn btn-outline-success" data-dist-send-seller="${distSeguro(perfil.name)}"><i class="bi bi-whatsapp me-1"></i>Enviar contatos: ${distSeguro(perfil.name)}</button>`).join("");
   document.getElementById("distVendedor").onchange = () =>
     distCarregarRecomendacoes().catch((error) => alert(error.message));
   document
@@ -114,6 +129,17 @@ window.inicializarDistribuicaoReativacao = async () => {
   };
   document.getElementById("distFiltroVendedor").onchange = () =>
     distCarregarLista().catch((error) => alert(error.message));
+  document.getElementById("distEnviosVendedores").onclick = event => {
+    const botao = event.target.closest("[data-dist-send-seller]");
+    if (botao) distAbrirPreviewEnvio(botao.dataset.distSendSeller);
+  };
+  document.getElementById("distEnvioData").onchange = () => distAtualizarPreviewEnvio().catch(error => alert(error.message));
+  document.getElementById("distConfirmarEnvio").onclick = async () => {
+    await distAtualizarPreviewEnvio();
+    const resultado = await distJson("/api/reactivation/assignments/seller-message/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ seller: document.getElementById("distEnvioVendedor").value, contact_date: document.getElementById("distEnvioData").value }) });
+    bootstrap.Modal.getInstance(document.getElementById("distEnvioModal")).hide();
+    alert(`${resultado.total} contato(s) enviado(s) para ${resultado.seller}.`);
+  };
   document.getElementById("distLista").onclick = async (event) => {
     const editar = event.target.closest("[data-dist-edit]");
     if (editar) {

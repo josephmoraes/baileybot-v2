@@ -1,7 +1,6 @@
 import makeWASocket, {
     DisconnectReason,
-    useMultiFileAuthState,
-    fetchLatestBaileysVersion   // adicionar isso
+    useMultiFileAuthState
 } from "@whiskeysockets/baileys";
 
 import pino from "pino";
@@ -46,10 +45,7 @@ class WhatsAppService {
         const { state, saveCreds } =
             await useMultiFileAuthState(authPath);
 
-        const { version } = await fetchLatestBaileysVersion(); // adicionar
-
         this.sock = makeWASocket({
-            version,              // adicionar
             auth: state,
             logger: pino({ level: "silent" })
         });
@@ -61,6 +57,10 @@ class WhatsAppService {
         this.sock.ev.on("connection.update", async (update) => {
 
             const { connection, lastDisconnect, qr } = update;
+
+                if (connection === "connecting") {
+                    this.status = "connecting";
+                }
 
                 if (qr) {
 

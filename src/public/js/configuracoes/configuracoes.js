@@ -316,9 +316,16 @@ async function carregarVendedoresConfiguracoes() {
   seletor.value = vendedores.includes(selecionado)
     ? selecionado
     : vendedores[0] || "";
-  document.getElementById("configListaVendedores").innerHTML = vendedores
-    .map((nome) => `<span class="badge bg-secondary p-2">${nome}</span>`)
-    .join("");
+  const perfis = await (await fetch("/api/settings/seller-profiles")).json();
+  document.getElementById("configListaVendedores").innerHTML = perfis.map((perfil) => `<div class="input-group input-group-sm" style="max-width:340px"><span class="input-group-text">${perfil.name}</span><input class="form-control" data-seller-phone="${perfil.name}" value="${perfil.phone || ""}" placeholder="WhatsApp com DDD"><button class="btn btn-outline-success" data-save-seller="${perfil.name}">Salvar</button></div>`).join("");
+  document.getElementById("configListaVendedores").onclick = async event => {
+    const botao = event.target.closest("[data-save-seller]");
+    if (!botao) return;
+    const phone = document.querySelector(`[data-seller-phone="${botao.dataset.saveSeller}"]`).value;
+    const resposta = await fetch(`/api/settings/seller-profiles/${encodeURIComponent(botao.dataset.saveSeller)}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone }) });
+    const dados = await resposta.json(); if (!resposta.ok) throw new Error(dados.error || "Não foi possível salvar o telefone.");
+    mostrarAlertaConfiguracoes("Telefone do vendedor salvo.", "success");
+  };
 }
 
 async function adicionarVendedorConfiguracoes() {
@@ -333,6 +340,9 @@ async function adicionarVendedorConfiguracoes() {
   if (!resposta.ok)
     throw new Error(dados.error || "Não foi possível adicionar o vendedor.");
   document.getElementById("configNovoVendedor").value = "";
+  const telefone = document.getElementById("configTelefoneVendedor").value;
+  if (telefone) await fetch(`/api/settings/seller-profiles/${encodeURIComponent(dados[dados.length - 1])}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: telefone }) });
+  document.getElementById("configTelefoneVendedor").value = "";
   await carregarVendedoresConfiguracoes();
   mostrarAlertaConfiguracoes(
     "Vendedor cadastrado. Os próximos relatórios importados já usarão esta validação.",

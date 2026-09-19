@@ -22,6 +22,22 @@ async function carregarTemplatesCreditos() {
     container.querySelectorAll("[data-save-credit-template]").forEach(button => button.addEventListener("click", () => salvarTemplateCredito(button.dataset.saveCreditTemplate).catch(erro => alert(erro.message))));
 }
 
+async function carregarTemplateContatosVendedor() {
+    const campo = document.getElementById("templateContatosVendedor");
+    if (!campo) return;
+    const resposta = await fetch("/api/reactivation/assignments/seller-message/template");
+    const dados = await resposta.json();
+    if (!resposta.ok) throw new Error(dados.error || "Não foi possível carregar a mensagem.");
+    campo.value = dados.message;
+}
+
+async function salvarTemplateContatosVendedor() {
+    const resposta = await fetch("/api/reactivation/assignments/seller-message/template", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: document.getElementById("templateContatosVendedor").value }) });
+    const dados = await resposta.json();
+    if (!resposta.ok) throw new Error(dados.error || "Não foi possível salvar a mensagem.");
+    alert("Mensagem dos contatos atribuídos atualizada.");
+}
+
 async function salvarTemplateCredito(key) {
     const mensagem = document.querySelector(`[data-credit-template="${key}"]`)?.value.trim();
     const resposta = await fetch(`/api/messages/credit-templates/${key}`, {
@@ -218,6 +234,8 @@ function inicializarTemplates() {
     document
         .getElementById("btnSalvarTemplate")
         ?.addEventListener("click", salvarTemplate);
+    carregarTemplateContatosVendedor().catch(erro => alert(erro.message));
+    document.getElementById("salvarTemplateContatosVendedor")?.addEventListener("click", () => salvarTemplateContatosVendedor().catch(erro => alert(erro.message)));
 
 }
 

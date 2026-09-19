@@ -1,5 +1,6 @@
 import express from "express";
 import reactivationService from "../../services/reactivationService.js";
+import settingsService from "../../services/settingsService.js";
 
 const router = express.Router();
 const responder = funcao => (req, res) => { try { res.json(funcao(req, res)); } catch (erro) { res.status(/não encontrado/i.test(erro.message) ? 404 : 400).json({ error: erro.message }); } };
@@ -16,9 +17,13 @@ router.patch("/clients/:id/operation", responder(req => reactivationService.atua
 router.post("/clients/:id/contacts", responder(req => reactivationService.registrarContato(req.params.id, req.body)));
 router.get("/assignments/candidates", responder(req => reactivationService.clientesParaDistribuir(req.query.search, req.query.seller)));
 router.get("/assignments", responder(req => reactivationService.distribuicoes(req.query)));
+router.get("/assignments/seller-message/template", responder(() => ({ message: settingsService.obterTemplateContatosVendedor() })));
+router.put("/assignments/seller-message/template", responder(req => ({ message: settingsService.salvarTemplateContatosVendedor(req.body.message) })));
 router.post("/assignments", responder(req => reactivationService.distribuirClientes(req.body)));
 router.patch("/assignments/:id/complete", responder(req => reactivationService.concluirDistribuicao(req.params.id)));
 router.delete("/assignments/:id", responder(req => reactivationService.removerDistribuicao(req.params.id)));
+router.post("/assignments/seller-message/preview", responder(req => reactivationService.contatosParaEnvioVendedor(req.body.seller, req.body.contact_date)));
+router.post("/assignments/seller-message/send", async (req, res) => { try { res.json(await reactivationService.enviarContatosVendedor(req.body.seller, req.body.contact_date)); } catch (erro) { res.status(400).json({ error: erro.message }); } });
 router.get("/tags", responder(() => reactivationService.listarTags()));
 router.post("/tags", responder(req => reactivationService.criarTag(req.body)));
 router.get("/reports", responder(() => reactivationService.listarRelatorios()));

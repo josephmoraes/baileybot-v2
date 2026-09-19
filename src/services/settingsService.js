@@ -9,6 +9,18 @@ const VENDEDORES_PADRAO = ["Alisson", "Noberto", "Aldener", "Letícia", "Joseph"
 const chaveVendedor = valor => String(valor ?? "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 class SettingsService {
+    obterTemplateContatosVendedor() {
+        return this.obterValor("seller_assignment_message", "Olá, {vendedor}!\n\nContatos atribuídos para {data_contato}:\n\n{lista_contatos}\n\nBom trabalho!");
+    }
+
+    salvarTemplateContatosVendedor(mensagem) {
+        const texto = String(mensagem ?? "").trim();
+        if (!texto) throw new Error("Informe a mensagem do vendedor.");
+        if (!texto.includes("{lista_contatos}")) throw new Error("A mensagem precisa conter {lista_contatos}.");
+        db.prepare(`INSERT INTO app_settings(key,value,updated_at) VALUES('seller_assignment_message',?,CURRENT_TIMESTAMP)
+            ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP`).run(texto);
+        return this.obterTemplateContatosVendedor();
+    }
     obterValor(chave, padrao = "") {
         return db.prepare("SELECT value FROM app_settings WHERE key = ?").get(chave)?.value ?? padrao;
     }
@@ -54,6 +66,29 @@ class SettingsService {
         db.prepare(`INSERT INTO app_settings(key,value,updated_at) VALUES('registered_sellers',?,CURRENT_TIMESTAMP)
             ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP`).run(JSON.stringify([...adicionais, nome]));
         return this.listarVendedores();
+    }
+
+    listarPerfisVendedores() {
+        let telefones = [];
+        try { telefones = JSON.parse(this.obterValor("seller_profiles", "[]")); } catch { telefones = []; }
+        return this.listarVendedores().filter(nome => nome !== "Outros").map(nome => {
+            const perfil = Array.isArray(telefones) && telefones.find(item => chaveVendedor(item?.name) === chaveVendedor(nome));
+            return { name: nome, phone: perfil?.phone || "" };
+        });
+    }
+
+    salvarPerfilVendedor(dados = {}) {
+        const name = this.normalizarVendedor(dados.name);
+        if (name === "Outros") throw new Error("Escolha um vendedor cadastrado.");
+        const phone = String(dados.phone ?? "").replace(/\D/g, "");
+        if (phone && !/^(?:55)?\d{10,11}$/.test(phone)) throw new Error("Informe um telefone válido com DDD.");
+        let perfis = [];
+        try { perfis = JSON.parse(this.obterValor("seller_profiles", "[]")); } catch { perfis = []; }
+        perfis = (Array.isArray(perfis) ? perfis : []).filter(item => chaveVendedor(item?.name) !== chaveVendedor(name));
+        perfis.push({ name, phone });
+        db.prepare(`INSERT INTO app_settings(key,value,updated_at) VALUES('seller_profiles',?,CURRENT_TIMESTAMP)
+            ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP`).run(JSON.stringify(perfis));
+        return this.listarPerfisVendedores().find(item => item.name === name);
     }
 
     salvarBot(dados) {

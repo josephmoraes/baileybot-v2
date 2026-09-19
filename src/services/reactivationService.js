@@ -5,6 +5,7 @@ import customerService, { normalizarCodigoOg1 } from "./customerService.js";
 import importHistoryService from "./importHistoryService.js";
 import { calcularScoreReativacao, resumoCliente } from "./customerAnalyticsService.js";
 import settingsService from "./settingsService.js";
+import whatsappService from "./whatsappService.js";
 
 export const STATUS_REATIVACAO = ["Não contatado", "Entrar em contato", "Contatado", "Aguardando retorno", "Negociação", "Reativado", "Sem interesse"];
 const statusReativacao = () => STATUS_REATIVACAO;
@@ -356,6 +357,31 @@ class ReactivationService {
     removerDistribuicao(id) {
         if (!db.prepare("UPDATE reactivation_assignments SET removed_at=CURRENT_TIMESTAMP WHERE id=? AND status='pendente' AND removed_at IS NULL").run(id).changes) throw new Error("Distribuição pendente não encontrada.");
         return { success: true };
+    }
+
+    contatosParaEnvioVendedor(seller, contactDate) {
+        const vendedor = settingsService.normalizarVendedor(seller);
+        if (vendedor === "Outros") throw new Error("Vendedor não encontrado.");
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(contactDate))) throw new Error("Informe a data do contato.");
+        const perfil = settingsService.listarPerfisVendedores().find(item => item.name === vendedor);
+        if (!perfil?.phone) throw new Error("Cadastre o telefone do vendedor antes de enviar.");
+        const clientes = db.prepare(`SELECT u.customer_code,COALESCE(NULLIF(u.company_name,''),u.name) customer,u.jid
+            FROM reactivation_assignments a JOIN users u ON u.id=a.user_id
+            WHERE a.seller=? AND a.status='pendente' AND a.removed_at IS NULL ORDER BY a.assigned_at`).all(vendedor);
+        if (!clientes.length) throw new Error("Este vendedor não possui contatos pendentes.");
+        const dataBr = String(contactDate).split("-").reverse().join("/");
+        const linhas = clientes.map((cliente, indice) => `${indice + 1}. ${cliente.customer || cliente.customer_code}\nContato: ${cliente.jid ? cliente.jid.replace("@s.whatsapp.net", "") : "Não cadastrado"}\nData do contato: ${dataBr}`);
+        const message = settingsService.obterTemplateContatosVendedor()
+            .replaceAll("{vendedor}", vendedor)
+            .replaceAll("{data_contato}", dataBr)
+            .replaceAll("{lista_contatos}", linhas.join("\n\n"));
+        return { seller: vendedor, phone: perfil.phone, contact_date: contactDate, contacts: clientes, message };
+    }
+
+    async enviarContatosVendedor(seller, contactDate) {
+        const envio = this.contatosParaEnvioVendedor(seller, contactDate);
+        await whatsappService.enviarMensagem(settingsService.normalizarJid(envio.phone), envio.message);
+        return { success: true, seller: envio.seller, total: envio.contacts.length };
     }
 
     listarTags() { return db.prepare("SELECT id,name,color FROM reactivation_tags ORDER BY name").all(); }
